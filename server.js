@@ -3,6 +3,8 @@ const axios = require('axios');
 const dotenv = require('dotenv');
 const path = require('path');
 
+const Papa =require('papaparse');
+
 // Load environment variables
 dotenv.config();
 
@@ -23,7 +25,7 @@ app.get('/', (req, res) => {
 
 app.post('/analyze', async (req, res) => {
     try {
-        const { videoUrl, rubric, evaluationMethod, llmProvider } = req.body;
+        const { videoUrl, rubric, sheetUrl, evaluationMethod, llmProvider } = req.body;
         
         // Extract video ID from URL
         const videoId = extractVideoId(videoUrl);
@@ -34,10 +36,46 @@ app.post('/analyze', async (req, res) => {
         // Parse and validate the rubric JSON
         let parsedRubric;
         try {
-            parsedRubric = JSON.parse(rubric);
+            // Check if Google Sheet URL is provided and not empty
+            if (sheetUrl && sheetUrl.trim() !== '') {
+                // Fetch and parse rubric from Google Sheet (this takes priority) using PapaParse
+                //parsedRubric = await fetchRubricFromSheetPapa(sheetUrl);
+                
+                // Fetch and parse rubric from Google Sheet (this takes priority) using Custom function
+                parsedRubric = await fetchRubricFromSheet(sheetUrl);
+                
+
+            } else if (rubric && rubric.trim() !== '') {
+                // Use manual JSON rubric
+                parsedRubric = JSON.parse(rubric);
+            } else {
+                // No rubric provided
+                return res.status(400).json({ error: 'Either a rubric JSON or Google Sheet URL must be provided' });
+            }
+            
+            // Validate that we have a rubric
+            if (!parsedRubric) {
+                return res.status(400).json({ error: 'Failed to obtain a valid rubric' });
+            }
+            
+            // // Additional validation for rubric structure
+            // const rubricArray = Array.isArray(parsedRubric) ? parsedRubric : [parsedRubric];
+            // if (rubricArray.length === 0) {
+            //     return res.status(400).json({ error: 'Rubric contains no criteria' });
+            // }
+            
+            // // Check that each criteria has required fields
+            // for (const criteria of rubricArray) {
+            //     if (!criteria[" - Criteria"]) {
+            //         return res.status(400).json({ error: 'Each rubric criteria must have a " - Criteria" field' });
+            //     }
+            //     if (typeof criteria["Weight (%)"] !== 'number' || criteria["Weight (%)"] < 0 || criteria["Weight (%)"] > 1) {
+            //         return res.status(400).json({ error: 'Each rubric criteria must have a valid "Weight (%)" between 0 and 1' });
+            //     }
+            // }
         } catch (parseError) {
-            console.error('Error parsing rubric JSON:', parseError);
-            return res.status(400).json({ error: 'Invalid rubric JSON format: ' + parseError.message });
+            console.error('Error parsing or validating rubric:', parseError);
+            return res.status(400).json({ error: 'Invalid rubric format: ' + parseError.message });
         }
         
         // Get analysis directly from generative model
@@ -50,7 +88,7 @@ app.post('/analyze', async (req, res) => {
         });
     } catch (error) {
         console.error('Error analyzing video:', error);
-        res.status(500).json({ error: 'An error occurred while analyzing the video' });
+        res.status(500).json({ error: 'An error occurred while analyzing the video: ' + error.message });
     }
 });
 
@@ -472,6 +510,179 @@ function getMockData(rubricJson) {
     };
 }
 
+//Sachin I : 2025-10-10 : Use papaparse to parse csv, instead of downloading entire csv and then parsing
+async function fetchRubricFromSheetPapa(sheetUrl) {
+
+    // Validate URL format
+        if (!sheetUrl || typeof sheetUrl !== 'string') {
+            throw new Error('Invalid Google Sheet URL provided');
+        }
+        // Convert Google Sheet URL to CSV export URL
+        // const csvPapa = Papa.parse(sheetUrl, {
+        //     download: true,
+        //     header: true,
+        //     dynamicTyping: true // Automatically converts numbers, booleans, and null
+        //     });
+
+        // Fetch CSV data with timeout
+        const response = await axios.get(sheetUrl, { timeout: 10000 });
+        
+        // Check if response is valid
+        if (!response.data) {
+            throw new Error('Empty response from Google Sheets');
+        }
+        
+        // Check if response contains HTML (indicating an error page)
+        if (response.data.trim().startsWith('<')) {
+            throw new Error('Unable to access Google Sheet. Please ensure the sheet is publicly accessible.');
+        }
+
+        const csvPapa = Papa.parse(response.data, {
+            header: true,
+            dynamicTyping: true // Automatically converts numbers, booleans, and null
+            });
+
+            return csvPapa;
+}
+
+// Function to fetch and parse rubric from Google Sheet
+async function fetchRubricFromSheet(sheetUrl) {
+    try {
+        // Validate URL format
+        if (!sheetUrl || typeof sheetUrl !== 'string') {
+            throw new Error('Invalid Google Sheet URL provided');
+        }
+        
+        // Convert Google Sheet URL to CSV export URL
+        const csvUrl = convertSheetUrlToCsv(sheetUrl);
+        
+        // Fetch CSV data with timeout
+        const response = await axios.get(csvUrl, { timeout: 10000 });
+        
+        // Check if response is valid
+        if (!response.data) {
+            throw new Error('Empty response from Google Sheets');
+        }
+        
+        // Check if response contains HTML (indicating an error page)
+        if (response.data.trim().startsWith('<')) {
+            throw new Error('Unable to access Google Sheet. Please ensure the sheet is publicly accessible.');
+        }
+        
+        // Parse CSV to JSON
+        //const rubricJson = parseCsvToJson(response.data);
+
+        // // Validate parsed rubric
+        // if (!rubricJson || (Array.isArray(rubricJson) && rubricJson.length === 0)) {
+        //     throw new Error('Parsed rubric is empty or invalid');
+        // }
+
+        //return rubricJson;
+
+        const csvPapa = Papa.parse(response.data, {
+            header: true,
+            dynamicTyping: true // Automatically converts numbers, booleans, and null
+            });
+        
+        // Validate parsed rubric
+        if (!csvPapa || (Array.isArray(csvPapa) && csvPapa.length === 0)) {
+            throw new Error('Parsed rubric is empty or invalid');
+        }
+        return csvPapa;
+        
+    } catch (error) {
+        console.error('Error fetching or parsing Google Sheet:', error);
+        
+        // Provide more specific error messages
+        if (error.code === 'ENOTFOUND') {
+            throw new Error('Unable to connect to Google Sheets. Please check your internet connection.');
+        } else if (error.code === 'ECONNABORTED') {
+            throw new Error('Request to Google Sheets timed out. Please try again.');
+        } else if (error.response && error.response.status === 404) {
+            throw new Error('Google Sheet not found. Please check the URL.');
+        } else if (error.response && error.response.status === 403) {
+            throw new Error('Access denied to Google Sheet. Please ensure the sheet is publicly accessible.');
+        }
+        
+        throw new Error('Failed to fetch or parse Google Sheet: ' + error.message);
+    }
+}
+
+// Function to convert Google Sheet URL to CSV export URL
+function convertSheetUrlToCsv(sheetUrl) {
+    try {
+        const url = new URL(sheetUrl);
+        
+        // Validate it's a Google Sheets URL
+        if (!url.hostname.includes('docs.google.com')) {
+            throw new Error('Not a valid Google Sheets URL');
+        }
+        
+        const pathParts = url.pathname.split('/');
+        
+        // Find the spreadsheet ID (should be the 4th part in the path)
+        const spreadsheetIdIndex = pathParts.findIndex(part => part === 'd');
+        if (spreadsheetIdIndex === -1 || spreadsheetIdIndex + 1 >= pathParts.length) {
+            throw new Error('Unable to extract spreadsheet ID from URL');
+        }
+        
+        const spreadsheetId = pathParts[spreadsheetIdIndex + 1];
+        if (!spreadsheetId) {
+            throw new Error('Invalid spreadsheet ID in URL');
+        }
+        
+        // Extract sheet ID (gid) if present
+        let gid = '0'; // Default to first sheet
+        if (url.searchParams.has('gid')) {
+            gid = url.searchParams.get('gid');
+        }
+        
+        // Construct CSV export URL
+        return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
+    } catch (error) {
+        if (error instanceof TypeError) {
+            throw new Error('Invalid URL format');
+        }
+        throw error;
+    }
+}
+
+function parseCsvToJson(csvData) {
+    try {
+        // Split CSV into lines
+        const lines = csvData.trim().split('\n');
+        
+        // Extract headers (first line)
+        const headers = lines[0];
+        
+        // Process data rows
+          var jsonData = [];
+        
+for (var i = 1; i < lines.length; i++) {
+    var row = lines[i];
+    var obj = {};
+    for (var j = 0; j < headers.length; j++) {
+      obj[headers[j]] = row[j];
+    }
+    jsonData.push(obj);
+  }       
+        // Return as array if multiple criteria, or single object if only one
+        return JSON.stringify(jsonData, null, 2);
+    
+    } catch (error) {
+        throw new Error('Failed to parse CSV data: ' + error.message);
+    }
+}
+
+
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+// Export functions for testing
+module.exports = {
+    parseCsvToJson,
+    convertSheetUrlToCsv,
+    fetchRubricFromSheet,
+    fetchRubricFromSheetPapa
+};
