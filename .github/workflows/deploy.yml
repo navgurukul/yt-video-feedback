@@ -1,4 +1,4 @@
-name: 🚀 Deploy to EC2 (yt-video-feedback)
+name: Deploy to EC2
 
 on:
   push:
@@ -7,62 +7,28 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to EC2 Server
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📦 Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🔑 Setup SSH for EC2
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H 13.200.252.120 >> ~/.ssh/known_hosts
 
-      - name: 🚀 Deploy via SSH
+      - name: Test SSH connection
+        run: ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@13.200.252.120 "echo '✅ SSH Connected Successfully!'"
+
+      - name: Deploy to EC2
         run: |
           ssh -i ~/.ssh/id_rsa ubuntu@13.200.252.120 << 'EOF'
-            set -Eeuo pipefail
-
-            APP_DIR="/home/ubuntu/yt-video-feedback"
-            BRANCH="master"
-            PM2_NAME="yt-video-feedback"
-
-            echo ">>> Starting deployment on \$(date)"
-
-            cd "$APP_DIR"
-
-            echo ">>> Fetching latest code..."
-            git fetch origin $BRANCH
-            git reset --hard origin/$BRANCH
-
-            # If using nvm, load it
-            if [ -s "$HOME/.nvm/nvm.sh" ]; then
-              . "$HOME/.nvm/nvm.sh"
-              nvm use --lts || true
-            fi
-
-            echo ">>> Installing dependencies (flex mode)..."
-            npm ci --omit=dev || npm install --omit=dev
-
-            echo ">>> Ensuring build tools exist..."
-            npm install --save-dev typescript ts-node || true
-
-            echo ">>> Running migrations (if defined)..."
-            npm run db:push || true
-
-            echo ">>> Building project (optional)..."
-            npm run build || true
-
-            echo ">>> Restarting PM2..."
-            if pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
-              pm2 reload "$PM2_NAME"
-            else
-              pm2 start npm --name "$PM2_NAME" -- start
-            fi
-
-            pm2 save
-            echo "✅ Deployment completed successfully on \$(date)"
+            cd ~/yt-video-feedback
+            git fetch origin master
+            git reset --hard origin/master
+            npm install --omit=dev
+            pm2 restart yt-video-feedback || pm2 start npm --name "yt-video-feedback" -- start
           EOF
