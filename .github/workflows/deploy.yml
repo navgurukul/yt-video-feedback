@@ -13,29 +13,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ---- SSH Setup ----
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-
-          # -------- OPTION 1: Raw PEM secret --------
-          # If your GitHub secret EC2_SSH_KEY contains the raw .pem content:
+          # Write the raw PEM key from GitHub Secrets
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-
-          # -------- OPTION 2: Base64 PEM secret --------
-          # Uncomment if your secret is base64-encoded
-          # echo "${{ secrets.EC2_SSH_KEY }}" | base64 --decode > ~/.ssh/id_rsa
-
           chmod 600 ~/.ssh/id_rsa
-          # Add EC2 host to known_hosts to avoid prompt
           ssh-keyscan -H 13.232.43.19 >> ~/.ssh/known_hosts
 
-      # ---- Test SSH Connection ----
       - name: Test SSH connection
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@13.232.43.19 "echo '✅ SSH Connected Successfully!'"
 
-      # ---- Deploy ----
       - name: Deploy to EC2
         run: |
           ssh -i ~/.ssh/id_rsa ubuntu@13.232.43.19 << 'EOF'
