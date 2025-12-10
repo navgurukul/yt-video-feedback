@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Enhanced Neo-Brutalist Design System - Vibrant Pastel colors */
+    --background: 300 100% 96%; /* Lighter pink/lavender background */
+    --foreground: 0 0% 5%; /* Deep black text for maximum contrast */
+
+    --card: 0 0% 100%; /* Pure white cards */
+    --card-foreground: 0 0% 5%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 5%;
+
+    --primary: 320 100% 85%; /* More vibrant pink #FFB3E6 */
+    --primary-foreground: 0 0% 5%;
+
+    --secondary: 150 100% 80%; /* Brighter mint green #99FFB8 */
+    --secondary-foreground: 0 0% 5%;
+
+    --muted: 300 40% 90%;
+    --muted-foreground: 0 0% 20%; /* Dark for better readability */
+
+    --accent: 260 100% 85%; /* Vibrant lilac #D4B3FF */
+    --accent-foreground: 0 0% 5%;
+
+    --destructive: 0 85% 60%; /* Bright red */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 5%; /* Deep black borders */
+    --input: 0 0% 100%;
+    --ring: 320 100% 85%;
+
+    --radius: 0rem; /* No rounded corners - pure brutalist */
+
+    /* Enhanced 3D brutal shadows */
+    --brutal-shadow: 8px 8px 0px 0px rgba(13, 13, 13, 1);
+    --brutal-shadow-sm: 4px 4px 0px 0px rgba(13, 13, 13, 1);
+    --brutal-shadow-lg: 12px 12px 0px 0px rgba(13, 13, 13, 1);
+    --brutal-shadow-xl: 16px 16px 0px 0px rgba(13, 13, 13, 1);
+    
+    /* Vibrant glow effects */
+    --glow-primary: 0 0 40px hsl(var(--primary) / 0.8);
+    --glow-secondary: 0 0 40px hsl(var(--secondary) / 0.8);
+    --glow-accent: 0 0 40px hsl(var(--accent) / 0.8);
+    --glow-strong: 0 0 60px hsl(var(--primary) / 1);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-bold;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-black;
+  }
+}
