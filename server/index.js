@@ -102,7 +102,8 @@ app.post('/evaluate', async (req, res) => {
   }],
   "generationConfig": {
     "temperature": 0.0,
-    "maxOutputTokens": 1000
+    "maxOutputTokens": 500,
+    "responseMimeType": "application/json"
   }
 }
     // - OAuth2 access tokens typically start with "ya29." (or are JWT-like) and must be sent as a Bearer token.
@@ -247,24 +248,7 @@ app.post('/evaluate', async (req, res) => {
 app.post('/store-evaluation', async (req, res) => {
   try {
     const { userId, userEmail, videoUrl, videoType, evaluationData, videoDetails, projectType, pageName } = req.body;
-
-    console.log('Received request to store evaluation:', { userId, userEmail, videoUrl, videoDetails, projectType, pageName });
-    console.log('Full request body:', JSON.stringify(req.body, null, 2));
-    console.log('Evaluation data:', JSON.stringify(evaluationData, null, 2));
     
-    // Log the structure of evaluation_result specifically
-    if (evaluationData && evaluationData.evaluation_result) {
-      console.log('Evaluation result structure:', JSON.stringify(evaluationData.evaluation_result, null, 2));
-      
-      // Log accuracy and abilityToExplain separately
-      if (evaluationData.evaluation_result.accuracy) {
-        console.log('Accuracy evaluation:', JSON.stringify(evaluationData.evaluation_result.accuracy, null, 2));
-      }
-      if (evaluationData.evaluation_result.abilityToExplain) {
-        console.log('Ability evaluation:', JSON.stringify(evaluationData.evaluation_result.abilityToExplain, null, 2));
-      }
-    }
-
     if (!userId || !userEmail || !videoUrl) {
       return res.status(400).json({ error: 'Missing required fields: userId, userEmail, videoUrl' });
     }
@@ -277,200 +261,20 @@ app.post('/store-evaluation', async (req, res) => {
       const accuracyEvaluation = evaluationData.evaluation_result.accuracy;
       const abilityEvaluation = evaluationData.evaluation_result.abilityToExplain;
       
-      // Calculate accuracy score and feedback
-      // Prefer numeric scores when provided; otherwise store textual feedback and use null for numeric score
-      let accuracyScore = null;
-      let accuracyFeedback = '';
-      
-      // Extract accuracy score and feedback from the evaluation result
-      if (accuracyEvaluation) {
-        console.log('Processing accuracy evaluation:', JSON.stringify(accuracyEvaluation, null, 2));
-        try {
-          // Try to get score from the first criterion
-          if (accuracyEvaluation.criteria && accuracyEvaluation.criteria.length > 0) {
-            // Ensure score is between 1-10
-            const rawScore = accuracyEvaluation.criteria[0].score;
-            accuracyScore = (rawScore >= 1 && rawScore <= 10) ? rawScore : 
-                           (rawScore > 10 ? 10 : 
-                           (rawScore < 1 ? 1 : rawScore)) || 1;
-            accuracyFeedback = accuracyEvaluation.criteria[0].feedback || '';
-          } 
-          // Fallback to overallScore if criteria is not available
-          else if (accuracyEvaluation.overallScore !== undefined) {
-            // Ensure score is between 1-10
-            const rawScore = accuracyEvaluation.overallScore;
-            accuracyScore = (rawScore >= 1 && rawScore <= 10) ? rawScore : 
-                           (rawScore > 10 ? 10 : 
-                           (rawScore < 1 ? 1 : rawScore)) || 1;
-            accuracyFeedback = accuracyEvaluation.overallFeedback || '';
-          }
-          // Handle text-based evaluations
-          else if (accuracyEvaluation.text) {
-            console.log('Processing text-based accuracy evaluation');
-            // Try to extract JSON from markdown code block
-            const codeBlockMatch = accuracyEvaluation.text.match(/```json\s*([\s\S]*?)\s*```/);
-            if (codeBlockMatch) {
-              const jsonText = codeBlockMatch[1];
-              console.log('Extracted JSON text from accuracy evaluation:', jsonText);
-              const parsedJson = JSON.parse(jsonText);
-              console.log('Parsed JSON from accuracy evaluation:', JSON.stringify(parsedJson, null, 2));
-              
-              // Look for content_evaluation object (based on the actual structure you provided)
-              if (parsedJson.content_evaluation) {
-                const ce = parsedJson.content_evaluation;
-                // Create a composite feedback from the various fields
-                const feedbackParts = [];
-                if (ce.accuracy) feedbackParts.push(ce.accuracy);
-                if (ce.completeness) feedbackParts.push(ce.completeness);
-                if (ce.clarity) feedbackParts.push(ce.clarity);
-                if (ce.depth) feedbackParts.push(ce.depth);
-                if (ce.engagement) feedbackParts.push(ce.engagement);
-                
-                accuracyFeedback = feedbackParts.join(' ');
-                // If the model provided a numeric score field, use it; otherwise leave as null
-                if (ce.score !== undefined && !isNaN(Number(ce.score))) {
-                  accuracyScore = Number(ce.score);
-                } else if (parsedJson.overallScore !== undefined && !isNaN(Number(parsedJson.overallScore))) {
-                  accuracyScore = Number(parsedJson.overallScore);
-                } else {
-                  accuracyScore = null;
-                }
-                console.log('Extracted accuracy from content_evaluation:', { accuracyScore, accuracyFeedback });
-              }
-              // Fallback to looking for video_evaluation object (previous structure)
-              else if (parsedJson.video_evaluation) {
-                const ve = parsedJson.video_evaluation;
-                // Create a composite feedback from the various fields
-                const feedbackParts = [];
-                if (ve.relevance_to_content_type) feedbackParts.push(ve.relevance_to_content_type);
-                if (ve.relevance_to_page_details) feedbackParts.push(ve.relevance_to_page_details);
-                
-                // Handle content_coverage object
-                if (ve.content_coverage) {
-                  const cc = ve.content_coverage;
-                  if (cc.build_profile_page_elements) feedbackParts.push(cc.build_profile_page_elements);
-                  
-                  if (cc.image_embedding_attributes && cc.image_embedding_attributes.details) {
-                    feedbackParts.push(cc.image_embedding_attributes.details);
-                  }
-                  
-                  if (cc.section_organization_tags && cc.section_organization_tags.details) {
-                    feedbackParts.push(cc.section_organization_tags.details);
-                  }
-                  
-                  if (cc.unordered_ordered_lists && cc.unordered_ordered_lists.details) {
-                    feedbackParts.push(cc.unordered_ordered_lists.details);
-                  }
-                }
-                
-                accuracyFeedback = feedbackParts.join(' ');
-                // If the model provided numeric fields use them, otherwise leave null
-                if (ve.overallScore !== undefined && !isNaN(Number(ve.overallScore))) {
-                  accuracyScore = Number(ve.overallScore);
-                } else if (ve.score !== undefined && !isNaN(Number(ve.score))) {
-                  accuracyScore = Number(ve.score);
-                } else {
-                  accuracyScore = null;
-                }
-                console.log('Extracted accuracy from video_evaluation:', { accuracyScore, accuracyFeedback });
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to parse accuracy evaluation:', e);
-          // Set default values if parsing fails
-          accuracyScore = null;
-          accuracyFeedback = '';
-        }
-        console.log('Final accuracy values:', { accuracyScore, accuracyFeedback });
-      }
-      
+      // Extract accuracy values: "Yes" or "No" for accuracy, and detailed feedback
+      let concept_explanation_accuracy = null;
+      let concept_explanation_feedback = '';
+
+      concept_explanation_accuracy= accuracyEvaluation.accuracy_evaluation.concept_explanation_accuracy || null;
+      concept_explanation_feedback= accuracyEvaluation.accuracy_evaluation.concept_explanation_feedback || 'no feedback provided';
+    
+
+      let ability_to_explain_evaluation = '';
+      let ability_to_explain_feedback = '';
+
       // Get ability to explain evaluation level and feedback
-      let abilityEvaluationText = '';
-      let abilityFeedback = '';
-      
-      if (abilityEvaluation) {
-        console.log('Processing ability evaluation:', JSON.stringify(abilityEvaluation, null, 2));
-        try {
-          // Extract the level from the evaluation (Beginner, Intermediate, Advanced, Expert)
-          if (abilityEvaluation.criteria && abilityEvaluation.criteria.length > 0) {
-            // The level is in the "name" field of the first criterion
-            abilityEvaluationText = abilityEvaluation.criteria[0].name || '';
-            abilityFeedback = abilityEvaluation.criteria[0].feedback || '';
-          } else if (abilityEvaluation.level) {
-            // Fallback to level property if available
-            abilityEvaluationText = abilityEvaluation.level;
-            abilityFeedback = abilityEvaluation.overallFeedback || '';
-          } 
-          // Handle text-based evaluations
-          else if (abilityEvaluation.text) {
-            console.log('Processing text-based ability evaluation');
-            // Try to extract JSON from markdown code block
-            const codeBlockMatch = abilityEvaluation.text.match(/```json\s*([\s\S]*?)\s*```/);
-            if (codeBlockMatch) {
-              const jsonText = codeBlockMatch[1];
-              console.log('Extracted JSON text from ability evaluation:', jsonText);
-              const parsedJson = JSON.parse(jsonText);
-              console.log('Parsed JSON from ability evaluation:', JSON.stringify(parsedJson, null, 2));
-              
-              // Look for evaluation object (based on the actual structure you provided)
-              if (parsedJson.evaluation) {
-                const evalObj = parsedJson.evaluation;
-                if (evalObj.level) {
-                  abilityEvaluationText = evalObj.level;
-                }
-                if (evalObj.feedback) {
-                  abilityFeedback = evalObj.feedback;
-                }
-                console.log('Extracted ability from evaluation object:', { abilityEvaluationText, abilityFeedback });
-              }
-              // Fallback to looking for level and feedback directly
-              else {
-                if (parsedJson.level) {
-                  abilityEvaluationText = parsedJson.level;
-                }
-                if (parsedJson.feedback) {
-                  abilityFeedback = parsedJson.feedback;
-                }
-                // Also support nested shapes
-                if (!abilityEvaluationText && parsedJson.evaluation && parsedJson.evaluation.level) {
-                  abilityEvaluationText = parsedJson.evaluation.level;
-                }
-                if (!abilityFeedback && parsedJson.evaluation && parsedJson.evaluation.feedback) {
-                  abilityFeedback = parsedJson.evaluation.feedback;
-                }
-                console.log('Extracted ability directly from JSON:', { abilityEvaluationText, abilityFeedback });
-              }
-            } else {
-              // Some responses may not wrap JSON in ```json blocks. Try to extract any JSON object from text.
-              const jsonMatch = abilityEvaluation.text.match(/\{[\s\S]*\}/);
-              if (jsonMatch) {
-                try {
-                  const parsedJson = JSON.parse(jsonMatch[0]);
-                  if (parsedJson.level) abilityEvaluationText = parsedJson.level;
-                  if (parsedJson.feedback) abilityFeedback = parsedJson.feedback;
-                  if (!abilityEvaluationText && parsedJson.evaluation && parsedJson.evaluation.level) abilityEvaluationText = parsedJson.evaluation.level;
-                  if (!abilityFeedback && parsedJson.evaluation && parsedJson.evaluation.feedback) abilityFeedback = parsedJson.evaluation.feedback;
-                  console.log('Extracted ability from inline JSON:', { abilityEvaluationText, abilityFeedback });
-                } catch (e) {
-                  console.warn('Failed to parse inline JSON from abilityEvaluation.text', e);
-                }
-              }
-            }
-          } else {
-            // If we can't extract the level, store the raw JSON but log a warning
-            abilityEvaluationText = JSON.stringify(abilityEvaluation);
-            abilityFeedback = abilityEvaluation.overallFeedback || '';
-            console.warn('Could not extract ability level from evaluation, storing raw JSON:', abilityEvaluationText);
-          }
-        } catch (e) {
-          console.warn('Failed to parse ability evaluation:', e);
-          // Set default values if parsing fails
-          abilityEvaluationText = '';
-          abilityFeedback = '';
-        }
-        console.log('Final ability values:', { abilityEvaluationText, abilityFeedback });
-      }
+      ability_to_explain_evaluation = abilityEvaluation.ability_evaluation.ability_to_explain_evaluation || 'Could not determine';
+      ability_to_explain_feedback= abilityEvaluation.ability_evaluation.ability_to_explain_feedback || 'No feedback provided';
       
       // Insert concept evaluation data into PostgreSQL
       const query = `
@@ -492,18 +296,12 @@ app.post('/store-evaluation', async (req, res) => {
         projectType || '',
         pageName || '',
         videoUrl,
-        accuracyScore,
-        accuracyFeedback,
-        abilityEvaluationText,
-        abilityFeedback
+        concept_explanation_accuracy,
+        concept_explanation_feedback,
+        ability_to_explain_evaluation,
+        ability_to_explain_feedback
       ];
 
-      console.log('Final concept evaluation values to be stored:', {
-        accuracyScore,
-        accuracyFeedback,
-        abilityEvaluationText,
-        abilityFeedback
-      });
       console.log('Executing concept evaluation database query with values:', values);
 
       const result = await pgPool.query(query, values);

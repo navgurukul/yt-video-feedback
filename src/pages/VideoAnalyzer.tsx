@@ -369,19 +369,18 @@ Explain Styles: Walk through your CSS file`;
           // 2. Ability to explain evaluation based on abilityToExplainRubric
           
           // First, get the accuracy evaluation
+          const accuracyTemplate = {
+            "accuracy_evaluation": {
+              "concept_explanation_accuracy": "is_more_than_80_percent? return Yes or No",
+              "concept_explanation_feedback": "Irrespective of the accuracy,  share subjective feedback on accuracy - ie we share for eg - Student’s that your  understanding of _____,__________,_____is correct however you explained x which is Y and you should zoom in on X in 100 words"
+            }
+          };
+
           const accuracyPayload = {  
-          ...payload, 
-          promptbegining: "You are an expert YouTube video evaluator. Evaluate the video according to the provided video details.",
-        // CORRECTION APPLIED HERE
-        returnformat: "- Return ONLY this exact json format:"+{
-            "Accuracy Level": [
-                          {
-                              "Accuracy Level": "calculate accuracy based on context in percentage out of 100",
-                              "Feedback": "Student's understanding of X is correct; however, the explanation of Y was inaccurate and should be corrected to Z. Focus on [Specific Topic] to ensure clarity."
-                          }
-                              ]
-                      } +"CRITICAL: Return ONLY the JSON, nothing else. Make sure it's valid JSON. Keep feedback concise."
-             };
+            ...payload, 
+            promptbegining: "You are an expert YouTube video evaluator. Evaluate if the video's explanation accuracy is more than 80% based on the provided video details. Be concise.",
+            returnformat: `Return ONLY this JSON (no markdown, no code blocks): ${JSON.stringify(accuracyTemplate)}\nProvide brief feedback.`
+          };
 
           const accuracyResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
             method: 'POST',
@@ -393,37 +392,21 @@ Explain Styles: Walk through your CSS file`;
           const accuracyEvaluation = accuracyData.parsed ?? accuracyData;
 
           console.log('Accuracy Evaluation Response:', accuracyData);
-
-          // if (!accuracyResp.ok) {
-          //   console.error('Accuracy Evaluation API error', accuracyData);
-          //   setShowCelebration(false);
-            
-          //   // Handle specific Gemini API errors
-          //   let errorMessage = 'Accuracy evaluation failed. See console for details.';
-          //   if (accuracyData.status && accuracyData.message) {
-          //     errorMessage = `Accuracy evaluation failed (${accuracyData.status}: ${accuracyData.statusText}). ${accuracyData.message}`;
-          //   }
-            
-          //   setError(errorMessage);
-          //   return;
-          // }
-
-          console.log('Ability to explain Evalution Started');  
-
+        
+          
           // Second, get the ability to explain evaluation
+          const abilityTemplate = {
+            "ability_evaluation": {
+              "ability_to_explain_evaluation": "Beginner or Intermediate or Advanced or Expert",
+              "ability_to_explain_feedback": "get feedback about why they scored that  level and encourage them to reach high proficiency as they move to higher levels(max 100 words)"
+            }
+          };
+
           const abilityPayload = {
             ...payload,
             rubric: abilityToExplainRubric,
-          promptbegining: "You are an expert YouTube video evaluator. Evaluate the video according to the provided video details and Rubric.",
-        // CORRECTION APPLIED HERE
-        returnformat: "- Return ONLY this exact json format:"+{
-            "Ability to explain": [
-                          {
-                              "Ability to explain": "return Level Beginner or Intermediate or Advanced or Expert (Feynman Level) as per the 'Explaination Points need to be present in the Video' column in rubric ",
-                              "Feedback": "send feedback/ suggestions, capture students' level and encourage them to reach high proficiency as they move to higher levels"
-                          }
-                              ]
-                      } +"CRITICAL: Return ONLY the JSON, nothing else. Make sure it's valid JSON. Keep feedback concise."
+            promptbegining: "Evaluate the student's ability to explain using the rubric. Determine level: Beginner, Intermediate, Advanced, or Expert. Be concise.",
+            returnformat: `Return ONLY this JSON (no markdown, no code blocks): ${JSON.stringify(abilityTemplate)}.`
           };
 
           const abilityResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
@@ -521,7 +504,7 @@ Explain Styles: Walk through your CSS file`;
             console.log('Sending request data to store evaluation:', JSON.stringify(requestData, null, 2));
             
             const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/store-evaluation';
-            console.log('Calling API endpoint:', apiUrl);
+            //console.log('Calling API endpoint:', apiUrl);
             
             const response = await fetch(apiUrl, {
               method: 'POST',
@@ -545,7 +528,7 @@ Explain Styles: Walk through your CSS file`;
         setTimeout(() => {
           setShowCelebration(false);
           // Log what we're sending to the results page
-          console.log('Navigating to results with evaluation:', JSON.stringify(evaluationPayload, null, 2));
+          //console.log('Navigating to results with evaluation:', JSON.stringify(evaluationPayload, null, 2));
           navigate('/analysis-results', { 
             state: { 
               videoUrl, 

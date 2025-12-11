@@ -102,54 +102,56 @@ const AnalysisResults = () => {
       // Extract accuracy data
       let accuracyScore = '';
       let accuracyFeedback = '';
+      
       if (accuracyEval) {
-        // Handle the actual structure returned by the LLM
-        // Check if it's in the text format with JSON inside
-        if (accuracyEval.text) {
-          try {
-            // Extract JSON from markdown code block
-            const codeBlockMatch = accuracyEval.text.match(/```json\s*([\s\S]*?)\s*```/);
+        try {
+          let parsedAccuracy = null;
+          
+          // Try parsed field first
+          if (accuracyEval.parsed) {
+            parsedAccuracy = accuracyEval.parsed;
+          }
+          // Try to extract from text field
+          else if (accuracyEval.text) {
+            const codeBlockMatch = accuracyEval.text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/);
             if (codeBlockMatch) {
-              const jsonText = codeBlockMatch[1];
-              const parsedJson = JSON.parse(jsonText);
-              
-              // Look for video_evaluation object
-              if (parsedJson.video_evaluation) {
-                const ve = parsedJson.video_evaluation;
-                // Create a composite feedback from the various fields
-                const feedbackParts = [];
-                if (ve.relevance_to_content_type) feedbackParts.push(ve.relevance_to_content_type);
-                if (ve.relevance_to_page_details) feedbackParts.push(ve.relevance_to_page_details);
-                
-                // Handle content_coverage object
-                if (ve.content_coverage) {
-                  const cc = ve.content_coverage;
-                  if (cc.build_profile_page_elements) feedbackParts.push(cc.build_profile_page_elements);
-                  
-                  if (cc.image_embedding_attributes && cc.image_embedding_attributes.details) {
-                    feedbackParts.push(cc.image_embedding_attributes.details);
-                  }
-                  
-                  if (cc.section_organization_tags && cc.section_organization_tags.details) {
-                    feedbackParts.push(cc.section_organization_tags.details);
-                  }
-                  
-                  if (cc.unordered_ordered_lists && cc.unordered_ordered_lists.details) {
-                    feedbackParts.push(cc.unordered_ordered_lists.details);
-                  }
-                }
-                
-                accuracyFeedback = feedbackParts.join(' ');
-                // Set a default score since it's not explicitly provided in this structure
-                accuracyScore = '85'; // Default score
+              parsedAccuracy = JSON.parse(codeBlockMatch[1]);
+            } else {
+              const jsonMatch = accuracyEval.text.match(/\\{[\\s\\S]*\\}/);
+              if (jsonMatch) {
+                parsedAccuracy = JSON.parse(jsonMatch[0]);
               }
             }
-          } catch (e) {
-            console.warn('Failed to parse accuracy evaluation JSON:', e);
           }
+          // Try raw.candidates structure
+          else if (accuracyEval.raw && accuracyEval.raw.candidates) {
+            const candidate = accuracyEval.raw.candidates[0];
+            if (candidate && candidate.content && candidate.content.parts) {
+              const textPart = candidate.content.parts.find((p: any) => p.text);
+              if (textPart && textPart.text) {
+                const codeBlockMatch = textPart.text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/);
+                if (codeBlockMatch) {
+                  parsedAccuracy = JSON.parse(codeBlockMatch[1]);
+                } else {
+                  const jsonMatch = textPart.text.match(/\\{[\\s\\S]*\\}/);
+                  if (jsonMatch) {
+                    parsedAccuracy = JSON.parse(jsonMatch[0]);
+                  }
+                }
+              }
+            }
+          }
+          
+          // Extract from new structure
+          if (parsedAccuracy && parsedAccuracy.accuracy_evaluation) {
+            accuracyScore = parsedAccuracy.accuracy_evaluation.is_more_than_80_percent || '';
+            accuracyFeedback = parsedAccuracy.accuracy_evaluation.feedback || '';
+          }
+        } catch (e) {
+          console.warn('Failed to parse accuracy evaluation:', e);
         }
         
-        // If we couldn't extract from text, try the raw structure
+        // Fallback: If we still couldn't extract, try old structure
         if (!accuracyScore && !accuracyFeedback && accuracyEval.raw) {
           try {
             // Try to parse the raw response
@@ -231,83 +233,53 @@ const AnalysisResults = () => {
       // Extract ability to explain data
       let abilityLevel = '';
       let abilityFeedback = '';
+      
       if (abilityEval) {
-        // Handle the actual structure returned by the LLM
-        // Check if it's in the text format with JSON inside
-        if (abilityEval.text) {
-          try {
-            // Extract JSON from markdown code block
-            const codeBlockMatch = abilityEval.text.match(/```json\s*([\s\S]*?)\s*```/);
+        try {
+          let parsedAbility = null;
+          
+          // Try parsed field first
+          if (abilityEval.parsed) {
+            parsedAbility = abilityEval.parsed;
+          }
+          // Try to extract from text field
+          else if (abilityEval.text) {
+            const codeBlockMatch = abilityEval.text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/);
             if (codeBlockMatch) {
-              const jsonText = codeBlockMatch[1];
-              const parsedJson = JSON.parse(jsonText);
-              
-              // Extract level and feedback
-              if (parsedJson.level) {
-                abilityLevel = parsedJson.level;
-              }
-              if (parsedJson.feedback) {
-                abilityFeedback = parsedJson.feedback;
+              parsedAbility = JSON.parse(codeBlockMatch[1]);
+            } else {
+              const jsonMatch = abilityEval.text.match(/\\{[\\s\\S]*\\}/);
+              if (jsonMatch) {
+                parsedAbility = JSON.parse(jsonMatch[0]);
               }
             }
-          } catch (e) {
-            console.warn('Failed to parse ability evaluation JSON:', e);
           }
-        }
-        
-        // If we couldn't extract from text, try the raw structure
-        if (!abilityLevel && !abilityFeedback && abilityEval.raw) {
-          try {
-            // Try to parse the raw response
-            if (typeof abilityEval.raw === 'object') {
-              // Look for candidates array
-              if (abilityEval.raw.candidates && Array.isArray(abilityEval.raw.candidates)) {
-                const candidate = abilityEval.raw.candidates[0];
-                if (candidate.content && candidate.content.parts && Array.isArray(candidate.content.parts)) {
-                  const textPart = candidate.content.parts.find((part: any) => part.text);
-                  if (textPart && textPart.text) {
-                    // Try to extract JSON from the text
-                    const codeBlockMatch = textPart.text.match(/```json\s*([\s\S]*?)\s*```/);
-                    if (codeBlockMatch) {
-                      const jsonText = codeBlockMatch[1];
-                      const parsedJson = JSON.parse(jsonText);
-                      
-                      // Extract level and feedback
-                      if (parsedJson.level) {
-                        abilityLevel = parsedJson.level;
-                      }
-                      if (parsedJson.feedback) {
-                        abilityFeedback = parsedJson.feedback;
-                      }
-                    }
+          // Try raw.candidates structure
+          else if (abilityEval.raw && abilityEval.raw.candidates) {
+            const candidate = abilityEval.raw.candidates[0];
+            if (candidate && candidate.content && candidate.content.parts) {
+              const textPart = candidate.content.parts.find((p: any) => p.text);
+              if (textPart && textPart.text) {
+                const codeBlockMatch = textPart.text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/);
+                if (codeBlockMatch) {
+                  parsedAbility = JSON.parse(codeBlockMatch[1]);
+                } else {
+                  const jsonMatch = textPart.text.match(/\\{[\\s\\S]*\\}/);
+                  if (jsonMatch) {
+                    parsedAbility = JSON.parse(jsonMatch[0]);
                   }
                 }
               }
             }
-          } catch (e) {
-            console.warn('Failed to parse ability evaluation raw data:', e);
           }
-        }
-        
-        // Final fallback to existing logic
-        if (!abilityLevel && !abilityFeedback) {
-          const parsedAbility = abilityEval.parsed || abilityEval;
-          // Check if it's the new format with "Ability to explain" array
-          if (parsedAbility && parsedAbility["Ability to explain"] && Array.isArray(parsedAbility["Ability to explain"]) && parsedAbility["Ability to explain"].length > 0) {
-            const abilityItem = parsedAbility["Ability to explain"][0];
-            abilityLevel = abilityItem["Ability to explain"] || '';
-            abilityFeedback = abilityItem["Feedback"] || '';
+          
+          // Extract from new structure
+          if (parsedAbility && parsedAbility.ability_evaluation) {
+            abilityLevel = parsedAbility.ability_evaluation.level || '';
+            abilityFeedback = parsedAbility.ability_evaluation.feedback || '';
           }
-          // Try to get from criteria
-          else if (parsedAbility.criteria && parsedAbility.criteria.length > 0) {
-            abilityLevel = parsedAbility.criteria[0].name || '';
-            abilityFeedback = parsedAbility.criteria[0].feedback || parsedAbility.overallFeedback || '';
-          } 
-          // Fallback to overall fields
-          else {
-            abilityLevel = parsedAbility.level || '';
-            abilityFeedback = parsedAbility.overallFeedback || '';
-          }
+        } catch (e) {
+          console.warn('Failed to parse ability evaluation:', e);
         }
       }
       
