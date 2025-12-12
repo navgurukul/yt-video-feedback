@@ -50,6 +50,39 @@ pgPool.on('error', (err) => {
   process.exit(-1);
 });
 
+// Helper function to repair truncated JSON responses
+function repairJSON(text) {
+  if (!text || typeof text !== 'string') return text;
+  
+  // Remove any trailing incomplete text after the last complete property
+  let repaired = text.trim();
+  
+  // Try to fix common truncation issues
+  // 1. Add missing closing braces
+  const openBraces = (repaired.match(/\{/g) || []).length;
+  const closeBraces = (repaired.match(/\}/g) || []).length;
+  if (openBraces > closeBraces) {
+    repaired += '}'.repeat(openBraces - closeBraces);
+  }
+  
+  // 2. Remove incomplete property at the end (anything after last complete value)
+  // Look for common patterns of incomplete JSON
+  repaired = repaired.replace(/,\s*"[^"]*":\s*"[^"]*$/, ''); // incomplete property with string value
+  repaired = repaired.replace(/,\s*"[^"]*":\s*$/, ''); // incomplete property without value
+  
+  // 3. Add missing closing quotes for strings
+  const quotes = (repaired.match(/"/g) || []).length;
+  if (quotes % 2 !== 0) {
+    // Find the last quote and add a closing one before the last brace
+    const lastBraceIndex = repaired.lastIndexOf('}');
+    if (lastBraceIndex > 0) {
+      repaired = repaired.substring(0, lastBraceIndex) + '"' + repaired.substring(lastBraceIndex);
+    }
+  }
+  
+  return repaired;
+}
+
 // Log whether GEMINI key was loaded (masked) to help debugging local env issues
 if (GEMINI_KEY) {
   try {
@@ -248,6 +281,8 @@ app.post('/evaluate', async (req, res) => {
 app.post('/store-evaluation', async (req, res) => {
   try {
     const { userId, userEmail, videoUrl, videoType, evaluationData, videoDetails, projectType, pageName } = req.body;
+
+    console.log("****Request body for storing evaluation:", JSON.stringify(req.body, null, 2));
     
     if (!userId || !userEmail || !videoUrl) {
       return res.status(400).json({ error: 'Missing required fields: userId, userEmail, videoUrl' });
@@ -255,7 +290,7 @@ app.post('/store-evaluation', async (req, res) => {
 
     // Store evaluation data in separate tables based on video type
     if (videoType === 'concept') {
-      console.log('Storing concept evaluation data:', JSON.stringify(evaluationData, null, 2));
+      console.log('ZZZZStoring concept evaluation data:', JSON.stringify(evaluationData, null, 2));
       
       // For concept explanation, we have two evaluations: accuracy and ability to explain
       const accuracyEvaluation = evaluationData.evaluation_result.accuracy;
@@ -265,16 +300,89 @@ app.post('/store-evaluation', async (req, res) => {
       let concept_explanation_accuracy = null;
       let concept_explanation_feedback = '';
 
-      concept_explanation_accuracy= accuracyEvaluation.accuracy_evaluation.concept_explanation_accuracy || null;
-      concept_explanation_feedback= accuracyEvaluation.accuracy_evaluation.concept_explanation_feedback || 'no feedback provided';
-    
+      // Parse accuracy evaluation with proper null checks
+      if (accuracyEvaluation) {
+        // Check if it has the expected structure
+        if (accuracyEvaluation.accuracy_evaluation) {
+          concept_explanation_accuracy = accuracyEvaluation.accuracy_evaluation.concept_explanation_accuracy || null;
+          concept_explanation_feedback = accuracyEvaluation.accuracy_evaluation.concept_explanation_feedback || 'no feedback provided';
+        } 
+        // If it doesn't have the nested structure, try to parse from text or raw response
+        else if (accuracyEvaluation.text) {
+          try {
+            const repairedText = repairJSON(accuracyEvaluation.text);
+            const parsed = JSON.parse(repairedText);
+            if (parsed.accuracy_evaluation) {
+              concept_explanation_accuracy = parsed.accuracy_evaluation.concept_explanation_accuracy || null;
+              concept_explanation_feedback = parsed.accuracy_evaluation.concept_explanation_feedback || 'no feedback provided';
+            }
+          } catch (e) {
+            console.error('Failed to parse accuracy evaluation text:', e);
+            console.error('Attempted to parse:', accuracyEvaluation.text);
+          }
+        }
+        // Try raw response structure
+        else if (accuracyEvaluation.raw?.candidates?.[0]?.content?.parts?.[0]?.text) {
+          try {
+            const rawText = accuracyEvaluation.raw.candidates[0].content.parts[0].text;
+            const repairedText = repairJSON(rawText);
+            const parsed = JSON.parse(repairedText);
+            if (parsed.accuracy_evaluation) {
+              concept_explanation_accuracy = parsed.accuracy_evaluation.concept_explanation_accuracy || null;
+              concept_explanation_feedback = parsed.accuracy_evaluation.concept_explanation_feedback || 'no feedback provided';
+            }
+          } catch (e) {
+            console.error('Failed to parse accuracy evaluation raw response:', e);
+          }
+        }
+      }
 
       let ability_to_explain_evaluation = '';
       let ability_to_explain_feedback = '';
 
-      // Get ability to explain evaluation level and feedback
-      ability_to_explain_evaluation = abilityEvaluation.ability_evaluation.ability_to_explain_evaluation || 'Could not determine';
-      ability_to_explain_feedback= abilityEvaluation.ability_evaluation.ability_to_explain_feedback || 'No feedback provided';
+      // Parse ability evaluation with proper null checks
+      if (abilityEvaluation) {
+        // Check if it has the expected structure
+        if (abilityEvaluation.ability_evaluation) {
+          ability_to_explain_evaluation = abilityEvaluation.ability_evaluation.ability_to_explain_evaluation || 'Could not determine';
+          ability_to_explain_feedback = abilityEvaluation.ability_evaluation.ability_to_explain_feedback || 'No feedback provided';
+        }
+        // If it doesn't have the nested structure, try to parse from text or raw response
+        else if (abilityEvaluation.text) {
+          try {
+            const repairedText = repairJSON(abilityEvaluation.text);
+            const parsed = JSON.parse(repairedText);
+            if (parsed.ability_evaluation) {
+              ability_to_explain_evaluation = parsed.ability_evaluation.ability_to_explain_evaluation || 'Could not determine';
+              ability_to_explain_feedback = parsed.ability_evaluation.ability_to_explain_feedback || 'No feedback provided';
+            }
+          } catch (e) {
+            console.error('Failed to parse ability evaluation text:', e);
+            console.error('Attempted to parse:', abilityEvaluation.text);
+          }
+        }
+        // Try raw response structure
+        else if (abilityEvaluation.raw?.candidates?.[0]?.content?.parts?.[0]?.text) {
+          try {
+            const rawText = abilityEvaluation.raw.candidates[0].content.parts[0].text;
+            const repairedText = repairJSON(rawText);
+            const parsed = JSON.parse(repairedText);
+            if (parsed.ability_evaluation) {
+              ability_to_explain_evaluation = parsed.ability_evaluation.ability_to_explain_evaluation || 'Could not determine';
+              ability_to_explain_feedback = parsed.ability_evaluation.ability_to_explain_feedback || 'No feedback provided';
+            }
+          } catch (e) {
+            console.error('Failed to parse ability evaluation raw response:', e);
+          }
+        }
+      }
+
+      console.log('Extracted values:', {
+        concept_explanation_accuracy,
+        concept_explanation_feedback,
+        ability_to_explain_evaluation,
+        ability_to_explain_feedback
+      });
       
       // Insert concept evaluation data into PostgreSQL
       const query = `

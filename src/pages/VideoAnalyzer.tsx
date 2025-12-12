@@ -379,7 +379,7 @@ Explain Styles: Walk through your CSS file`;
           const accuracyPayload = {  
             ...payload, 
             promptbegining: "You are an expert YouTube video evaluator. Evaluate if the video's explanation accuracy is more than 80% based on the provided video details. Be concise.",
-            returnformat: `Return ONLY this JSON (no markdown, no code blocks): ${JSON.stringify(accuracyTemplate)}\nProvide brief feedback.`
+            returnformat: `Return ONLY this JSON (no markdown, no code blocks): ${JSON.stringify(accuracyTemplate)}`
           };
 
           const accuracyResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
@@ -393,7 +393,7 @@ Explain Styles: Walk through your CSS file`;
 
           console.log('Accuracy Evaluation Response:', accuracyData);
         
-          
+
           // Second, get the ability to explain evaluation
           const abilityTemplate = {
             "ability_evaluation": {
