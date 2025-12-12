@@ -347,9 +347,14 @@ Explain Styles: Walk through your CSS file`;
     }
 
     // Start evaluation (call backend evaluate endpoint)
-    //setShowCelebration(true);
+    setShowCelebration(true);
 
-    toast({ title: "Analysis Started! 🎮", description: "Processing your video with AI..." });
+    // Show persistent toast that will stay until dismissed
+    const { dismiss } = toast({ 
+      title: "Analysis Started! 🎮", 
+      description: "Processing your video with AI...",
+      duration: Infinity // Keep toast visible until manually dismissed
+    });
 
     (async () => {
       try {
@@ -369,18 +374,11 @@ Explain Styles: Walk through your CSS file`;
           // 2. Ability to explain evaluation based on abilityToExplainRubric
           
           // First, get the accuracy evaluation
-          const accuracyTemplate = {
-            "accuracy_evaluation": {
-              "concept_explanation_accuracy": "is_more_than_80_percent? return Yes or No",
-              "concept_explanation_feedback": "Irrespective of the accuracy,  share subjective feedback on accuracy - ie we share for eg - Student’s that your  understanding of _____,__________,_____is correct however you explained x which is Y and you should zoom in on X in 100 words"
-            }
-          };
-
           const accuracyPayload = {  
-            ...payload, 
-            promptbegining: "You are an expert YouTube video evaluator. Evaluate if the video's explanation accuracy is more than 80% based on the provided video details. Be concise.",
-            returnformat: `Return ONLY this JSON (no markdown, no code blocks): ${JSON.stringify(accuracyTemplate)}`
-          };
+          ...payload, 
+          promptbegining: "You are an expert YouTube video evaluator. Evaluate the video according to the provided video details.",
+          evaluationType: "accuracy"
+             };
 
           const accuracyResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
             method: 'POST',
@@ -391,23 +389,13 @@ Explain Styles: Walk through your CSS file`;
           const accuracyData = await accuracyResp.json();
           const accuracyEvaluation = accuracyData.parsed ?? accuracyData;
 
-          console.log('Accuracy Evaluation Response:', accuracyData);
-        
-
           // Second, get the ability to explain evaluation
-          const abilityTemplate = {
-            "ability_evaluation": {
-              "ability_to_explain_evaluation": "Beginner or Intermediate or Advanced or Expert",
-              "ability_to_explain_feedback": "get feedback about why they scored that  level and encourage them to reach high proficiency as they move to higher levels(max 100 words)"
-            }
-          };
-
           const abilityPayload = {
             ...payload,
             rubric: abilityToExplainRubric,
-            promptbegining: "Evaluate the student's ability to explain using the rubric. Determine level: Beginner, Intermediate, Advanced, or Expert. Be concise.",
-            returnformat: `Return ONLY this JSON (no markdown, no code blocks): ${JSON.stringify(abilityTemplate)}.`
-          };
+          promptbegining: "You are an expert YouTube video evaluator. Evaluate the video according to the provided video details and Rubric.",
+            evaluationType: "ability"
+                };
 
           const abilityResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
             method: 'POST',
@@ -422,6 +410,7 @@ Explain Styles: Walk through your CSS file`;
           if (!abilityResp.ok) {
             console.error('Ability Evaluation API error', abilityData);
             setShowCelebration(false);
+            dismiss(); // Dismiss the processing toast
             
             // Handle specific Gemini API errors
             let errorMessage = 'Ability evaluation failed. See console for details.';
@@ -445,10 +434,11 @@ Explain Styles: Walk through your CSS file`;
           } else {
             projectRubric = cssProjectRubric;
           }
-
+          console.log(' Video Analyze Log : Project evaluation"');
           const projectPayload = {
             ...payload,
-            rubric: projectRubric
+            rubric: projectRubric,
+            evaluationType: "project"
           };
 
           const resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
@@ -463,6 +453,7 @@ Explain Styles: Walk through your CSS file`;
           if (!resp.ok) {
             console.error('Evaluation API error', data);
             setShowCelebration(false);
+            dismiss(); // Dismiss the processing toast
             
             // Handle specific Gemini API errors
             let errorMessage = 'Evaluation API returned an error. See console for details.';
@@ -483,7 +474,7 @@ Explain Styles: Walk through your CSS file`;
           
           if (user) {
             // Ensure evaluationPayload is properly structured
-            console.log('Evaluation payload before sending to DB:', JSON.stringify(evaluationPayload, null, 2));
+            //console.log('Evaluation payload before sending to DB:', JSON.stringify(evaluationPayload, null, 2));
             
             // Send data to PostgreSQL via our backend API
             const requestData = {
@@ -501,10 +492,10 @@ Explain Styles: Walk through your CSS file`;
               pageName: videoType === "concept" ? pageName : null
             };
             
-            console.log('Sending request data to store evaluation:', JSON.stringify(requestData, null, 2));
+            //console.log('Sending request data to store evaluation:', JSON.stringify(requestData, null, 2));
             
             const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/store-evaluation';
-            //console.log('Calling API endpoint:', apiUrl);
+            console.log('Calling API endpoint:', apiUrl);
             
             const response = await fetch(apiUrl, {
               method: 'POST',
@@ -518,7 +509,7 @@ Explain Styles: Walk through your CSS file`;
             }
 
             const result = await response.json();
-            console.log('Evaluation stored successfully:', result);
+            //console.log('Evaluation stored successfully:', result);
           }
         } catch (dbErr) {
           console.warn('Failed to save evaluation to PostgreSQL:', dbErr);
@@ -527,6 +518,7 @@ Explain Styles: Walk through your CSS file`;
 
         setTimeout(() => {
           setShowCelebration(false);
+          dismiss(); // Dismiss the processing toast before navigation
           // Log what we're sending to the results page
           //console.log('Navigating to results with evaluation:', JSON.stringify(evaluationPayload, null, 2));
           navigate('/analysis-results', { 
@@ -544,6 +536,7 @@ Explain Styles: Walk through your CSS file`;
       } catch (err: any) {
         console.error('Evaluation error', err);
         setShowCelebration(false);
+        dismiss(); // Dismiss the processing toast on error
         setError('Evaluation failed. See console for details.');
       }
     })();

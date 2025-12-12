@@ -19,15 +19,16 @@ const AnalysisResults = () => {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [showCelebration, setShowCelebration] = useState(false);
-  const [showDetailedResults, setShowDetailedResults] = useState(false);
-  const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [loadedAnalysis, setLoadedAnalysis] = useState<any>(null);
   
   const analysisId = searchParams.get('id');
   const stateData = location.state;
   
   const { videoUrl, evaluationMethod, rubricType, rubric, evaluation, videoType, projectType } = stateData || {};
+  
+  const [showDetailedResults, setShowDetailedResults] = useState(videoType === 'project');
+  const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadedAnalysis, setLoadedAnalysis] = useState<any>(null);
 
   // Determine effective evaluation method (prefer route state, then DB fields)
   const effectiveMethod = evaluationMethod || loadedAnalysis?.analysis_data?.evaluationMethod || loadedAnalysis?.evaluation_method || 'rubric';
@@ -102,185 +103,65 @@ const AnalysisResults = () => {
       // Extract accuracy data
       let accuracyScore = '';
       let accuracyFeedback = '';
-      
       if (accuracyEval) {
+        console.log('Processing accuracy evaluation:', JSON.stringify(accuracyEval, null, 2));
         try {
-          let parsedAccuracy = null;
-          
-          // Try parsed field first
-          if (accuracyEval.parsed) {
-            parsedAccuracy = accuracyEval.parsed;
-          }
-          // Try to extract from text field
-          else if (accuracyEval.text) {
-            const codeBlockMatch = accuracyEval.text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/);
-            if (codeBlockMatch) {
-              parsedAccuracy = JSON.parse(codeBlockMatch[1]);
-            } else {
-              const jsonMatch = accuracyEval.text.match(/\\{[\\s\\S]*\\}/);
-              if (jsonMatch) {
-                parsedAccuracy = JSON.parse(jsonMatch[0]);
-              }
-            }
-          }
-          // Try raw.candidates structure
-          else if (accuracyEval.raw && accuracyEval.raw.candidates) {
-            const candidate = accuracyEval.raw.candidates[0];
-            if (candidate && candidate.content && candidate.content.parts) {
-              const textPart = candidate.content.parts.find((p: any) => p.text);
-              if (textPart && textPart.text) {
-                const codeBlockMatch = textPart.text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/);
-                if (codeBlockMatch) {
-                  parsedAccuracy = JSON.parse(codeBlockMatch[1]);
-                } else {
-                  const jsonMatch = textPart.text.match(/\\{[\\s\\S]*\\}/);
-                  if (jsonMatch) {
-                    parsedAccuracy = JSON.parse(jsonMatch[0]);
-                  }
-                }
-              }
-            }
-          }
-          
-          // Extract from new structure
-          if (parsedAccuracy && parsedAccuracy.accuracy_evaluation) {
-            accuracyScore = parsedAccuracy.accuracy_evaluation.is_more_than_80_percent || '';
-            accuracyFeedback = parsedAccuracy.accuracy_evaluation.feedback || '';
-          }
-        } catch (e) {
-          console.warn('Failed to parse accuracy evaluation:', e);
-        }
-        
-        // Fallback: If we still couldn't extract, try old structure
-        if (!accuracyScore && !accuracyFeedback && accuracyEval.raw) {
-          try {
-            // Try to parse the raw response
-            if (typeof accuracyEval.raw === 'object') {
-              // Look for candidates array
-              if (accuracyEval.raw.candidates && Array.isArray(accuracyEval.raw.candidates)) {
-                const candidate = accuracyEval.raw.candidates[0];
-                if (candidate.content && candidate.content.parts && Array.isArray(candidate.content.parts)) {
-                  const textPart = candidate.content.parts.find((part: any) => part.text);
-                  if (textPart && textPart.text) {
-                    // Try to extract JSON from the text
-                    const codeBlockMatch = textPart.text.match(/```json\s*([\s\S]*?)\s*```/);
-                    if (codeBlockMatch) {
-                      const jsonText = codeBlockMatch[1];
-                      const parsedJson = JSON.parse(jsonText);
-                      
-                      // Look for video_evaluation object
-                      if (parsedJson.video_evaluation) {
-                        const ve = parsedJson.video_evaluation;
-                        // Create a composite feedback from the various fields
-                        const feedbackParts = [];
-                        if (ve.relevance_to_content_type) feedbackParts.push(ve.relevance_to_content_type);
-                        if (ve.relevance_to_page_details) feedbackParts.push(ve.relevance_to_page_details);
-                        
-                        // Handle content_coverage object
-                        if (ve.content_coverage) {
-                          const cc = ve.content_coverage;
-                          if (cc.build_profile_page_elements) feedbackParts.push(cc.build_profile_page_elements);
-                          
-                          if (cc.image_embedding_attributes && cc.image_embedding_attributes.details) {
-                            feedbackParts.push(cc.image_embedding_attributes.details);
-                          }
-                          
-                          if (cc.section_organization_tags && cc.section_organization_tags.details) {
-                            feedbackParts.push(cc.section_organization_tags.details);
-                          }
-                          
-                          if (cc.unordered_ordered_lists && cc.unordered_ordered_lists.details) {
-                            feedbackParts.push(cc.unordered_ordered_lists.details);
-                          }
-                        }
-                        
-                        accuracyFeedback = feedbackParts.join(' ');
-                        // Set a default score since it's not explicitly provided in this structure
-                        accuracyScore = '85'; // Default score
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            console.warn('Failed to parse accuracy evaluation raw data:', e);
-          }
-        }
-        
-        // Final fallback to existing logic
-        if (!accuracyScore && !accuracyFeedback) {
           const parsedAccuracy = accuracyEval.parsed || accuracyEval;
-          // Check if it's the new format with "Accuracy Level" array
+          
+          // Check if it's the new structured format with "Accuracy Level" array
           if (parsedAccuracy && parsedAccuracy["Accuracy Level"] && Array.isArray(parsedAccuracy["Accuracy Level"]) && parsedAccuracy["Accuracy Level"].length > 0) {
             const accuracyItem = parsedAccuracy["Accuracy Level"][0];
             accuracyScore = accuracyItem["Accuracy Level"] || '';
             accuracyFeedback = accuracyItem["Feedback"] || '';
+            console.log('Extracted accuracy from new structured format:', { accuracyScore, accuracyFeedback });
           }
-          // Try to get from criteria
+          // Fallback to old format for backward compatibility
           else if (parsedAccuracy.criteria && parsedAccuracy.criteria.length > 0) {
             accuracyScore = parsedAccuracy.criteria[0].score || parsedAccuracy.overallScore || '';
             accuracyFeedback = parsedAccuracy.criteria[0].feedback || parsedAccuracy.overallFeedback || '';
           } 
-          // Fallback to overall fields
           else {
             accuracyScore = parsedAccuracy.overallScore || '';
             accuracyFeedback = parsedAccuracy.overallFeedback || '';
           }
+        } catch (e) {
+          console.warn('Failed to parse accuracy evaluation:', e);
+          accuracyScore = '';
+          accuracyFeedback = '';
         }
+        console.log('Final accuracy values:', { accuracyScore, accuracyFeedback });
       }
       
       // Extract ability to explain data
       let abilityLevel = '';
       let abilityFeedback = '';
-      
       if (abilityEval) {
+        console.log('Processing ability evaluation:', JSON.stringify(abilityEval, null, 2));
         try {
-          let parsedAbility = null;
+          const parsedAbility = abilityEval.parsed || abilityEval;
           
-          // Try parsed field first
-          if (abilityEval.parsed) {
-            parsedAbility = abilityEval.parsed;
+          // Check if it's the new structured format with "Ability to explain" array
+          if (parsedAbility && parsedAbility["Ability to explain"] && Array.isArray(parsedAbility["Ability to explain"]) && parsedAbility["Ability to explain"].length > 0) {
+            const abilityItem = parsedAbility["Ability to explain"][0];
+            abilityLevel = abilityItem["Ability to explain"] || '';
+            abilityFeedback = abilityItem["Feedback"] || '';
+            console.log('Extracted ability from new structured format:', { abilityLevel, abilityFeedback });
           }
-          // Try to extract from text field
-          else if (abilityEval.text) {
-            const codeBlockMatch = abilityEval.text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/);
-            if (codeBlockMatch) {
-              parsedAbility = JSON.parse(codeBlockMatch[1]);
-            } else {
-              const jsonMatch = abilityEval.text.match(/\\{[\\s\\S]*\\}/);
-              if (jsonMatch) {
-                parsedAbility = JSON.parse(jsonMatch[0]);
-              }
-            }
-          }
-          // Try raw.candidates structure
-          else if (abilityEval.raw && abilityEval.raw.candidates) {
-            const candidate = abilityEval.raw.candidates[0];
-            if (candidate && candidate.content && candidate.content.parts) {
-              const textPart = candidate.content.parts.find((p: any) => p.text);
-              if (textPart && textPart.text) {
-                const codeBlockMatch = textPart.text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/);
-                if (codeBlockMatch) {
-                  parsedAbility = JSON.parse(codeBlockMatch[1]);
-                } else {
-                  const jsonMatch = textPart.text.match(/\\{[\\s\\S]*\\}/);
-                  if (jsonMatch) {
-                    parsedAbility = JSON.parse(jsonMatch[0]);
-                  }
-                }
-              }
-            }
-          }
-          
-          // Extract from new structure
-          if (parsedAbility && parsedAbility.ability_evaluation) {
-            abilityLevel = parsedAbility.ability_evaluation.level || '';
-            abilityFeedback = parsedAbility.ability_evaluation.feedback || '';
+          // Fallback to old format for backward compatibility
+          else if (parsedAbility.criteria && parsedAbility.criteria.length > 0) {
+            abilityLevel = parsedAbility.criteria[0].name || '';
+            abilityFeedback = parsedAbility.criteria[0].feedback || parsedAbility.overallFeedback || '';
+          } 
+          else {
+            abilityLevel = parsedAbility.level || '';
+            abilityFeedback = parsedAbility.overallFeedback || '';
           }
         } catch (e) {
           console.warn('Failed to parse ability evaluation:', e);
+          abilityLevel = '';
+          abilityFeedback = '';
         }
+        console.log('Final ability values:', { abilityLevel, abilityFeedback });
       }
       
       return {
@@ -292,11 +173,46 @@ const AnalysisResults = () => {
       };
     }
 
-    // Handle project explanation evaluations (existing structure)
-    // If response contains parsed.evaluation or evaluation key
-    const candidate = maybeEval.parsed ?? maybeEval.parsed?.evaluation ?? maybeEval.evaluation ?? maybeEval;
+    // Handle project explanation evaluations with new structured format
+    // The evaluation data should contain the parameters array
+    const candidate = maybeEval?.parsed ?? maybeEval?.evaluation ?? maybeEval;
 
-    // If candidate already has criteria array
+    // Check if it's the new structured format with "parameters" array
+    if (candidate && Array.isArray(candidate.parameters)) {
+      return {
+        isConceptEvaluation: false,
+        criteria: candidate.parameters.map((param: any) => {
+          // Format weight as percentage
+          let formattedWeight = param.weightage || param.weight || '';
+          if (typeof formattedWeight === 'number') {
+            formattedWeight = `${formattedWeight}%`;
+          } else if (typeof formattedWeight === 'string' && formattedWeight !== '') {
+            if (!formattedWeight.endsWith('%')) {
+              formattedWeight = `${formattedWeight}%`;
+            }
+          }
+          
+          // Keep the original good/bad/ugly structure for project evaluations
+          return {
+            title: param.name || 'Parameter',
+            weight: formattedWeight,
+            grade: param.level || '',
+            scoreNumeric: undefined,
+            feedback: param.feedback || {},
+            feedbackStructure: param.feedback ? {
+              good: param.feedback.good || '',
+              bad: param.feedback.bad || '',
+              ugly: param.feedback.ugly || ''
+            } : null
+          };
+        }),
+        overallGrade: undefined,
+        overallScore: undefined,
+        overallFeedback: ''
+      };
+    }
+    
+    // Fallback: If candidate has criteria array (old format)
     if (candidate && Array.isArray(candidate.criteria)) {
       return {
         isConceptEvaluation: false,
@@ -371,73 +287,20 @@ const AnalysisResults = () => {
     }
   };
 
-  // Trigger celebration when results load and save to database
+  // Trigger celebration when results load
+  // Note: Data is already saved in VideoAnalyzer before navigation
   useEffect(() => {
-    if (stateData && !savedAnalysisId) {
+    if (stateData) {
       const timer = setTimeout(() => {
         setShowCelebration(true);
       }, 800);
       
-      // Save analysis to database
-      saveAnalysis();
-      
       return () => clearTimeout(timer);
     }
-  }, [stateData, savedAnalysisId]);
+  }, [stateData]);
 
-  const saveAnalysis = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        console.log('No user logged in, skipping save');
-        return;
-      }
-
-      // Extract video title from URL (simplified)
-      const videoTitle = (stateData?.videoUrl || loadedAnalysis?.video_url)?.includes('youtube.com') 
-        ? `YouTube Video Analysis`
-        : 'Video Analysis';
-
-      // Send data to PostgreSQL via our backend API
-      const requestData = {
-        userId: user.id,
-        userEmail: user.email,
-        videoUrl: stateData?.videoUrl || '',
-        evaluationData: {
-          evaluation_result: stateData?.evaluation ?? dbEvaluationRaw ?? evaluated,
-          video_type: videoType,
-          project_type: videoType === "project" ? stateData?.projectType : null,
-        },
-        videoDetails: stateData?.videoDetails || loadedAnalysis?.video_details || {},
-        videoType,
-        projectType: stateData?.projectType,
-        pageName: videoType === "concept" ? stateData?.pageName : null
-      };
-      
-      console.log('Sending request data to store evaluation from AnalysisResults:', JSON.stringify(requestData, null, 2));
-      
-      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/store-evaluation';
-      console.log('Calling store-evaluation API at', apiUrl);
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to store evaluation');
-      }
-
-      const result = await response.json();
-      setSavedAnalysisId(result.id);
-      console.log('Analysis saved successfully');
-    } catch (error) {
-      console.error('Error saving analysis:', error);
-      // Don't show error toast to avoid disrupting user experience
-    }
-  };
+  // Note: saveAnalysis function removed - data is already saved in VideoAnalyzer before navigation
+  // This prevents duplicate database entries
 
   if (loading) {
     return (
@@ -551,7 +414,7 @@ const AnalysisResults = () => {
         </MotionWrapper>
 
         {/* Rubric Cards - Modern & Creative */}
-        {videoType !== 'concept' && effectiveMethod !== 'rating' && (
+        {videoType !== 'concept' && videoType !== 'project' && effectiveMethod !== 'rating' && (
           <MotionWrapper delay={0.7} direction="up">
             <div className="max-w-6xl mx-auto mb-12">
               <h2 className="text-4xl font-black uppercase mb-8 text-center">
@@ -668,8 +531,15 @@ const AnalysisResults = () => {
                 >
                   <div className="text-center">
                     <Trophy className="w-16 h-16 mx-auto mb-4" />
-                    <p className="text-2xl font-black uppercase mb-2">Accuracy</p>
-                    <p className="text-5xl font-black text-foreground">{evaluated?.accuracyScore ? (typeof evaluated.accuracyScore === 'string' && evaluated.accuracyScore.includes('%')) ? evaluated.accuracyScore : `${evaluated.accuracyScore}%` : 'N/A'}</p>
+                    <p className="text-2xl font-black uppercase mb-2">Accuracy &gt; 80%?</p>
+                    <p className="text-5xl font-black text-foreground">
+                      {(() => {
+                        const score = evaluated?.accuracyScore;
+                        if (!score) return 'N/A';
+                        const numericScore = typeof score === 'string' ? parseFloat(score.replace('%', '')) : score;
+                        return numericScore >= 80 ? 'Yes' : 'No';
+                      })()}
+                    </p>
                     <div className="mt-4 bg-card border-2 border-foreground p-4">
                       <p className="text-lg font-bold">{evaluated.accuracyFeedback || 'No feedback available'}</p>
                     </div>
@@ -695,8 +565,8 @@ const AnalysisResults = () => {
           </MotionWrapper>
         )}
         
-        {/* Project Explanation Results */}
-        {videoType !== 'concept' && (
+        {/* Project Explanation Results - Hide for project type */}
+        {videoType !== 'concept' && videoType !== 'project' && (
           <MotionWrapper delay={1} direction="zoom">
             <div className="max-w-4xl mx-auto mb-8">
               <h2 className="text-4xl font-black uppercase mb-8 text-center">
@@ -751,28 +621,30 @@ const AnalysisResults = () => {
         )}
 
         {/* Continue Button - Expandable */}
-        <MotionWrapper delay={1.2} direction="up">
-          <div className="max-w-4xl mx-auto mb-12">
-            <motion.button
-              onClick={() => setShowDetailedResults(!showDetailedResults)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="w-full bg-accent border-4 border-foreground p-8 shadow-brutal-lg hover:translate-x-2 hover:translate-y-2 hover:[box-shadow:8px_8px_0px_0px_rgba(13,13,13,1),0_0_40px_hsl(var(--accent)/0.9)] transition-all"
-            >
-              <div className="flex items-center justify-center gap-4 text-3xl font-black uppercase">
-                <span>{showDetailedResults ? "Hide Details" : "Continue 🔥"}</span>
-                {showDetailedResults ? <ChevronUp className="w-10 h-10" /> : <ChevronDown className="w-10 h-10" />}
-              </div>
-              <p className="text-lg font-bold mt-2">
-                {showDetailedResults ? "Collapse evaluation details" : "View detailed evaluation breakdown 📋"}
-              </p>
-            </motion.button>
-          </div>
-        </MotionWrapper>
+        {videoType !== 'project' && (
+          <MotionWrapper delay={1.2} direction="up">
+            <div className="max-w-4xl mx-auto mb-12">
+              <motion.button
+                onClick={() => setShowDetailedResults(!showDetailedResults)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-full bg-accent border-4 border-foreground p-8 shadow-brutal-lg hover:translate-x-2 hover:translate-y-2 hover:[box-shadow:8px_8px_0px_0px_rgba(13,13,13,1),0_0_40px_hsl(var(--accent)/0.9)] transition-all"
+              >
+                <div className="flex items-center justify-center gap-4 text-3xl font-black uppercase">
+                  <span>{showDetailedResults ? "Hide Details" : "Continue 🔥"}</span>
+                  {showDetailedResults ? <ChevronUp className="w-10 h-10" /> : <ChevronDown className="w-10 h-10" />}
+                </div>
+                <p className="text-lg font-bold mt-2">
+                  {showDetailedResults ? "Collapse evaluation details" : "View detailed evaluation breakdown 📋"}
+                </p>
+              </motion.button>
+            </div>
+          </MotionWrapper>
+        )}
 
         {/* Detailed Analysis - Expandable Section */}
         <AnimatePresence>
-          {showDetailedResults && (
+          {(showDetailedResults || videoType === 'project') && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -783,7 +655,7 @@ const AnalysisResults = () => {
               <div className="space-y-8">
                 <MotionWrapper delay={0.2} direction="zoom">
                   <h2 className="text-4xl font-black uppercase text-center mb-8">
-                    {videoType === 'concept' ? '📋 Concept Evaluation' : effectiveMethod === 'rating' ? '📋 Evaluation Points' : '💡 Detailed'} <span className="text-accent">Breakdown</span>
+                    {videoType === 'project' ? '📋 Detailed Breakdown' : videoType === 'concept' ? '📋 Concept Evaluation' : effectiveMethod === 'rating' ? '📋 Evaluation Points' : '💡 Detailed'} {videoType !== 'project' && <span className="text-accent">Breakdown</span>}
                   </h2>
                 </MotionWrapper>
 
@@ -832,11 +704,38 @@ const AnalysisResults = () => {
                                     Grade: {item.grade}
                                   </span>
                                 </div>
-                                <p className="text-lg font-medium leading-relaxed">{item.feedback}</p>
-                              </div>
-                              <div className="bg-primary border-4 border-foreground p-6 min-w-[120px] text-center shadow-brutal-sm flex-shrink-0">
-                                <p className="text-sm font-bold uppercase mb-2">Weight</p>
-                                <p className="text-4xl font-black">{item.weight || 'N/A'}</p>
+                                
+                                {/* Show structured Good/Bad/Ugly for project evaluations */}
+                                {videoType === 'project' && item.feedbackStructure ? (
+                                  <div className="space-y-4">
+                                    {item.feedbackStructure.good && (
+                                      <div className="bg-green-500/10 border-l-4 border-green-500 p-4">
+                                        <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
+                                          <span>✓</span> Good
+                                        </h4>
+                                        <p className="text-base font-medium leading-relaxed">{item.feedbackStructure.good}</p>
+                                      </div>
+                                    )}
+                                    {item.feedbackStructure.bad && (
+                                      <div className="bg-red-500/10 border-l-4 border-red-500 p-4">
+                                        <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
+                                          <span>✗</span> Bad
+                                        </h4>
+                                        <p className="text-base font-medium leading-relaxed">{item.feedbackStructure.bad}</p>
+                                      </div>
+                                    )}
+                                    {item.feedbackStructure.ugly && (
+                                      <div className="bg-yellow-500/10 border-l-4 border-yellow-500 p-4">
+                                        <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
+                                          <span>⚠</span> Ugly
+                                        </h4>
+                                        <p className="text-base font-medium leading-relaxed">{item.feedbackStructure.ugly}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p className="text-lg font-medium leading-relaxed">{typeof item.feedback === 'string' ? item.feedback : ''}</p>
+                                )}
                               </div>
                             </div>
                           )}
@@ -850,7 +749,8 @@ const AnalysisResults = () => {
           )}
         </AnimatePresence>
 
-        {/* Overall Feedback */}
+        {/* Overall Feedback - Hide for project evaluations */}
+        {videoType !== 'project' && (
         <MotionWrapper delay={1.3} direction="zoom">
           <div className="max-w-4xl mx-auto mb-12">
             <motion.div whileHover={{ scale: 1.02 }}>
@@ -876,6 +776,7 @@ const AnalysisResults = () => {
             </motion.div>
           </div>
         </MotionWrapper>
+        )}
 
         {/* Action Buttons */}
         <MotionWrapper delay={1.4} direction="up">

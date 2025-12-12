@@ -11,18 +11,38 @@ import { useToast } from "@/hooks/use-toast";
 import { AuthModal } from "@/components/AuthModal";
 import { format } from "date-fns";
 
-interface VideoAnalysis {
+interface ConceptEvaluation {
   id: string;
-  video_title: string;
+  email: string;
+  project_name: string;
+  page_name: string;
   video_url: string;
-  score: number | null;
+  concept_explanation_accuracy: string;
+  concept_explanation_feedback: string;
+  ability_to_explain_evaluation: string;
+  ability_to_explain_feedback: string;
   created_at: string;
+  type: 'concept';
 }
+
+interface ProjectEvaluation {
+  id: string;
+  email: string;
+  project_name: string;
+  video_url: string;
+  project_explanation_evaluation: string;
+  project_explanation_feedback: string;
+  project_explanation_evaluationjson: any;
+  created_at: string;
+  type: 'project';
+}
+
+type EvaluationRecord = ConceptEvaluation | ProjectEvaluation;
 
 const History = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [videoHistory, setVideoHistory] = useState<VideoAnalysis[]>([]);
+  const [evaluationHistory, setEvaluationHistory] = useState<EvaluationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -37,23 +57,62 @@ const History = () => {
     setUser(user);
     
     if (user) {
-      fetchHistory();
+      fetchHistory(user.email!);
     } else {
       setLoading(false);
       setShowAuthModal(true);
     }
   };
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (email: string) => {
     try {
-      const { data, error } = await supabase
-        .from('video_analyses')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setVideoHistory(data || []);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      console.log('Fetching history for email:', email);
+      console.log('API URL:', API_URL);
+      
+      // Fetch concept evaluations
+      const conceptResponse = await fetch(`${API_URL}/concept-history?email=${encodeURIComponent(email)}`);
+      console.log('Concept response status:', conceptResponse.status);
+      
+      if (!conceptResponse.ok) {
+        console.error('Concept history fetch failed:', await conceptResponse.text());
+      }
+      
+      const conceptData = await conceptResponse.json();
+      console.log('Concept data received:', conceptData);
+      
+      // Fetch project evaluations
+      const projectResponse = await fetch(`${API_URL}/project-history?email=${encodeURIComponent(email)}`);
+      console.log('Project response status:', projectResponse.status);
+      
+      if (!projectResponse.ok) {
+        console.error('Project history fetch failed:', await projectResponse.text());
+      }
+      
+      const projectData = await projectResponse.json();
+      console.log('Project data received:', projectData);
+      
+      // Combine and sort by created_at
+      const conceptRecords: ConceptEvaluation[] = (conceptData.data || []).map((item: any) => ({
+        ...item,
+        type: 'concept' as const
+      }));
+      
+      const projectRecords: ProjectEvaluation[] = (projectData.data || []).map((item: any) => ({
+        ...item,
+        type: 'project' as const
+      }));
+      
+      console.log('Concept records:', conceptRecords.length);
+      console.log('Project records:', projectRecords.length);
+      
+      const allRecords = [...conceptRecords, ...projectRecords].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      
+      console.log('Total records to display:', allRecords.length);
+      setEvaluationHistory(allRecords);
     } catch (error) {
       console.error('Error fetching history:', error);
       toast({
@@ -66,22 +125,28 @@ const History = () => {
     }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = async (id: string, type: 'concept' | 'project', e: React.MouseEvent) => {
     e.stopPropagation();
     
     try {
-      const { error } = await supabase
-        .from('video_analyses')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setVideoHistory(prev => prev.filter(item => item.id !== id));
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const endpoint = type === 'concept' 
+        ? `${API_URL}/concept-evaluation/${id}` 
+        : `${API_URL}/project-evaluation/${id}`;
+      
+      const response = await fetch(endpoint, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete evaluation');
+      }
+      
+      setEvaluationHistory(prev => prev.filter(item => item.id !== id));
       
       toast({
         title: "Deleted! 🗑️",
-        description: "Analysis removed from history",
+        description: `${type === 'concept' ? 'Concept' : 'Project'} evaluation removed from history`,
       });
     } catch (error) {
       console.error('Error deleting analysis:', error);
@@ -93,8 +158,155 @@ const History = () => {
     }
   };
 
-  const handleCardClick = (videoId: string) => {
-    navigate(`/analysis-results?id=${videoId}`);
+  const handleCardClick = (record: EvaluationRecord) => {
+    if (record.type === 'concept') {
+      const conceptRecord = record as ConceptEvaluation;
+      
+      // Parse the accuracy and ability data
+      let accuracyData: any = {};
+      let abilityData: any = {};
+      
+      try {
+        // The concept_explanation_accuracy might be a number, string, or JSON
+        let accuracyValue = conceptRecord.concept_explanation_accuracy;
+        let accuracyFeedback = conceptRecord.concept_explanation_feedback;
+        
+        // Check if it's already a JSON object
+        if (typeof accuracyValue === 'string') {
+          try {
+            // Try to parse as JSON first
+            const parsed = JSON.parse(accuracyValue);
+            if (parsed && typeof parsed === 'object') {
+              accuracyData = parsed;
+            } else {
+              // It's a plain string or number, create the structure
+              accuracyData = {
+                "Accuracy Level": [{
+                  "Accuracy Level": accuracyValue,
+                  "Feedback": accuracyFeedback || ''
+                }]
+              };
+            }
+          } catch {
+            // Not JSON, treat as a direct value (number or string like "85" or "85%")
+            accuracyData = {
+              "Accuracy Level": [{
+                "Accuracy Level": accuracyValue,
+                "Feedback": accuracyFeedback || ''
+              }]
+            };
+          }
+        } else if (typeof accuracyValue === 'number') {
+          // Direct numeric value
+          accuracyData = {
+            "Accuracy Level": [{
+              "Accuracy Level": `${accuracyValue}%`,
+              "Feedback": accuracyFeedback || ''
+            }]
+          };
+        } else if (accuracyValue && typeof accuracyValue === 'object') {
+          // Already an object
+          accuracyData = accuracyValue;
+        } else {
+          // Fallback
+          accuracyData = {
+            "Accuracy Level": [{
+              "Accuracy Level": accuracyValue || '',
+              "Feedback": accuracyFeedback || ''
+            }]
+          };
+        }
+      } catch (e) {
+        console.error('Error parsing accuracy data:', e);
+        // Fallback: create structure from feedback
+        accuracyData = {
+          "Accuracy Level": [{
+            "Accuracy Level": conceptRecord.concept_explanation_accuracy || '',
+            "Feedback": conceptRecord.concept_explanation_feedback || ''
+          }]
+        };
+      }
+      
+      try {
+        // Parse ability data - similar logic
+        let abilityValue = conceptRecord.ability_to_explain_evaluation;
+        let abilityFeedback = conceptRecord.ability_to_explain_feedback;
+        
+        if (typeof abilityValue === 'string') {
+          try {
+            const parsed = JSON.parse(abilityValue);
+            if (parsed && typeof parsed === 'object') {
+              abilityData = parsed;
+            } else {
+              abilityData = {
+                "Ability to explain": [{
+                  "Ability to explain": abilityValue,
+                  "Feedback": abilityFeedback || ''
+                }]
+              };
+            }
+          } catch {
+            abilityData = {
+              "Ability to explain": [{
+                "Ability to explain": abilityValue,
+                "Feedback": abilityFeedback || ''
+              }]
+            };
+          }
+        } else if (abilityValue && typeof abilityValue === 'object') {
+          abilityData = abilityValue;
+        } else {
+          abilityData = {
+            "Ability to explain": [{
+              "Ability to explain": abilityValue || '',
+              "Feedback": abilityFeedback || ''
+            }]
+          };
+        }
+      } catch (e) {
+        console.error('Error parsing ability data:', e);
+        // Fallback: create structure from feedback
+        abilityData = {
+          "Ability to explain": [{
+            "Ability to explain": conceptRecord.ability_to_explain_evaluation || '',
+            "Feedback": conceptRecord.ability_to_explain_feedback || ''
+          }]
+        };
+      }
+      
+      navigate('/analysis-results', {
+        state: {
+          videoUrl: conceptRecord.video_url,
+          videoType: 'concept',
+          projectType: conceptRecord.project_name || conceptRecord.page_name,
+          evaluation: {
+            accuracy: accuracyData,
+            abilityToExplain: abilityData
+          }
+        }
+      });
+    } else {
+      const projectRecord = record as ProjectEvaluation;
+      
+      // Parse the evaluation JSON
+      let evaluationData: any = {};
+      try {
+        evaluationData = typeof projectRecord.project_explanation_evaluationjson === 'string'
+          ? JSON.parse(projectRecord.project_explanation_evaluationjson)
+          : projectRecord.project_explanation_evaluationjson;
+      } catch (e) {
+        console.error('Error parsing project evaluation:', e);
+      }
+      
+      navigate('/analysis-results', {
+        state: {
+          videoUrl: projectRecord.video_url,
+          videoType: 'project',
+          projectType: projectRecord.project_name,
+          evaluation: evaluationData
+        }
+      });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -146,61 +358,69 @@ const History = () => {
             <div className="text-center py-20">
               <p className="text-xl font-bold">Loading your history... 📹</p>
             </div>
-          ) : videoHistory.length > 0 ? (
+          ) : evaluationHistory.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {videoHistory.map((video, index) => (
-                <MotionWrapper key={video.id} delay={0.1 + index * 0.05} direction="up">
-                  <motion.div
-                    whileHover={{ 
-                      scale: 1.03, 
-                      rotate: 1,
-                      y: -5
-                    }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ type: "spring", bounce: 0.4 }}
-                    onClick={() => handleCardClick(video.id)}
-                    className="relative"
-                  >
-                    <Card className="cursor-pointer group hover:shadow-brutal-lg transition-all duration-300">
-                      <motion.button
-                        onClick={(e) => handleDelete(video.id, e)}
-                        className="absolute -top-2 -right-2 z-10 bg-destructive text-destructive-foreground p-2 border-2 border-foreground shadow-brutal-sm hover:shadow-none transition-all"
-                        whileHover={{ scale: 1.1, rotate: 10 }}
-                        whileTap={{ scale: 0.9 }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </motion.button>
-                      <CardHeader>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="text-6xl">🎬</div>
-                          <motion.div
-                            whileHover={{ scale: 1.2, rotate: 90 }}
-                            transition={{ duration: 0.3 }}
-                          >
-                            <Play className="w-8 h-8 text-primary" />
-                          </motion.div>
-                        </div>
-                        <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
-                          {video.video_title}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4" />
-                            <span className="font-bold">{formatDate(video.created_at)}</span>
+              {evaluationHistory.map((record, index) => {
+                const isConcept = record.type === 'concept';
+                const title = isConcept 
+                  ? (record as ConceptEvaluation).project_name || (record as ConceptEvaluation).page_name || 'Concept Evaluation'
+                  : (record as ProjectEvaluation).project_name;
+                const typeLabel = isConcept ? '📚 Concept' : '🚀 Project';
+                
+                return (
+                  <MotionWrapper key={record.id} delay={0.1 + index * 0.05} direction="up">
+                    <motion.div
+                      whileHover={{ 
+                        scale: 1.03, 
+                        rotate: 1,
+                        y: -5
+                      }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: "spring", bounce: 0.4 }}
+                      onClick={() => handleCardClick(record)}
+                      className="relative"
+                    >
+                      <Card className="cursor-pointer group hover:shadow-brutal-lg transition-all duration-300">
+                        <motion.button
+                          onClick={(e) => handleDelete(record.id, record.type, e)}
+                          className="absolute -top-2 -right-2 z-10 bg-destructive text-destructive-foreground p-2 border-2 border-foreground shadow-brutal-sm hover:shadow-none transition-all"
+                          whileHover={{ scale: 1.1, rotate: 10 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </motion.button>
+                        <CardHeader>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="text-6xl">{isConcept ? '📚' : '🚀'}</div>
+                            <motion.div
+                              whileHover={{ scale: 1.2, rotate: 90 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <Play className="w-8 h-8 text-primary" />
+                            </motion.div>
                           </div>
-                          {video.score && (
-                            <div className="bg-primary text-primary-foreground px-3 py-1 border-2 border-foreground font-black">
-                              {video.score}/10
+                          <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
+                            {title}
+                          </CardTitle>
+                          <div className="mt-2">
+                            <span className="inline-block bg-accent border-2 border-foreground px-3 py-1 text-xs font-black uppercase">
+                              {typeLabel}
+                            </span>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4" />
+                              <span className="font-bold">{formatDate(record.created_at)}</span>
                             </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                </MotionWrapper>
-              ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  </MotionWrapper>
+                );
+              })}
             </div>
           ) : (
             <MotionWrapper delay={0.3} direction="zoom">
