@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -18,11 +18,13 @@ import { getPhaseNames, getVideoTitlesForPhase, getVideoDetailsForTitle } from "
 import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric,Phase5Rubric, Phase6Rubric } from "@/data/RubricData";
 import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig} from '@/data/prompt'
 import { a } from "node_modules/framer-motion/dist/types.d-BJcRxCew";
+import { ApiKeyContext } from "@/App";
 
 const VideoAnalyzer = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showCelebration, setShowCelebration] = useState(false);
+  const { apiKey } = useContext(ApiKeyContext);
   
   const [videoUrl, setVideoUrl] = useState("https://youtu.be/XLvrN6ZcGQ4?si=cfy2QnblXCd4UEsa&t=1");
   const [videoType, setVideoType] = useState<"concept" | "project">("concept");
@@ -120,7 +122,8 @@ const VideoAnalyzer = () => {
           ...payload, 
           promptbegining: AccuracyPrompt,
           structuredreturnedconfig: AccuracyConfig,
-          evaluationType: "accuracy"
+          evaluationType: "accuracy",
+          apiKey: apiKey // Include user's API key
              };
 
           const accuracyResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
@@ -140,7 +143,8 @@ const VideoAnalyzer = () => {
             rubric: abilityToExplainRubric,
           promptbegining: AbilityToExplainPrompt,
           structuredreturnedconfig: AbilityToExplainConfig,
-            evaluationType: "ability"
+            evaluationType: "ability",
+            apiKey: apiKey // Include user's API key
                 };
 
           const abilityResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
@@ -206,7 +210,8 @@ const VideoAnalyzer = () => {
             rubric: projectRubric,
           promptbegining: ProjectPrompt,
           structuredreturnedconfig: projectconfig,
-            evaluationType: "project"
+            evaluationType: "project",
+            apiKey: apiKey // Include user's API key
           };
 
           const resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {

@@ -6,13 +6,23 @@ import VideoAnalyzer from "./pages/VideoAnalyzer";
 import AnalysisResults from "./pages/AnalysisResults";
 import History from "./pages/History";
 import NotFound from "./pages/NotFound";
-import { useEffect } from "react";
+import { useEffect, useState, createContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AuthGate from "@/components/AuthGate";
 
 const queryClient = new QueryClient();
 
+// Create context for API key
+export const ApiKeyContext = createContext<{
+  apiKey: string | null;
+  setApiKey: (key: string) => void;
+}>({
+  apiKey: null,
+  setApiKey: () => {},
+});
+
 const App = () => {
+  const [apiKey, setApiKey] = useState<string | null>(null);
   useEffect(() => {
     // If the app is loaded with OAuth callback params, let Supabase process them
     const href = window.location.href;
@@ -60,17 +70,19 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthGate>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/video-analyzer" element={<VideoAnalyzer />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/analysis-results" element={<AnalysisResults />} />
-            <Route path="/yt-feedback" element={<YoutubeFeedback />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthGate>
+        <ApiKeyContext.Provider value={{ apiKey, setApiKey }}>
+          <AuthGate>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/video-analyzer" element={<VideoAnalyzer />} />
+              <Route path="/history" element={<History />} />
+              <Route path="/analysis-results" element={<AnalysisResults />} />
+              <Route path="/yt-feedback" element={<YoutubeFeedback />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthGate>
+        </ApiKeyContext.Provider>
       </BrowserRouter>
     </QueryClientProvider>
   );

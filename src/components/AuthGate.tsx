@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import ApiKeyModal from "@/components/ApiKeyModal";
+import { ApiKeyContext } from "@/App";
 
 const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const { apiKey, setApiKey } = useContext(ApiKeyContext);
 
   useEffect(() => {
     let mounted = true;
@@ -14,6 +18,11 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!mounted) return;
         setUser(user);
+        
+        // Show API key modal if user is logged in but API key is not set
+        if (user && !apiKey) {
+          setShowApiKeyModal(true);
+        }
       } catch (err) {
         console.error("AuthGate: getUser error", err);
       } finally {
@@ -25,13 +34,23 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      
+      // Show API key modal when user logs in and API key is not set
+      if (session?.user && !apiKey) {
+        setShowApiKeyModal(true);
+      }
     });
 
     return () => {
       mounted = false;
       try { subscription.unsubscribe(); } catch {}
     };
-  }, []);
+  }, [apiKey]);
+
+  const handleApiKeySubmit = (key: string) => {
+    setApiKey(key);
+    setShowApiKeyModal(false);
+  };
 
   const startGoogle = async () => {
     try {
@@ -59,7 +78,12 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <ApiKeyModal isOpen={showApiKeyModal} onSubmit={handleApiKeySubmit} />
+      {children}
+    </>
+  );
 };
 
 export default AuthGate;

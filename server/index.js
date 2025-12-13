@@ -65,13 +65,17 @@ if (GEMINI_KEY) {
 
 app.post('/evaluate', async (req, res) => {
   try {
-    const { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig } = req.body;
+    const { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey } = req.body;
 
     if (!videoUrl) return res.status(400).json({ error: 'Missing videoUrl' });
-    if (!GEMINI_KEY) return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
+    
+    // Use API key from request body if provided, otherwise fall back to environment variable
+    const effectiveApiKey = apiKey || GEMINI_KEY;
+    
+    if (!effectiveApiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not configured and not provided in request' });
 
-    // Initialize Google GenAI client
-    const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
+    // Initialize Google GenAI client with the effective API key
+    const ai = new GoogleGenAI({ apiKey: effectiveApiKey });
     const model = 'gemini-2.5-flash';
     let contents;
     let config;
