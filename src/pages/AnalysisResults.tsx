@@ -23,7 +23,12 @@ const AnalysisResults = () => {
   const analysisId = searchParams.get('id');
   const stateData = location.state;
   
-  const { videoUrl, evaluationMethod, rubricType, rubric, evaluation, videoType, projectType } = stateData || {};
+  console.log('AnalysisResults - Received state data:', JSON.stringify(stateData, null, 2));
+  
+  const { videoUrl, evaluationMethod, rubric, evaluation, videoType, selectedPhase, selectedVideoTitle } = stateData || {};
+  
+  console.log('AnalysisResults - Extracted evaluation:', JSON.stringify(evaluation, null, 2));
+  console.log('AnalysisResults - Video type:', videoType);
   
   const [showDetailedResults, setShowDetailedResults] = useState(videoType === 'project');
   const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
@@ -112,7 +117,24 @@ const AnalysisResults = () => {
           if (parsedAccuracy && parsedAccuracy["Accuracy Level"] && Array.isArray(parsedAccuracy["Accuracy Level"]) && parsedAccuracy["Accuracy Level"].length > 0) {
             const accuracyItem = parsedAccuracy["Accuracy Level"][0];
             accuracyScore = accuracyItem["Accuracy Level"] || '';
-            accuracyFeedback = accuracyItem["Feedback"] || '';
+            
+            // Handle structured feedback (new format)
+            const feedbackObj = accuracyItem["Feedback"];
+            if (typeof feedbackObj === 'object' && feedbackObj !== null) {
+              // Store the structured feedback object
+              accuracyFeedback = feedbackObj;
+            } else if (typeof feedbackObj === 'string') {
+              // Try to parse if it's a JSON string (from database)
+              try {
+                accuracyFeedback = JSON.parse(feedbackObj);
+              } catch (e) {
+                // If not JSON, just use the string
+                accuracyFeedback = feedbackObj || '';
+              }
+            } else {
+              accuracyFeedback = '';
+            }
+            
             console.log('Extracted accuracy from new structured format:', { accuracyScore, accuracyFeedback });
           }
           // Fallback to old format for backward compatibility
@@ -144,7 +166,24 @@ const AnalysisResults = () => {
           if (parsedAbility && parsedAbility["Ability to explain"] && Array.isArray(parsedAbility["Ability to explain"]) && parsedAbility["Ability to explain"].length > 0) {
             const abilityItem = parsedAbility["Ability to explain"][0];
             abilityLevel = abilityItem["Ability to explain"] || '';
-            abilityFeedback = abilityItem["Feedback"] || '';
+            
+            // Handle structured feedback (new format) - check both "Structured Feedback" and "Feedback" for compatibility
+            const feedbackObj = abilityItem["Structured Feedback"] || abilityItem["Feedback"];
+            if (typeof feedbackObj === 'object' && feedbackObj !== null) {
+              // Store the structured feedback object
+              abilityFeedback = feedbackObj;
+            } else if (typeof feedbackObj === 'string') {
+              // Try to parse if it's a JSON string (from database)
+              try {
+                abilityFeedback = JSON.parse(feedbackObj);
+              } catch (e) {
+                // If not JSON, just use the string
+                abilityFeedback = feedbackObj || '';
+              }
+            } else {
+              abilityFeedback = '';
+            }
+            
             console.log('Extracted ability from new structured format:', { abilityLevel, abilityFeedback });
           }
           // Fallback to old format for backward compatibility
@@ -192,7 +231,7 @@ const AnalysisResults = () => {
             }
           }
           
-          // Keep the original good/bad/ugly structure for project evaluations
+          // Keep the structured feedback for project evaluations
           return {
             title: param.name || 'Parameter',
             weight: formattedWeight,
@@ -200,9 +239,9 @@ const AnalysisResults = () => {
             scoreNumeric: undefined,
             feedback: param.feedback || {},
             feedbackStructure: param.feedback ? {
-              good: param.feedback.good || '',
-              bad: param.feedback.bad || '',
-              ugly: param.feedback.ugly || ''
+              good: param.feedback["What could you do well?"] || param.feedback.good || '',
+              bad: param.feedback["What can you do better?"] || param.feedback.bad || '',
+              ugly: param.feedback["Next Suggested Deep Dive?"] || param.feedback.ugly || ''
             } : null
           };
         }),
@@ -250,6 +289,8 @@ const AnalysisResults = () => {
   };
 
   const evaluated: ReturnType<typeof normalizeEvaluation> = normalizeEvaluation(stateData?.evaluation ?? dbEvaluationRaw, videoType);
+  
+  console.log('AnalysisResults - Normalized evaluated data:', JSON.stringify(evaluated, null, 2));
 
   // Load analysis from database if ID is provided
   useEffect(() => {
@@ -290,7 +331,7 @@ const AnalysisResults = () => {
   // Trigger celebration when results load
   // Note: Data is already saved in VideoAnalyzer before navigation
   useEffect(() => {
-    if (stateData) {
+    if (stateData && !stateData.fromHistory) {
       const timer = setTimeout(() => {
         setShowCelebration(true);
       }, 800);
@@ -377,28 +418,23 @@ const AnalysisResults = () => {
           <AnimatedHeading className="text-5xl md:text-7xl font-black uppercase mb-4" delay={0.3}>
             Analysis <span className="text-primary">Complete!</span>
           </AnimatedHeading>
+          
           <MotionWrapper delay={0.5} direction="up">
             <div className="flex flex-wrap gap-3 justify-center items-center text-lg font-bold">
-              <motion.span 
-                className="bg-card border-2 border-foreground px-4 py-2"
-                whileHover={{ scale: 1.1, rotate: 2 }}
-              >
-                Type: {videoType === 'concept' ? 'Concept Explanation' : 'Project Explanation'}
-              </motion.span>
-              {videoType === 'concept' && (
+              {videoType === 'concept' && selectedPhase && selectedVideoTitle && (
                 <motion.span 
                   className="bg-card border-2 border-foreground px-4 py-2"
                   whileHover={{ scale: 1.1, rotate: -2 }}
                 >
-                  Project: {projectType}
+                  {selectedPhase} - {selectedVideoTitle}
                 </motion.span>
               )}
-              {videoType !== 'concept' && effectiveMethod !== 'rating' && (
+              {videoType === 'project' && selectedPhase && (
                 <motion.span 
                   className="bg-card border-2 border-foreground px-4 py-2"
                   whileHover={{ scale: 1.1, rotate: -2 }}
                 >
-                  Rubric: {rubricType?.toUpperCase()}
+                  {selectedPhase}
                 </motion.span>
               )}
             </div>
@@ -540,9 +576,6 @@ const AnalysisResults = () => {
                         return numericScore >= 80 ? 'Yes' : 'No';
                       })()}
                     </p>
-                    <div className="mt-4 bg-card border-2 border-foreground p-4">
-                      <p className="text-lg font-bold">{evaluated.accuracyFeedback || 'No feedback available'}</p>
-                    </div>
                   </div>
                 </motion.div>
                 
@@ -555,12 +588,88 @@ const AnalysisResults = () => {
                     <Star className="w-16 h-16 mx-auto mb-4" />
                     <p className="text-2xl font-black uppercase mb-2">Ability to Explain</p>
                     <p className="text-3xl font-black text-foreground">{evaluated.abilityLevel || 'N/A'}</p>
-                    <div className="mt-4 bg-card border-2 border-foreground p-4">
-                      <p className="text-lg font-bold">{evaluated.abilityFeedback || 'No feedback available'}</p>
-                    </div>
                   </div>
                 </motion.div>
               </div>
+            </div>
+          </MotionWrapper>
+        )}
+        
+        {/* Detailed Feedback for Concept Evaluations */}
+        {videoType === 'concept' && evaluated?.isConceptEvaluation && (
+          <MotionWrapper delay={1.2} direction="up">
+            <div className="max-w-6xl mx-auto mb-8 grid gap-6 md:grid-cols-2">
+              {/* Accuracy Feedback */}
+              {evaluated.accuracyFeedback && typeof evaluated.accuracyFeedback === 'object' && (
+                <Card className="p-8 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
+                  <h3 className="text-2xl font-black uppercase mb-6 flex items-center gap-2">
+                    <Trophy className="w-8 h-8" />
+                    Accuracy Feedback
+                  </h3>
+                  <div className="space-y-4">
+                    {evaluated.accuracyFeedback?.["What could you do well?"] && (
+                      <div className="bg-green-500/10 border-l-4 border-green-500 p-4">
+                        <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
+                          <span>✓</span> What could you do well?
+                        </h4>
+                        <p className="text-base font-medium leading-relaxed">{evaluated.accuracyFeedback["What could you do well?"]}</p>
+                      </div>
+                    )}
+                    {evaluated.accuracyFeedback?.["What can you do better?"] && (
+                      <div className="bg-yellow-500/10 border-l-4 border-yellow-500 p-4">
+                        <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
+                          <span>⚠</span> What can you do better?
+                        </h4>
+                        <p className="text-base font-medium leading-relaxed">{evaluated.accuracyFeedback["What can you do better?"]}</p>
+                      </div>
+                    )}
+                    {evaluated.accuracyFeedback?.["Next Suggested Deep Dive?"] && (
+                      <div className="bg-blue-500/10 border-l-4 border-blue-500 p-4">
+                        <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
+                          <span>🎯</span> Next Suggested Deep Dive?
+                        </h4>
+                        <p className="text-base font-medium leading-relaxed">{evaluated.accuracyFeedback["Next Suggested Deep Dive?"]}</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              )}
+              
+              {/* Ability to Explain Feedback */}
+              {evaluated.abilityFeedback && typeof evaluated.abilityFeedback === 'object' && (
+                <Card className="p-8 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
+                  <h3 className="text-2xl font-black uppercase mb-6 flex items-center gap-2">
+                    <Star className="w-8 h-8" />
+                    Ability Feedback
+                  </h3>
+                  <div className="space-y-4">
+                    {evaluated.abilityFeedback?.["What could you do well?"] && (
+                      <div className="bg-green-500/10 border-l-4 border-green-500 p-4">
+                        <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
+                          <span>✓</span> What could you do well?
+                        </h4>
+                        <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["What could you do well?"]}</p>
+                      </div>
+                    )}
+                    {evaluated.abilityFeedback?.["What can you do better?"] && (
+                      <div className="bg-yellow-500/10 border-l-4 border-yellow-500 p-4">
+                        <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
+                          <span>⚠</span> What can you do better?
+                        </h4>
+                        <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["What can you do better?"]}</p>
+                      </div>
+                    )}
+                    {evaluated.abilityFeedback?.["Next Suggested Deep Dive?"] && (
+                      <div className="bg-purple-500/10 border-l-4 border-purple-500 p-4">
+                        <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
+                          <span>🎯</span> Next Suggested Deep Dive?
+                        </h4>
+                        <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["Next Suggested Deep Dive?"]}</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              )}
             </div>
           </MotionWrapper>
         )}
@@ -621,7 +730,7 @@ const AnalysisResults = () => {
         )}
 
         {/* Continue Button - Expandable */}
-        {videoType !== 'project' && (
+        {/* {videoType !== 'project' && (
           <MotionWrapper delay={1.2} direction="up">
             <div className="max-w-4xl mx-auto mb-12">
               <motion.button
@@ -640,7 +749,7 @@ const AnalysisResults = () => {
               </motion.button>
             </div>
           </MotionWrapper>
-        )}
+        )}  */}
 
         {/* Detailed Analysis - Expandable Section */}
         <AnimatePresence>
@@ -705,29 +814,29 @@ const AnalysisResults = () => {
                                   </span>
                                 </div>
                                 
-                                {/* Show structured Good/Bad/Ugly for project evaluations */}
+                                {/* Show structured feedback for project evaluations */}
                                 {videoType === 'project' && item.feedbackStructure ? (
                                   <div className="space-y-4">
                                     {item.feedbackStructure.good && (
                                       <div className="bg-green-500/10 border-l-4 border-green-500 p-4">
                                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
-                                          <span>✓</span> Good
+                                          <span>✓</span> What could you do well?
                                         </h4>
                                         <p className="text-base font-medium leading-relaxed">{item.feedbackStructure.good}</p>
                                       </div>
                                     )}
                                     {item.feedbackStructure.bad && (
-                                      <div className="bg-red-500/10 border-l-4 border-red-500 p-4">
+                                      <div className="bg-yellow-500/10 border-l-4 border-yellow-500 p-4">
                                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
-                                          <span>✗</span> Bad
+                                          <span>⚠</span> What can you do better?
                                         </h4>
                                         <p className="text-base font-medium leading-relaxed">{item.feedbackStructure.bad}</p>
                                       </div>
                                     )}
                                     {item.feedbackStructure.ugly && (
-                                      <div className="bg-yellow-500/10 border-l-4 border-yellow-500 p-4">
+                                      <div className="bg-blue-500/10 border-l-4 border-blue-500 p-4">
                                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
-                                          <span>⚠</span> Ugly
+                                          <span>🎯</span> Next Suggested Deep Dive?
                                         </h4>
                                         <p className="text-base font-medium leading-relaxed">{item.feedbackStructure.ugly}</p>
                                       </div>
@@ -750,7 +859,7 @@ const AnalysisResults = () => {
         </AnimatePresence>
 
         {/* Overall Feedback - Hide for project evaluations */}
-        {videoType !== 'project' && (
+        {videoType !== 'project' && videoType !== 'concept' && (
         <MotionWrapper delay={1.3} direction="zoom">
           <div className="max-w-4xl mx-auto mb-12">
             <motion.div whileHover={{ scale: 1.02 }}>
@@ -762,11 +871,39 @@ const AnalysisResults = () => {
                   <div className="space-y-6">
                     <div>
                       <h4 className="text-xl font-black mb-2">Accuracy Feedback</h4>
-                      <p className="text-lg font-bold">{evaluated.accuracyFeedback || 'No feedback available'}</p>
+                      {typeof evaluated.accuracyFeedback === 'object' && evaluated.accuracyFeedback !== null ? (
+                        <div className="space-y-2">
+                          {evaluated.accuracyFeedback?.["What could you do well?"] && (
+                            <p className="text-lg font-bold">✓ <strong>Well:</strong> {evaluated.accuracyFeedback["What could you do well?"]}</p>
+                          )}
+                          {evaluated.accuracyFeedback?.["What can you do better?"] && (
+                            <p className="text-lg font-bold">⚠ <strong>Better:</strong> {evaluated.accuracyFeedback["What can you do better?"]}</p>
+                          )}
+                          {evaluated.accuracyFeedback?.["Next Suggested Deep Dive?"] && (
+                            <p className="text-lg font-bold">🎯 <strong>Next:</strong> {evaluated.accuracyFeedback["Next Suggested Deep Dive?"]}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-lg font-bold">{evaluated.accuracyFeedback || 'No feedback available'}</p>
+                      )}
                     </div>
                     <div>
                       <h4 className="text-xl font-black mb-2">Ability to Explain Feedback</h4>
-                      <p className="text-lg font-bold">{evaluated.abilityFeedback || 'No feedback available'}</p>
+                      {typeof evaluated.abilityFeedback === 'object' && evaluated.abilityFeedback !== null ? (
+                        <div className="space-y-2">
+                          {evaluated.abilityFeedback?.["What could you do well?"] && (
+                            <p className="text-lg font-bold">✓ <strong>Well:</strong> {evaluated.abilityFeedback["What could you do well?"]}</p>
+                          )}
+                          {evaluated.abilityFeedback?.["What can you do better?"] && (
+                            <p className="text-lg font-bold">⚠ <strong>Better:</strong> {evaluated.abilityFeedback["What can you do better?"]}</p>
+                          )}
+                          {evaluated.abilityFeedback?.["Next Suggested Deep Dive?"] && (
+                            <p className="text-lg font-bold">🎯 <strong>Next:</strong> {evaluated.abilityFeedback["Next Suggested Deep Dive?"]}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-lg font-bold">{evaluated.abilityFeedback || 'No feedback available'}</p>
+                      )}
                     </div>
                   </div>
                 ) : (

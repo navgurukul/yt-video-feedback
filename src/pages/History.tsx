@@ -279,10 +279,13 @@ const History = () => {
           videoUrl: conceptRecord.video_url,
           videoType: 'concept',
           projectType: conceptRecord.project_name || conceptRecord.page_name,
+          selectedPhase: conceptRecord.project_name || '',
+          selectedVideoTitle: conceptRecord.page_name || '',
           evaluation: {
             accuracy: accuracyData,
             abilityToExplain: abilityData
-          }
+          },
+          fromHistory: true
         }
       });
     } else {
@@ -303,7 +306,9 @@ const History = () => {
           videoUrl: projectRecord.video_url,
           videoType: 'project',
           projectType: projectRecord.project_name,
-          evaluation: evaluationData
+          selectedPhase: projectRecord.project_name || '',
+          evaluation: evaluationData,
+          fromHistory: true
         }
       });
     }

@@ -1,16 +1,47 @@
+/**
+ * @fileoverview Animated introductory text component
+ * @module components/AnimatedIntroText
+ */
+
 import { motion } from "framer-motion";
 
+/**
+ * Props for AnimatedIntroText component
+ */
 interface AnimatedIntroTextProps {
+  /** Text content to display */
   text: string;
+  /** Animation direction (left, right, up, zoom) */
   direction?: "left" | "right" | "up" | "zoom";
+  /** Animation delay in seconds */
   delay?: number;
 }
 
+/**
+ * AnimatedIntroText Component
+ * 
+ * Displays introductory text with dramatic enter animation.
+ * Perfect for hero sections and page intros.
+ * 
+ * @param {AnimatedIntroTextProps} props - Component props
+ * @returns {JSX.Element} Animated text div
+ * 
+ * @example
+ * <AnimatedIntroText 
+ *   text="Analyzing brilliance in progress…" 
+ *   direction="up" 
+ *   delay={0.1}
+ * />
+ */
 export const AnimatedIntroText = ({ 
   text, 
   direction = "left",
   delay = 0.2 
 }: AnimatedIntroTextProps) => {
+  /**
+   * Determines initial position based on animation direction
+   * @returns Animation initial state object
+   */
   const getInitialPosition = () => {
     switch (direction) {
       case "left":
@@ -26,6 +57,10 @@ export const AnimatedIntroText = ({
     }
   };
 
+  /**
+   * Determines target animation position
+   * @returns Animation target state object
+   */
   const getAnimatePosition = () => {
     switch (direction) {
       case "zoom":

@@ -1,5 +1,18 @@
+/**
+ * @fileoverview Application footer with social media links
+ * @module components/Footer
+ */
+
 import { Github, Twitter, Linkedin } from "lucide-react";
 
+/**
+ * Footer Component
+ * 
+ * Displays copyright information and social media links.
+ * Uses neobrutalist design with shadow effects on links.
+ * 
+ * @returns {JSX.Element} Application footer component
+ */
 export const Footer = () => {
   return (
     <footer className="border-t-4 border-foreground bg-card mt-20">

@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Main application header with authentication state
+ * @module components/Header
+ */
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -5,6 +10,14 @@ import { MessageSquareQuote, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+/**
+ * Header Component
+ * 
+ * Displays the main navigation bar with logo, navigation links, and auth status.
+ * Manages user authentication state and provides logout functionality.
+ * 
+ * @returns {JSX.Element} Application header component
+ */
 export const Header = () => {
   const [user, setUser] = useState<any>(null);
   const { toast } = useToast();
@@ -22,6 +35,10 @@ export const Header = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  /**
+   * Fetches and sets current user from Supabase
+   * @async
+   */
   const checkUser = async () => {
     console.log("Header: checkUser - getting current user from Supabase");
     const { data: { user } } = await supabase.auth.getUser();
@@ -29,6 +46,10 @@ export const Header = () => {
     setUser(user);
   };
 
+  /**
+   * Handles user logout and redirects to home page
+   * @async
+   */
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast({

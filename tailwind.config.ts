@@ -1,7 +1,20 @@
+/**
+ * @fileoverview Tailwind CSS configuration with neobrutalist design system
+ * @module tailwind.config
+ * 
+ * Implements a neobrutalist design with:
+ * - Bold, high-contrast colors
+ * - Thick borders and shadows
+ * - Custom animations and utilities
+ * - CSS variable-based theming
+ */
+
 import type { Config } from "tailwindcss";
 
 export default {
+  // Enable class-based dark mode
   darkMode: ["class"],
+  // Scan these paths for Tailwind classes
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
@@ -13,6 +26,7 @@ export default {
       },
     },
     extend: {
+      // Design system colors using CSS variables
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
