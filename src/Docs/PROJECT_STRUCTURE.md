@@ -2,62 +2,96 @@
 
 ## 🎯 Overview
 
-This document describes the refactored architecture of the Neo Feedback Hub application. The project has been restructured to follow modern industry standards with clear separation of concerns, comprehensive documentation, and modular design.
+This document describes the architecture of the YouTube Video Feedback application with **separate frontend and backend deployments**. The project follows modern industry standards with clear separation of concerns, independent packaging, and modular design optimized for cloud deployment.
 
 ## 📂 Directory Structure
 
 ```
-neo-feedback-hub-07936/
-├── server/                    # Backend API Server
-│   ├── config/               # Configuration modules
-│   │   ├── database.js      # PostgreSQL connection pool
-│   │   └── gemini.js        # Google Gemini AI client
-│   ├── controllers/          # Request handlers
-│   │   ├── evaluationController.js   # Video evaluation endpoints
-│   │   └── databaseController.js     # Database CRUD operations
-│   ├── services/             # Business logic layer
-│   │   ├── geminiService.js         # AI evaluation service
-│   │   └── databaseService.js       # Database operations
-│   ├── routes/               # API route definitions
-│   │   └── api.js           # All API endpoints
-│   ├── utils/                # Utility functions (future)
-│   ├── migrations/           # Database migration scripts
-│   ├── index.js             # Legacy monolithic server (deprecated)
-│   └── index-new.js         # New modular entry point
+yt-video-feedback/
+├── Frontend (Root Level)
+│   ├── package.json              # Frontend dependencies ONLY
+│   ├── vite.config.ts            # Vite build configuration
+│   ├── tailwind.config.ts        # Tailwind CSS config
+│   ├── .env                      # Frontend environment variables
+│   │
+│   ├── src/                      # Frontend source code
+│   │   ├── components/          # Reusable UI components
+│   │   │   ├── ui/             # shadcn/ui components
+│   │   │   ├── AnimatedHeading.tsx
+│   │   │   ├── AnimatedIntroText.tsx
+│   │   │   ├── ApiKeyModal.tsx  # NEW: API key input
+│   │   │   ├── AuthGate.tsx     # Authentication guard
+│   │   │   ├── CelebrationEffect.tsx
+│   │   │   ├── Footer.tsx
+│   │   │   ├── Header.tsx
+│   │   │   └── MotionWrapper.tsx
+│   │   │
+│   │   ├── pages/              # Route pages
+│   │   │   ├── Index.tsx        # Landing page
+│   │   │   ├── VideoAnalyzer.tsx # Main evaluation page
+│   │   │   ├── AnalysisResults.tsx
+│   │   │   ├── History.tsx
+│   │   │   └── NotFound.tsx
+│   │   │
+│   │   ├── data/               # Static data and prompts
+│   │   │   ├── prompt.ts       # AI evaluation prompts
+│   │   │   ├── RubricData.ts   # Evaluation rubrics
+│   │   │   └── videoData.ts    # Video metadata
+│   │   │
+│   │   ├── types/              # TypeScript type definitions
+│   │   │   ├── evaluation.ts
+│   │   │   └── components.ts
+│   │   │
+│   │   ├── hooks/              # Custom React hooks
+│   │   │   └── use-toast.ts
+│   │   │
+│   │   ├── integrations/       # Third-party integrations
+│   │   │   └── supabase/
+│   │   │       ├── client.ts   # Supabase client
+│   │   │       └── types.ts
+│   │   │
+│   │   ├── lib/                # Utility libraries
+│   │   │   └── utils.ts
+│   │   │
+│   │   └── App.tsx             # Main React app with ApiKeyContext
+│   │
+│   └── public/                  # Static assets
 │
-├── src/                      # Frontend React Application
-│   ├── components/          # Reusable UI components
-│   │   ├── ui/             # shadcn/ui components
-│   │   ├── AnimatedHeading.tsx
-│   │   ├── AnimatedIntroText.tsx
-│   │   ├── CelebrationEffect.tsx
-│   │   ├── Footer.tsx
-│   │   ├── Header.tsx
-│   │   └── MotionWrapper.tsx
-│   ├── pages/              # Route pages
-│   │   ├── AnalysisResults.tsx
-│   │   ├── History.tsx
-│   │   ├── Index.tsx
-│   │   ├── NotFound.tsx
-│   │   ├── VideoAnalyzer.tsx
-│   │   └── YoutubeFeedback.tsx
-│   ├── data/               # Static data and prompts
-│   │   └── prompt.ts       # AI evaluation prompts
-│   ├── types/              # TypeScript type definitions
-│   │   ├── evaluation.ts   # Evaluation data types
-│   │   └── components.ts   # Component prop types
-│   ├── hooks/              # Custom React hooks
-│   ├── integrations/       # Third-party integrations
-│   │   └── supabase/
-│   ├── lib/                # Utility libraries
-│   └── App.tsx             # Main React app
-│
-├── public/                  # Static assets
-├── supabase/               # Supabase configuration
-└── Configuration files...
+└── Backend (server/)
+    ├── package.json             # Backend dependencies ONLY
+    ├── .env                     # Backend environment variables
+    ├── .gitignore               # Backend-specific ignores
+    ├── README.md                # Backend deployment guide
+    │
+    ├── index.js                 # Entry point
+    │
+    ├── config/                  # Configuration modules
+    │   ├── database.js         # PostgreSQL connection pool
+    │   └── gemini.js           # Google Gemini AI client
+    │
+    ├── controllers/             # Request handlers
+    │   ├── evaluationController.js  # Video evaluation endpoints
+    │   └── databaseController.js    # Database CRUD operations
+    │
+    ├── services/                # Business logic layer
+    │   ├── geminiService.js    # AI evaluation service
+    │   └── databaseService.js  # Database operations
+    │
+    ├── routes/                  # API route definitions
+    │   └── api.js              # All API endpoints
+    │
+    └── migrations/              # Database migration scripts
 ```
 
 ## 🏗️ Architecture Overview
+
+### Separate Deployment Model
+
+The application is designed for **independent deployments**:
+
+1. **Frontend**: Static site hosted on Vercel/Netlify/Cloudflare Pages
+2. **Backend**: Node.js API server on Railway/Render/AWS EC2
+3. **Database**: PostgreSQL on Railway/AWS RDS/DigitalOcean
 
 ### Backend Architecture
 
@@ -77,7 +111,7 @@ Routes → Controllers → Services → Database/External APIs
 - **Purpose**: API endpoint definitions
 - **File**: `api.js`
 - **Endpoints**:
-  - `POST /evaluate` - Evaluate video with AI
+  - `POST /evaluate` - Evaluate video with AI (accepts user API key)
   - `POST /store-evaluation` - Store results in database
   - `GET /concept-history` - Fetch concept evaluations
   - `GET /project-history` - Fetch project evaluations
@@ -90,7 +124,7 @@ Routes → Controllers → Services → Database/External APIs
 #### 3. **Controllers Layer** (`server/controllers/`)
 - **Purpose**: Request/response handling and validation
 - **Files**:
-  - `evaluationController.js`: Handles video evaluation requests
+  - `evaluationController.js`: Handles video evaluation requests, extracts API key from request
   - `databaseController.js`: Handles database CRUD operations
 
 #### 4. **Services Layer** (`server/services/`)
@@ -112,6 +146,8 @@ The frontend uses a **component-based architecture** with React:
 #### 1. **Components** (`src/components/`)
 - **Reusable UI components** with consistent animation and styling
 - **Key Components**:
+  - `ApiKeyModal`: NEW - Accepts Gemini API key from user
+  - `AuthGate`: Authentication guard with API key modal trigger
   - `MotionWrapper`: Configurable animation wrapper
   - `AnimatedHeading`: Animated headings with hover effects
   - `AnimatedIntroText`: Dramatic intro text animations
@@ -123,7 +159,7 @@ The frontend uses a **component-based architecture** with React:
 - **Route-level components** representing full pages
 - **Key Pages**:
   - `Index`: Landing page with hero section
-  - `VideoAnalyzer`: Video upload and evaluation interface
+  - `VideoAnalyzer`: Video upload and evaluation interface (uses ApiKeyContext)
   - `AnalysisResults`: Display evaluation results with detailed feedback
   - `History`: View past evaluations
 
@@ -135,158 +171,176 @@ The frontend uses a **component-based architecture** with React:
 
 #### 4. **Data** (`src/data/`)
 - **Static configuration and prompts**
-- **File**: `prompt.ts`
-  - Accuracy evaluation prompt and config
-  - Ability to explain prompt and config
-  - Project evaluation prompt and config
+- **Files**:
+  - `prompt.ts`: AI prompts and configs
+  - `RubricData.ts`: Evaluation rubrics
+  - `videoData.ts`: Video metadata
 
 ## 🔄 Data Flow
 
 ### Video Evaluation Flow
 
 ```
-1. User uploads video → VideoAnalyzer component
-2. VideoAnalyzer sends request → POST /evaluate
-3. evaluationController validates request
-4. geminiService processes with AI (streaming)
-5. Response returned to frontend
-6. AnalysisResults displays feedback
-7. User saves → POST /store-evaluation
-8. databaseController routes by type (concept/project)
-9. databaseService parses and stores to PostgreSQL
+1. User authenticates → AuthGate checks for API key
+2. If no API key → ApiKeyModal appears
+3. User enters API key → Stored in ApiKeyContext + localStorage
+4. User uploads video → VideoAnalyzer component
+5. VideoAnalyzer includes API key in request → POST /evaluate
+6. evaluationController validates request and uses user's API key
+7. geminiService calls Gemini AI with user's key
+8. Gemini returns evaluation → Response to frontend
+9. AnalysisResults displays feedback
+10. User saves → POST /store-evaluation
+11. databaseController routes by type (concept/project)
+12. databaseService stores to PostgreSQL
 ```
 
-### Historical Data Flow
+### API Key Management Flow
 
 ```
-1. User navigates to History page
-2. History component requests → GET /concept-history or GET /project-history
-3. databaseController validates email
-4. databaseService queries PostgreSQL
-5. Results rendered in History component
-6. User clicks record → Navigate to AnalysisResults with data
+1. User logs in (Google OAuth via Supabase)
+2. AuthGate detects SIGNED_IN event
+3. Check if API key exists in ApiKeyContext
+4. If no key → Show ApiKeyModal (blocking)
+5. User enters key → Validate format (starts with AIza)
+6. Store in React state + localStorage
+7. Key persists across page refreshes
+8. All API calls include user's key
+9. Backend prioritizes user key over env variable
 ```
 
-## 📝 Code Standards
+## 📦 Package Management
 
-### Documentation Standards
+### Frontend Package (`package.json`)
 
-All code follows **JSDoc** documentation standards:
+**Dependencies** (React ecosystem only):
+- React, React DOM, React Router
+- Vite (build tool)
+- TypeScript
+- Tailwind CSS, shadcn/ui components
+- Framer Motion (animations)
+- Supabase client (authentication)
+- @tanstack/react-query
 
-```javascript
-/**
- * @fileoverview Brief file description
- * @module module/path
- */
-
-/**
- * Function description
- * 
- * @param {Type} paramName - Parameter description
- * @returns {Type} Return value description
- * 
- * @example
- * exampleFunction('example');
- */
+**Scripts**:
+```json
+{
+  "dev": "vite",
+  "build": "vite build",
+  "preview": "vite preview"
+}
 ```
 
-### Naming Conventions
+### Backend Package (`server/package.json`)
 
-- **Files**: 
-  - React components: `PascalCase.tsx` (e.g., `VideoAnalyzer.tsx`)
-  - Services/utilities: `camelCase.js` (e.g., `geminiService.js`)
-  - Configuration: `camelCase.js` or `kebab-case.ts`
-- **Functions**: `camelCase` (e.g., `evaluateVideo`)
-- **Components**: `PascalCase` (e.g., `AnimatedHeading`)
-- **Constants**: `UPPER_SNAKE_CASE` (e.g., `GEMINI_MODEL`)
+**Dependencies** (Server only):
+- Express (web framework)
+- @google/genai (Gemini AI)
+- pg (PostgreSQL client)
+- cors
+- dotenv
+- node-fetch
 
-### Code Organization
+**Scripts**:
+```json
+{
+  "start": "node index.js",
+  "dev": "node --watch index.js"
+}
+```
 
-- **Single Responsibility**: Each module has one clear purpose
-- **DRY Principle**: No code duplication
-- **Separation of Concerns**: Clear boundaries between layers
-- **Error Handling**: Comprehensive try-catch with logging
-- **Type Safety**: TypeScript for frontend, JSDoc for backend
+## 🌐 Environment Variables
+
+### Frontend (`.env`)
+
+```env
+# Supabase Authentication
+VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=eyJxxx...
+
+# Backend API URLs
+VITE_API_URL=https://api.yourdomain.com
+VITE_EVAL_API_URL=https://api.yourdomain.com
+```
+
+### Backend (`server/.env`)
+
+```env
+# Optional fallback if user doesn't provide API key
+GEMINI_API_KEY=AIzaSyXxx...
+
+# PostgreSQL Database
+PG_HOST=your_database_host
+PG_PORT=5432
+PG_USER=your_database_user
+PG_PASSWORD=your_database_password
+PG_DATABASE=your_database_name
+PG_SSL=true
+
+# Server Port
+PORT=3001
+```
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js (v16+)
+- Node.js 18+
 - PostgreSQL database
-- Google Gemini API key
-- Supabase account (for authentication)
+- Supabase project (for authentication)
+- Google Gemini API key (users provide their own)
 
-### Environment Variables
+### Development Setup
 
-Create a `.env` file in the root directory:
+#### 1. Install Frontend Dependencies
+```bash
+npm install
+```
 
+#### 2. Install Backend Dependencies
+```bash
+cd server
+npm install
+cd ..
+```
+
+#### 3. Configure Environment Variables
+
+Create `.env` in root:
 ```env
-# Database
-PG_HOST=your_host
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_PUBLISHABLE_KEY=your_key
+VITE_API_URL=http://localhost:3001
+VITE_EVAL_API_URL=http://localhost:3001
+```
+
+Create `server/.env`:
+```env
+GEMINI_API_KEY=your_fallback_key
+PG_HOST=localhost
 PG_PORT=5432
 PG_USER=your_user
 PG_PASSWORD=your_password
 PG_DATABASE=your_database
 PG_SSL=false
-
-# API Keys
-GEMINI_API_KEY=your_gemini_api_key
-VITE_GEMINI_API_KEY=your_gemini_api_key
-
-# Supabase
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+PORT=3001
 ```
 
-### Installation
+#### 4. Run Development Servers
 
+**Terminal 1 - Backend**:
 ```bash
-# Install dependencies
-npm install
-
-# Run development server (frontend + backend)
-npm run start
-
-# Or run separately:
-npm run dev           # Frontend only
-npm run start:api     # Backend only
+cd server
+npm start
 ```
 
-### Database Setup
-
-Run migrations in order:
-
+**Terminal 2 - Frontend**:
 ```bash
-# Connect to PostgreSQL and execute:
-psql -U your_user -d your_database -f server/migrations/001_create_video_evaluations_table.sql
+npm run dev
 ```
 
-## 🔧 Migration from Legacy Code
-
-### Switching to New Server
-
-To use the new modular server:
-
-1. Update `package.json`:
-```json
-"scripts": {
-  "start:api": "node server/index-new.js"
-}
-```
-
-2. Restart the server:
-```bash
-npm run start:api
-```
-
-### Benefits of New Structure
-
-- ✅ **Maintainability**: Easier to locate and update code
-- ✅ **Testability**: Services can be tested independently
-- ✅ **Scalability**: Easy to add new features
-- ✅ **Readability**: Clear documentation and structure
-- ✅ **Debugging**: Isolated components simplify troubleshooting
+Frontend runs on `http://localhost:8080`  
+Backend runs on `http://localhost:3001`
 
 ## 📊 Database Schema
 
@@ -328,22 +382,6 @@ The application uses a **neobrutalist design** system:
 - **Animated Interactions**: Framer Motion for smooth transitions
 - **Responsive**: Mobile-first approach
 
-## 🧪 Testing Strategy
-
-### Recommended Testing Approach
-
-1. **Unit Tests**: Test services independently
-   - `geminiService.evaluateVideoWithGemini()`
-   - `databaseService.storeConceptEvaluation()`
-
-2. **Integration Tests**: Test controller → service flow
-   - POST /evaluate endpoint
-   - Database storage and retrieval
-
-3. **E2E Tests**: Test complete user flows
-   - Upload video → View results → Save to history
-   - Load from history → View details
-
 ## 📈 Performance Considerations
 
 - **Connection Pooling**: PostgreSQL pool prevents connection exhaustion
@@ -351,34 +389,71 @@ The application uses a **neobrutalist design** system:
 - **Lazy Loading**: Components load on demand
 - **Code Splitting**: Vite automatically splits code by route
 - **Caching**: Browser caching for static assets
+- **API Key Management**: User-provided keys reduce server costs
 
 ## 🔒 Security Best Practices
 
-- ✅ API keys stored in environment variables
+- ✅ User-provided API keys (not stored in database)
+- ✅ API keys in localStorage (client-side only)
+- ✅ Backend prioritizes user keys over environment variables
 - ✅ Input validation in controllers
 - ✅ SQL injection prevention via parameterized queries
 - ✅ CORS configured for specific origins
 - ✅ Supabase authentication for user management
+- ✅ SSL required for database connections
 
-## 🐛 Debugging Tips
+## 🐛 Troubleshooting
 
-### Backend Debugging
-- Check console logs with emoji prefixes (✓, ✗, →, ⚠)
-- Use PostgreSQL query logs: `pgPool.query()` logs all queries
-- Test endpoints with curl or Postman
+### Frontend Issues
 
-### Frontend Debugging
-- React DevTools for component inspection
-- Redux DevTools for state management (if added)
-- Network tab for API requests
-- Console logs in evaluation flow
+1. **API Key modal keeps appearing**
+   - Check localStorage for `gemini_api_key`
+   - Verify ApiKeyContext is wrapping routes
+   - Check browser console for errors
+
+2. **API calls failing**
+   - Verify backend server is running
+   - Check `VITE_API_URL` environment variable
+   - Inspect network tab in browser DevTools
+
+### Backend Issues
+
+1. **Database connection fails**
+   - Check PostgreSQL credentials in `server/.env`
+   - Verify SSL settings
+   - Ensure database server allows connections
+
+2. **Gemini API errors**
+   - User needs to provide valid API key
+   - Check quota limits on user's Gemini account
+   - Verify video URL is accessible
+
+## 📝 Code Standards
+
+### Naming Conventions
+
+- **Files**: 
+  - React components: `PascalCase.tsx`
+  - Services/utilities: `camelCase.js`
+- **Functions**: `camelCase`
+- **Components**: `PascalCase`
+- **Constants**: `UPPER_SNAKE_CASE`
+
+### Code Organization
+
+- **Single Responsibility**: Each module has one clear purpose
+- **DRY Principle**: No code duplication
+- **Separation of Concerns**: Clear boundaries between layers
+- **Error Handling**: Comprehensive try-catch with logging
+- **Type Safety**: TypeScript for frontend, JSDoc for backend
 
 ## 📚 Additional Resources
 
+- [Deployment Guide](../../DEPLOYMENT.md)
+- [Frontend README](../../README.md)
+- [Backend README](../../server/README.md)
 - [Google Gemini API Documentation](https://ai.google.dev/docs)
 - [Supabase Documentation](https://supabase.com/docs)
-- [Framer Motion Documentation](https://www.framer.com/motion/)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 
 ## 🤝 Contributing
 
@@ -387,14 +462,11 @@ When adding new features:
 1. Follow existing file structure
 2. Add JSDoc comments to all functions
 3. Create types in `src/types/` if needed
-4. Update this README if adding new modules
+4. Update documentation if adding new modules
 5. Test thoroughly before committing
-
-## 📝 License
-
-© 2024 NG YT VIDEO FEEDBACK. All rights reserved.
+6. Ensure separate deployments still work
 
 ---
 
 **Last Updated**: December 2024  
-**Version**: 2.0.0 (Refactored Architecture)
+**Version**: 2.0.0 (Separate Deployment Architecture)
