@@ -22,7 +22,17 @@ export const ApiKeyContext = createContext<{
 });
 
 const App = () => {
-  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string | null>(() => {
+    // Initialize from localStorage
+    return localStorage.getItem('gemini_api_key');
+  });
+
+  // Update localStorage whenever apiKey changes
+  const handleSetApiKey = (key: string) => {
+    setApiKey(key);
+    localStorage.setItem('gemini_api_key', key);
+  };
+
   useEffect(() => {
     // If the app is loaded with OAuth callback params, let Supabase process them
     const href = window.location.href;
@@ -70,7 +80,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <ApiKeyContext.Provider value={{ apiKey, setApiKey }}>
+        <ApiKeyContext.Provider value={{ apiKey, setApiKey: handleSetApiKey }}>
           <AuthGate>
             <Routes>
               <Route path="/" element={<Index />} />

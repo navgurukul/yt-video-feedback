@@ -108,7 +108,7 @@ const Index = () => {
                 >
                   <div className="text-4xl mb-2">🎉</div>
                   <h3 className="font-black text-lg mb-1">Improve</h3>
-                  <p className="text-sm font-bold">Enhance your content</p>
+                  <p className="text-sm font-bold">Enhance your concepts & Skills</p>
                 </motion.div>
               </div>
             </div>

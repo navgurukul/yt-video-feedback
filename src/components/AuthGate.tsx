@@ -19,10 +19,8 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         if (!mounted) return;
         setUser(user);
         
-        // Show API key modal if user is logged in but API key is not set
-        if (user && !apiKey) {
-          setShowApiKeyModal(true);
-        }
+        // Don't show modal on initial load if API key already exists
+        // Only the onAuthStateChange will trigger the modal for new logins
       } catch (err) {
         console.error("AuthGate: getUser error", err);
       } finally {
@@ -32,11 +30,11 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       
-      // Show API key modal when user logs in and API key is not set
-      if (session?.user && !apiKey) {
+      // Show API key modal only when user signs in (new login) and API key is not set
+      if (event === 'SIGNED_IN' && session?.user && !apiKey) {
         setShowApiKeyModal(true);
       }
     });

@@ -174,9 +174,9 @@ export const ProjectPrompt = `TASK: Evaluate the student's project explanation v
 1. Analyze the video as per the given rubric parameters.
 2. For each parameter in the required JSON schema, assign a **weightage** (a number as per given in rubric reflecting the relative importance of this parameter) and a **level** (a categorical rating like "Beginner", "Intermediate", "Advanced", or "Expert").
 3. For each parameter in the required JSON schema, in the feedback object, provide specific, detailed commentary for the video:
-   * good: Describe 1-2 major **strengths** and accomplishments from the video.
-   * bad: Identify 1-2 key areas where the student **missed major requirements** or made significant errors.
-   * ugly: Suggest 1-2 actionable, high-impact improvements for **future projects** or presentations.
+   * What could you do well?: Describe 1-2 major **strengths** and accomplishments from the video.
+   * What can you do better?: Identify 1-2 key areas where the student **missed major requirements** or made significant errors.
+   * Next Suggested Deep Dive?: Suggest 1-2 actionable, high-impact improvements for **future projects** or presentations.
 4. Crucially, **do not include any conversational text, preamble, or explanation** outside of the structured JSON output.
 
 Input Sections`;
