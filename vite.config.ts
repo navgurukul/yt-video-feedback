@@ -20,7 +20,7 @@ import { componentTagger } from "lovable-tagger";
  */
 export default defineConfig(({ mode }) => {
   // Get backend API URL from environment variable or use default for development
-  const apiUrl = process.env.VITE_API_URL || process.env.VITE_EVAL_API_URL || 'http://localhost:3001';
+  const apiUrl = process.env.VITE_API_URL || process.env.VITE_EVAL_API_URL || 'http://localhost:3003';
   
   return {
     // Development server configuration

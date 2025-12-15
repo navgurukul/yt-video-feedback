@@ -19,6 +19,7 @@ import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase
 import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig} from '@/data/prompt'
 import { a } from "node_modules/framer-motion/dist/types.d-BJcRxCew";
 import { ApiKeyContext } from "@/App";
+import { getAuthHeader } from "@/lib/authService";
 
 const VideoAnalyzer = () => {
   const navigate = useNavigate();
@@ -128,7 +129,10 @@ const VideoAnalyzer = () => {
 
           const accuracyResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              ...getAuthHeader() // Include JWT token
+            },
             body: JSON.stringify(accuracyPayload),
           });
 
@@ -149,7 +153,10 @@ const VideoAnalyzer = () => {
 
           const abilityResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              ...getAuthHeader() // Include JWT token
+            },
             body: JSON.stringify(abilityPayload),
           });
 
@@ -216,7 +223,10 @@ const VideoAnalyzer = () => {
 
           const resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              ...getAuthHeader() // Include JWT token
+            },
             body: JSON.stringify(projectPayload),
           });
 

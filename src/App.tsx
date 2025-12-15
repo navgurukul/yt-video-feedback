@@ -12,13 +12,17 @@ import AuthGate from "@/components/AuthGate";
 
 const queryClient = new QueryClient();
 
-// Create context for API key
+// Create context for API key and JWT token
 export const ApiKeyContext = createContext<{
   apiKey: string | null;
   setApiKey: (key: string) => void;
+  jwtToken: string | null;
+  setJwtToken: (token: string) => void;
 }>({
   apiKey: null,
   setApiKey: () => {},
+  jwtToken: null,
+  setJwtToken: () => {},
 });
 
 const App = () => {
@@ -27,10 +31,21 @@ const App = () => {
     return localStorage.getItem('gemini_api_key');
   });
 
+  const [jwtToken, setJwtToken] = useState<string | null>(() => {
+    // Initialize JWT token from localStorage
+    return localStorage.getItem('jwt_token');
+  });
+
   // Update localStorage whenever apiKey changes
   const handleSetApiKey = (key: string) => {
     setApiKey(key);
     localStorage.setItem('gemini_api_key', key);
+  };
+
+  // Update localStorage whenever jwtToken changes
+  const handleSetJwtToken = (token: string) => {
+    setJwtToken(token);
+    localStorage.setItem('jwt_token', token);
   };
 
   useEffect(() => {
@@ -80,7 +95,12 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <ApiKeyContext.Provider value={{ apiKey, setApiKey: handleSetApiKey }}>
+        <ApiKeyContext.Provider value={{ 
+          apiKey, 
+          setApiKey: handleSetApiKey,
+          jwtToken,
+          setJwtToken: handleSetJwtToken
+        }}>
           <AuthGate>
             <Routes>
               <Route path="/" element={<Index />} />
