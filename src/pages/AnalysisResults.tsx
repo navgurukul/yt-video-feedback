@@ -226,9 +226,9 @@ const AnalysisResults = () => {
             scoreNumeric: undefined,
             feedback: param.feedback || {},
             feedbackStructure: param.feedback ? {
-              good: param.feedback["What could you do well?"] || param.feedback.good || '',
-              bad: param.feedback["What can you do better?"] || param.feedback.bad || '',
-              ugly: param.feedback["Next Suggested Deep Dive?"] || param.feedback.ugly || ''
+              good: param.feedback["What you did well."] || param.feedback["What could you do well?"] || param.feedback.good || '',
+              bad: param.feedback["What could you do better."] || param.feedback["What can you do better?"] || param.feedback.bad || '',
+              ugly: param.feedback["Suggestion for project improvement."] || param.feedback["Next Suggested Deep Dive?"] || param.feedback.ugly || ''
             } : null
           };
         }),
@@ -652,51 +652,51 @@ const AnalysisResults = () => {
                     Ability Feedback
                   </h3>
                   <div className="space-y-4">
-                    {evaluated.abilityFeedback?.["What could you do well?"] && (
+                    {evaluated.abilityFeedback?.["What you did well."] && (
                       <div className="bg-green-500/10 border-l-4 border-green-500 p-4">
                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
-                          <span>✓</span> What could you do well?
+                          <span>✓</span> What you did well
                         </h4>
-                        {Array.isArray(evaluated.abilityFeedback["What could you do well?"]) ? (
+                        {Array.isArray(evaluated.abilityFeedback["What you did well."]) ? (
                           <ul className="list-disc list-inside space-y-2">
-                            {evaluated.abilityFeedback["What could you do well?"].map((point: string, idx: number) => (
+                            {evaluated.abilityFeedback["What you did well."].map((point: string, idx: number) => (
                               <li key={idx} className="text-base font-medium leading-relaxed">{point}</li>
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["What could you do well?"]}</p>
+                          <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["What you did well."]}</p>
                         )}
                       </div>
                     )}
-                    {evaluated.abilityFeedback?.["What can you do better?"] && (
+                    {evaluated.abilityFeedback?.["What could you do better."] && (
                       <div className="bg-yellow-500/10 border-l-4 border-yellow-500 p-4">
                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
-                          <span>⚠</span> What can you do better?
+                          <span>⚠</span> What could you do better
                         </h4>
-                        {Array.isArray(evaluated.abilityFeedback["What can you do better?"]) ? (
+                        {Array.isArray(evaluated.abilityFeedback["What could you do better."]) ? (
                           <ul className="list-disc list-inside space-y-2">
-                            {evaluated.abilityFeedback["What can you do better?"].map((point: string, idx: number) => (
+                            {evaluated.abilityFeedback["What could you do better."].map((point: string, idx: number) => (
                               <li key={idx} className="text-base font-medium leading-relaxed">{point}</li>
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["What can you do better?"]}</p>
+                          <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["What could you do better."]}</p>
                         )}
                       </div>
                     )}
-                    {evaluated.abilityFeedback?.["Next Suggested Deep Dive?"] && (
+                    {evaluated.abilityFeedback?.["Suggestion for improving explanation."] && (
                       <div className="bg-purple-500/10 border-l-4 border-purple-500 p-4">
                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
-                          <span>🎯</span> Next Suggested Deep Dive?
+                          <span>🎯</span> Suggestion for improving explanation
                         </h4>
-                        {Array.isArray(evaluated.abilityFeedback["Next Suggested Deep Dive?"]) ? (
+                        {Array.isArray(evaluated.abilityFeedback["Suggestion for improving explanation."]) ? (
                           <ul className="list-disc list-inside space-y-2">
-                            {evaluated.abilityFeedback["Next Suggested Deep Dive?"].map((point: string, idx: number) => (
+                            {evaluated.abilityFeedback["Suggestion for improving explanation."].map((point: string, idx: number) => (
                               <li key={idx} className="text-base font-medium leading-relaxed">{point}</li>
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["Next Suggested Deep Dive?"]}</p>
+                          <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["Suggestion for improving explanation."]}</p>
                         )}
                       </div>
                     )}
@@ -853,25 +853,49 @@ const AnalysisResults = () => {
                                     {item.feedbackStructure.good && (
                                       <div className="bg-green-500/10 border-l-4 border-green-500 p-4">
                                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
-                                          <span>✓</span> What could you do well?
+                                          <span>✓</span> What you did well
                                         </h4>
-                                        <p className="text-base font-medium leading-relaxed">{item.feedbackStructure.good}</p>
+                                        {Array.isArray(item.feedbackStructure.good) ? (
+                                          <ul className="list-disc list-inside space-y-2">
+                                            {item.feedbackStructure.good.map((point: string, idx: number) => (
+                                              <li key={idx} className="text-base font-medium leading-relaxed">{point}</li>
+                                            ))}
+                                          </ul>
+                                        ) : (
+                                          <p className="text-base font-medium leading-relaxed">{item.feedbackStructure.good}</p>
+                                        )}
                                       </div>
                                     )}
                                     {item.feedbackStructure.bad && (
                                       <div className="bg-yellow-500/10 border-l-4 border-yellow-500 p-4">
                                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
-                                          <span>⚠</span> What can you do better?
+                                          <span>⚠</span> What could you do better
                                         </h4>
-                                        <p className="text-base font-medium leading-relaxed">{item.feedbackStructure.bad}</p>
+                                        {Array.isArray(item.feedbackStructure.bad) ? (
+                                          <ul className="list-disc list-inside space-y-2">
+                                            {item.feedbackStructure.bad.map((point: string, idx: number) => (
+                                              <li key={idx} className="text-base font-medium leading-relaxed">{point}</li>
+                                            ))}
+                                          </ul>
+                                        ) : (
+                                          <p className="text-base font-medium leading-relaxed">{item.feedbackStructure.bad}</p>
+                                        )}
                                       </div>
                                     )}
                                     {item.feedbackStructure.ugly && (
                                       <div className="bg-blue-500/10 border-l-4 border-blue-500 p-4">
                                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
-                                          <span>🎯</span> Next Suggested Deep Dive?
+                                          <span>🎯</span> Suggestion for project improvement
                                         </h4>
-                                        <p className="text-base font-medium leading-relaxed">{item.feedbackStructure.ugly}</p>
+                                        {Array.isArray(item.feedbackStructure.ugly) ? (
+                                          <ul className="list-disc list-inside space-y-2">
+                                            {item.feedbackStructure.ugly.map((point: string, idx: number) => (
+                                              <li key={idx} className="text-base font-medium leading-relaxed">{point}</li>
+                                            ))}
+                                          </ul>
+                                        ) : (
+                                          <p className="text-base font-medium leading-relaxed">{item.feedbackStructure.ugly}</p>
+                                        )}
                                       </div>
                                     )}
                                   </div>
@@ -957,45 +981,45 @@ const AnalysisResults = () => {
                       <h4 className="text-xl font-black mb-2">Ability to Explain Feedback</h4>
                       {typeof evaluated.abilityFeedback === 'object' && evaluated.abilityFeedback !== null ? (
                         <div className="space-y-2">
-                          {evaluated.abilityFeedback?.["What could you do well?"] && (
+                          {evaluated.abilityFeedback?.["What you did well."] && (
                             <div className="mb-2">
                               <p className="text-lg font-bold">✓ <strong>Well:</strong></p>
-                              {Array.isArray(evaluated.abilityFeedback["What could you do well?"]) ? (
+                              {Array.isArray(evaluated.abilityFeedback["What you did well."]) ? (
                                 <ul className="list-disc list-inside ml-4">
-                                  {evaluated.abilityFeedback["What could you do well?"].map((point: string, idx: number) => (
+                                  {evaluated.abilityFeedback["What you did well."].map((point: string, idx: number) => (
                                     <li key={idx}>{point}</li>
                                   ))}
                                 </ul>
                               ) : (
-                                <p className="ml-4">{evaluated.abilityFeedback["What could you do well?"]}</p>
+                                <p className="ml-4">{evaluated.abilityFeedback["What you did well."]}</p>
                               )}
                             </div>
                           )}
-                          {evaluated.abilityFeedback?.["What can you do better?"] && (
+                          {evaluated.abilityFeedback?.["What could you do better."] && (
                             <div className="mb-2">
                               <p className="text-lg font-bold">⚠ <strong>Better:</strong></p>
-                              {Array.isArray(evaluated.abilityFeedback["What can you do better?"]) ? (
+                              {Array.isArray(evaluated.abilityFeedback["What could you do better."]) ? (
                                 <ul className="list-disc list-inside ml-4">
-                                  {evaluated.abilityFeedback["What can you do better?"].map((point: string, idx: number) => (
+                                  {evaluated.abilityFeedback["What could you do better."].map((point: string, idx: number) => (
                                     <li key={idx}>{point}</li>
                                   ))}
                                 </ul>
                               ) : (
-                                <p className="ml-4">{evaluated.abilityFeedback["What can you do better?"]}</p>
+                                <p className="ml-4">{evaluated.abilityFeedback["What could you do better."]}</p>
                               )}
                             </div>
                           )}
-                          {evaluated.abilityFeedback?.["Next Suggested Deep Dive?"] && (
+                          {evaluated.abilityFeedback?.["Suggestion for improving explanation."] && (
                             <div className="mb-2">
                               <p className="text-lg font-bold">🎯 <strong>Next:</strong></p>
-                              {Array.isArray(evaluated.abilityFeedback["Next Suggested Deep Dive?"]) ? (
+                              {Array.isArray(evaluated.abilityFeedback["Suggestion for improving explanation."]) ? (
                                 <ul className="list-disc list-inside ml-4">
-                                  {evaluated.abilityFeedback["Next Suggested Deep Dive?"].map((point: string, idx: number) => (
+                                  {evaluated.abilityFeedback["Suggestion for improving explanation."].map((point: string, idx: number) => (
                                     <li key={idx}>{point}</li>
                                   ))}
                                 </ul>
                               ) : (
-                                <p className="ml-4">{evaluated.abilityFeedback["Next Suggested Deep Dive?"]}</p>
+                                <p className="ml-4">{evaluated.abilityFeedback["Suggestion for improving explanation."]}</p>
                               )}
                             </div>
                           )}

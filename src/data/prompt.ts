@@ -2,7 +2,15 @@
  * @fileoverview AI evaluation prompts and structured output configurations
  * @module data/prompt
  * 
- * This module defines the prompts and response schemas for Google Gemini AI
+ * This modexport const AbilityToExplainPrompt = `
+You are an expert evaluator. Your task is to assess a student's Concept Explanation Video using the expected content defined in videoDetails and the scoring criteria defined in the rubric.
+
+IMPORTANT: Write all feedback in simple, easy-to-understand English (A1/A2 level). Use short sentences. Avoid difficult words. Be friendly and helpful.
+
+Your output must be strict, accurate, and non-vague.
+If explanations in the video is not related to the expected content from students defined in videoDetails, then clearly mention it in structured output.
+
+Input Sections`;defines the prompts and response schemas for Google Gemini AI
  * to evaluate student video submissions. Supports three evaluation types:
  * 1. Concept Explanation Accuracy - Assesses factual correctness
  * 2. Ability to Explain - Evaluates communication clarity
@@ -30,7 +38,10 @@ const Type = {
  * @constant {string}
  */
 export const AccuracyPrompt = `You are an evaluator LLM. Your task is to assess a student's concept-explanation video based strictly on the requirements provided in the videoDetails section.
-Do not give vague feedback. Provide clear, specific, and accurate evaluation.
+
+IMPORTANT: Write all feedback in simple english, easy-to-understand English (Strict A1 level). Avoid difficult words. Be friendly and helpful, treat the user as a second person use words like you and i.
+
+Do not give vague feedback. Provide clear, specific, detailed and accurate evaluation.
 
 Evaluation Instructions
 You must analyze the student's explanation strictly against the expected concepts listed in VIDEO_DETAILS.
@@ -81,17 +92,17 @@ export const AccuracyConfig = {
                 "What you did well.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 2-4 specific points highlighting major strengths and accomplishments from the video, where user explained topics very well with proper clarity & examples"
+                  description: "Array of 3-5 specific points highlighting major strengths and accomplishments from the video, where user explained topics very well with proper clarity & examples"
                 },
                 "What could you do better.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 2-4 specific points mentioning partial or incorrect explanations with examples of what user explained and how they can explain those topics better"
+                  description: "Array of 3-5 specific points mentioning partial or incorrect explanations with examples of what user explained and how they can explain those topics better"
                 },
                 "Suggestion for technical accuracy improvement.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 2-4 actionable suggestions for what user can improve from technical POV and how to explain topics better"
+                  description: "Array of 3-5 actionable suggestions for what user can improve only one step above (eg. beginner to intermediate) from technical POV and how to explain topics better"
                 },
               },
             },
@@ -115,6 +126,9 @@ export const AccuracyConfig = {
  */
 export const AbilityToExplainPrompt = `
 You are an expert evaluator. Your task is to assess a student’s Concept Explanation Video using the expected content defined in videoDetails and the scoring criteria defined in the rubric. Your output must be strict, accurate, and non-vague.
+
+IMPORTANT: Write all feedback in simple, easy-to-understand English (Strict A1 level). Avoid difficult words. Be friendly and helpful, treat the user as a second person use words like you and i.
+
 If explanations in the video is not related to the expected content from students defined in videoDetails, then clearly mention it in structured ouptput
 Input Sections`;
 
@@ -122,51 +136,50 @@ Input Sections`;
  * Ability to Explain Evaluation Configuration
  * 
  * Defines the structured JSON output schema for communication assessment.
- * Uses generationConfig wrapper for compatibility with Gemini API.
  * Returns ability level (Beginner/Intermediate/Advanced/Expert) and structured feedback.
  * 
  * @constant {Object}
- * @property {Object} generationConfig - Generation configuration wrapper
- * @property {string} generationConfig.responseMimeType - Response format
- * @property {Object} generationConfig.responseSchema - JSON schema for response
+ * @property {Object} thinkingConfig - AI thinking configuration
+ * @property {string} responseMimeType - Response format (application/json)
+ * @property {Object} responseSchema - JSON schema for response structure
  */
 export const AbilityToExplainConfig = {
-  generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: Type.OBJECT,
-        required: ["Ability to explain"],
-        properties: {
-          "Ability to explain": {
-            type: Type.ARRAY,
-            items: {
+  thinkingConfig: {
+    thinkingBudget: -1, // Unlimited thinking budget for thorough evaluation
+  },
+  responseMimeType: 'application/json',
+  responseSchema: {
+    type: Type.OBJECT,
+    required: ["Ability to explain"],
+    properties: {
+      "Ability to explain": {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          required: ["Ability to explain", "Structured Feedback"],
+          properties: {
+            "Ability to explain": {
+              type: Type.STRING,
+              description: "Level: Beginner, Intermediate, Advanced, or Expert (Feynman Level), based on the explanation points in the rubric",
+            },
+            "Structured Feedback": {
               type: Type.OBJECT,
-              required: ["Ability to explain", "Structured Feedback"],
+              required: ["What you did well.", "What could you do better.", "Suggestion for improving explanation."],
               properties: {
-                "Ability to explain": {
-                  type: Type.STRING,
-                  description: "Level: Beginner, Intermediate, Advanced, or Expert (Feynman Level), based on the explanation points in the rubric",
+                "What you did well.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 specific points highlighting communication strengths where user explained clearly with good examples and analogies"
                 },
-                "Structured Feedback": {
-                  type: Type.OBJECT,
-                  required: ["What could you do well?", "What can you do better?", "Next Suggested Deep Dive?"],
-                  properties: {
-                    "What could you do well?": {
-                      type: Type.ARRAY,
-                      items: { type: Type.STRING },
-                      description: "Array of 2-4 specific points highlighting communication strengths"
-                    },
-                    "What can you do better?": {
-                      type: Type.ARRAY,
-                      items: { type: Type.STRING },
-                      description: "Array of 2-4 specific points for improving explanation clarity"
-                    },
-                    "Next Suggested Deep Dive?": {
-                      type: Type.ARRAY,
-                      items: { type: Type.STRING },
-                      description: "Array of 2-4 actionable suggestions for deeper learning"
-                    },
-                  },
+                "What could you do better.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 specific points mentioning areas where explanation clarity, structure or delivery could be improved"
+                },
+                "Suggestion for improving explanation.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 actionable suggestions only one step above (eg. beginner to intermediate) for improving communication skills and deeper learning"
                 },
               },
             },
@@ -174,7 +187,8 @@ export const AbilityToExplainConfig = {
         },
       },
     },
-};
+  },
+} as const;
 
 /**
  * Project Evaluation Prompt
@@ -188,14 +202,17 @@ export const AbilityToExplainConfig = {
  * 
  * @constant {string}
  */
-export const ProjectPrompt = `TASK: Evaluate the student's project explanation video provided in this request based *strictly* on the grading rubric's structure
+export const ProjectPrompt = `TASK: Evaluate the student's project explanation video provided in this request based *strictly* on the grading rubric's structure.
+
+IMPORTANT: Write all feedback in simple, easy-to-understand English (A1/A2 level). Use short sentences. Avoid difficult words. Be friendly and helpful.
+
 **INSTRUCTIONS:**
 1. Analyze the video as per the given rubric parameters.
 2. For each parameter in the required JSON schema, assign a **weightage** (a number as per given in rubric reflecting the relative importance of this parameter) and a **level** (a categorical rating like "Beginner", "Intermediate", "Advanced", or "Expert").
 3. For each parameter in the required JSON schema, in the feedback object, provide specific, detailed commentary for the video:
-   * What could you do well?: Describe 1-2 major **strengths** and accomplishments from the video.
-   * What can you do better?: Identify 1-2 key areas where the student **missed major requirements** or made significant errors.
-   * Next Suggested Deep Dive?: Suggest 1-2 actionable, high-impact improvements for **future projects** or presentations.
+   * What you did well.: Describe 2-4 major **strengths** and accomplishments from the video.
+   * What could you do better.: Identify 2-4 key areas where the student **missed major requirements** or made significant errors.
+   * Suggestion for project improvement.: Suggest 2-4 actionable, high-impact improvements for **future projects** or presentations.
 4. Crucially, **do not include any conversational text, preamble, or explanation** outside of the structured JSON output.
 
 Input Sections`;
@@ -215,54 +232,57 @@ export const projectconfig = {
   thinkingConfig: {
     thinkingBudget: -1, // Unlimited thinking budget for comprehensive evaluation
   },
-        responseMimeType: 'application/json',
-        responseSchema: {
+  responseMimeType: 'application/json',
+  responseSchema: {
+    type: Type.OBJECT,
+    required: ["parameters"],
+    properties: {
+      parameters: {
+        type: Type.ARRAY,
+        description: "An array of evaluation parameters based on the rubric.",
+        items: {
           type: Type.OBJECT,
-          required: ["parameters"],
+          required: ["name", "weightage", "level", "feedback"],
           properties: {
-            parameters: {
-              type: Type.ARRAY,
-              description: "An array of evaluation parameters based on the rubric.",
-              items: {
-                type: Type.OBJECT,
-                required: ["name", "weightage", "level", "feedback"],
-                properties: {
-                  name: {
-                    type: Type.STRING,
-                    description: "The name of the evaluation parameter from the rubric.",
-                  },
-                  weightage: {
-                    type: Type.NUMBER,
-                    description: "The weightage percentage for this parameter as a number.",
-                  },
-                  level: {
-                    type: Type.STRING,
-                    description: "The assessed level: 'Beginner', 'Intermediate', 'Advanced', or 'Expert'.",
-                  },
-                  feedback: {
-                    type: Type.OBJECT,
-                    required: ["What could you do well?", "What can you do better?", "Next Suggested Deep Dive?"],
-                    properties: {
-                      "What could you do well?": {
-                        type: Type.STRING,
-                        description: "1-2 major strengths and accomplishments from the video.",
-                      },
-                      "What can you do better?": {
-                        type: Type.STRING,
-                        description: "1-2 key areas where the student missed major requirements or made significant errors.",
-                      },
-                      "Next Suggested Deep Dive?": {
-                        type: Type.STRING,
-                        description: "1-2 actionable, high-impact improvements for future projects.",
-                      },
-                    },
-                  },
+            name: {
+              type: Type.STRING,
+              description: "The name of the evaluation parameter from the rubric.",
+            },
+            weightage: {
+              type: Type.NUMBER,
+              description: "The weightage percentage for this parameter as a number.",
+            },
+            level: {
+              type: Type.STRING,
+              description: "The assessed level: 'Beginner', 'Intermediate', 'Advanced', or 'Expert'.",
+            },
+            feedback: {
+              type: Type.OBJECT,
+              required: ["What you did well.", "What could you do better.", "Suggestion for project improvement."],
+              properties: {
+                "What you did well.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 2-4 specific points highlighting major strengths and accomplishments from the video",
+                },
+                "What could you do better.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 2-4 specific points where the student missed major requirements or made significant errors",
+                },
+                "Suggestion for project improvement.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 2-4 actionable, high-impact improvements for future projects",
                 },
               },
             },
           },
         },
-      };
+      },
+    },
+  },
+} as const;
 
 // Note: If you do not have an external 'Type' enum, you might need to define it or
 // replace it with the literal strings if the SDK allows it.
