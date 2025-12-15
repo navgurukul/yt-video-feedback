@@ -68,30 +68,23 @@ const History = () => {
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
       
-      console.log('Fetching history for email:', email);
-      console.log('API URL:', API_URL);
-      
       // Fetch concept evaluations
       const conceptResponse = await fetch(`${API_URL}/concept-history?email=${encodeURIComponent(email)}`);
-      console.log('Concept response status:', conceptResponse.status);
       
       if (!conceptResponse.ok) {
         console.error('Concept history fetch failed:', await conceptResponse.text());
       }
       
       const conceptData = await conceptResponse.json();
-      console.log('Concept data received:', conceptData);
       
       // Fetch project evaluations
       const projectResponse = await fetch(`${API_URL}/project-history?email=${encodeURIComponent(email)}`);
-      console.log('Project response status:', projectResponse.status);
       
       if (!projectResponse.ok) {
         console.error('Project history fetch failed:', await projectResponse.text());
       }
       
       const projectData = await projectResponse.json();
-      console.log('Project data received:', projectData);
       
       // Combine and sort by created_at
       const conceptRecords: ConceptEvaluation[] = (conceptData.data || []).map((item: any) => ({
@@ -104,14 +97,10 @@ const History = () => {
         type: 'project' as const
       }));
       
-      console.log('Concept records:', conceptRecords.length);
-      console.log('Project records:', projectRecords.length);
-      
       const allRecords = [...conceptRecords, ...projectRecords].sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
       
-      console.log('Total records to display:', allRecords.length);
       setEvaluationHistory(allRecords);
     } catch (error) {
       console.error('Error fetching history:', error);

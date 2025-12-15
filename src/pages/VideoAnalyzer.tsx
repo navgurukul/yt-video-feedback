@@ -133,9 +133,33 @@ const VideoAnalyzer = () => {
           });
 
           const accuracyData = await accuracyResp.json();
-          console.log('Accuracy Evaluation Response:', JSON.stringify(accuracyData, null, 2));
           const accuracyEvaluation = accuracyData.parsed ?? accuracyData;
-          console.log('Accuracy Evaluation (extracted):', JSON.stringify(accuracyEvaluation, null, 2));
+          console.log('Evaluation Response:', JSON.stringify({ accuracy: accuracyEvaluation }, null, 2));
+
+          // Check if accuracy evaluation failed
+          if (!accuracyResp.ok || accuracyEvaluation.error) {
+            console.error('Accuracy Evaluation API error', accuracyData);
+            setShowCelebration(false);
+            dismiss();
+            
+            let errorMessage = 'Accuracy evaluation failed.';
+            if (accuracyEvaluation.error && accuracyEvaluation.message) {
+              // Parse nested error message for API key issues
+              try {
+                const parsedMessage = JSON.parse(accuracyEvaluation.message);
+                if (parsedMessage.error?.message?.includes('API key not valid')) {
+                  errorMessage = 'Invalid API key. Please check your Gemini API key in settings.';
+                } else {
+                  errorMessage = parsedMessage.error?.message || accuracyEvaluation.message;
+                }
+              } catch {
+                errorMessage = accuracyEvaluation.message;
+              }
+            }
+            
+            setError(errorMessage);
+            return;
+          }
 
           // Second, get the ability to explain evaluation
           const abilityPayload = {
@@ -154,9 +178,7 @@ const VideoAnalyzer = () => {
           });
 
           const abilityData = await abilityResp.json();
-          console.log('Ability Evaluation Response:', JSON.stringify(abilityData, null, 2));
           const abilityEvaluation = abilityData.parsed ?? abilityData;
-          console.log('Ability Evaluation (extracted):', JSON.stringify(abilityEvaluation, null, 2));
 
           if (!abilityResp.ok) {
             console.error('Ability Evaluation API error', abilityData);
@@ -178,7 +200,6 @@ const VideoAnalyzer = () => {
             accuracy: accuracyEvaluation,
             abilityToExplain: abilityEvaluation
           };
-          console.log('Combined Evaluation Payload:', JSON.stringify(evaluationPayload, null, 2));
         } else {
           // For Project Explanation, use the appropriate project rubric
 
@@ -193,7 +214,7 @@ const VideoAnalyzer = () => {
               projectRubric = Phase3Rubric
             case "phase 4: Advanced JavaScript — E-Commerce Site & Chat Application":
             projectRubric = Phase4Rubric
-              break;
+                break;
               case "Phase 5: Full-Stack Development — Social Media Platform & Project Management Tool":
               projectRubric= Phase5Rubric;
               break;
@@ -204,7 +225,6 @@ const VideoAnalyzer = () => {
               projectRubric = "Phase1"; // Default to Phase1 rubric
           }
 
-          console.log(' Video Analyze Log : Project evaluation"');
           const projectPayload = {
             ...payload,
             rubric: projectRubric,
@@ -221,9 +241,7 @@ const VideoAnalyzer = () => {
           });
 
           const data = await resp.json();
-          console.log('Project Evaluation Response:', JSON.stringify(data, null, 2));
           evaluationPayload = data.parsed ?? data;
-          console.log('Project Evaluation Payload:', JSON.stringify(evaluationPayload, null, 2));
 
           if (!resp.ok) {
             console.error('Evaluation API error', data);
@@ -249,7 +267,6 @@ const VideoAnalyzer = () => {
           
           if (user) {
             // Ensure evaluationPayload is properly structured
-            //console.log('Evaluation payload before sending to DB:', JSON.stringify(evaluationPayload, null, 2));
             
             // Send data to PostgreSQL via our backend API
             const requestData = {
@@ -265,10 +282,7 @@ const VideoAnalyzer = () => {
               selectedVideoTitle
             };
             
-            //console.log('Sending request data to store evaluation:', JSON.stringify(requestData, null, 2));
-            
             const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/store-evaluation';
-            console.log('Calling API endpoint:', apiUrl);
             
             const response = await fetch(apiUrl, {
               method: 'POST',
@@ -282,7 +296,6 @@ const VideoAnalyzer = () => {
             }
 
             const result = await response.json();
-            //console.log('Evaluation stored successfully:', result);
           }
         } catch (dbErr) {
           console.warn('Failed to save evaluation to PostgreSQL:', dbErr);
@@ -292,8 +305,6 @@ const VideoAnalyzer = () => {
         setTimeout(() => {
           setShowCelebration(false);
           dismiss(); // Dismiss the processing toast before navigation
-          // Log what we're sending to the results page
-          //console.log('Navigating to results with evaluation:', JSON.stringify(evaluationPayload, null, 2));
           navigate('/analysis-results', { 
             state: { 
               videoUrl, 

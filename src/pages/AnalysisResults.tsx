@@ -23,12 +23,7 @@ const AnalysisResults = () => {
   const analysisId = searchParams.get('id');
   const stateData = location.state;
   
-  console.log('AnalysisResults - Received state data:', JSON.stringify(stateData, null, 2));
-  
   const { videoUrl, evaluationMethod, rubric, evaluation, videoType, selectedPhase, selectedVideoTitle } = stateData || {};
-  
-  console.log('AnalysisResults - Extracted evaluation:', JSON.stringify(evaluation, null, 2));
-  console.log('AnalysisResults - Video type:', videoType);
   
   const [showDetailedResults, setShowDetailedResults] = useState(videoType === 'project');
   const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
@@ -109,7 +104,6 @@ const AnalysisResults = () => {
       let accuracyScore = '';
       let accuracyFeedback = '';
       if (accuracyEval) {
-        console.log('Processing accuracy evaluation:', JSON.stringify(accuracyEval, null, 2));
         try {
           const parsedAccuracy = accuracyEval.parsed || accuracyEval;
           
@@ -134,8 +128,6 @@ const AnalysisResults = () => {
             } else {
               accuracyFeedback = '';
             }
-            
-            console.log('Extracted accuracy from new structured format:', { accuracyScore, accuracyFeedback });
           }
           // Fallback to old format for backward compatibility
           else if (parsedAccuracy.criteria && parsedAccuracy.criteria.length > 0) {
@@ -151,14 +143,12 @@ const AnalysisResults = () => {
           accuracyScore = '';
           accuracyFeedback = '';
         }
-        console.log('Final accuracy values:', { accuracyScore, accuracyFeedback });
       }
       
       // Extract ability to explain data
       let abilityLevel = '';
       let abilityFeedback = '';
       if (abilityEval) {
-        console.log('Processing ability evaluation:', JSON.stringify(abilityEval, null, 2));
         try {
           const parsedAbility = abilityEval.parsed || abilityEval;
           
@@ -183,8 +173,6 @@ const AnalysisResults = () => {
             } else {
               abilityFeedback = '';
             }
-            
-            console.log('Extracted ability from new structured format:', { abilityLevel, abilityFeedback });
           }
           // Fallback to old format for backward compatibility
           else if (parsedAbility.criteria && parsedAbility.criteria.length > 0) {
@@ -200,7 +188,6 @@ const AnalysisResults = () => {
           abilityLevel = '';
           abilityFeedback = '';
         }
-        console.log('Final ability values:', { abilityLevel, abilityFeedback });
       }
       
       return {
@@ -289,8 +276,6 @@ const AnalysisResults = () => {
   };
 
   const evaluated: ReturnType<typeof normalizeEvaluation> = normalizeEvaluation(stateData?.evaluation ?? dbEvaluationRaw, videoType);
-  
-  console.log('AnalysisResults - Normalized evaluated data:', JSON.stringify(evaluated, null, 2));
 
   // Load analysis from database if ID is provided
   useEffect(() => {
@@ -607,28 +592,52 @@ const AnalysisResults = () => {
                     Accuracy Feedback
                   </h3>
                   <div className="space-y-4">
-                    {evaluated.accuracyFeedback?.["What could you do well?"] && (
+                    {evaluated.accuracyFeedback?.["What you did well."] && (
                       <div className="bg-green-500/10 border-l-4 border-green-500 p-4">
                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
-                          <span>✓</span> What could you do well?
+                          <span>✓</span> What you did well
                         </h4>
-                        <p className="text-base font-medium leading-relaxed">{evaluated.accuracyFeedback["What could you do well?"]}</p>
+                        {Array.isArray(evaluated.accuracyFeedback["What you did well."]) ? (
+                          <ul className="list-disc list-inside space-y-2">
+                            {evaluated.accuracyFeedback["What you did well."].map((point: string, idx: number) => (
+                              <li key={idx} className="text-base font-medium leading-relaxed">{point}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-base font-medium leading-relaxed">{evaluated.accuracyFeedback["What you did well."]}</p>
+                        )}
                       </div>
                     )}
-                    {evaluated.accuracyFeedback?.["What can you do better?"] && (
+                    {evaluated.accuracyFeedback?.["What could you do better."] && (
                       <div className="bg-yellow-500/10 border-l-4 border-yellow-500 p-4">
                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
-                          <span>⚠</span> What can you do better?
+                          <span>⚠</span> What could you do better
                         </h4>
-                        <p className="text-base font-medium leading-relaxed">{evaluated.accuracyFeedback["What can you do better?"]}</p>
+                        {Array.isArray(evaluated.accuracyFeedback["What could you do better."]) ? (
+                          <ul className="list-disc list-inside space-y-2">
+                            {evaluated.accuracyFeedback["What could you do better."].map((point: string, idx: number) => (
+                              <li key={idx} className="text-base font-medium leading-relaxed">{point}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-base font-medium leading-relaxed">{evaluated.accuracyFeedback["What could you do better."]}</p>
+                        )}
                       </div>
                     )}
-                    {evaluated.accuracyFeedback?.["Next Suggested Deep Dive?"] && (
+                    {evaluated.accuracyFeedback?.["Suggestion for technical accuracy improvement."] && (
                       <div className="bg-blue-500/10 border-l-4 border-blue-500 p-4">
                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
-                          <span>🎯</span> Next Suggested Deep Dive?
+                          <span>🎯</span> Suggestion for technical accuracy improvement
                         </h4>
-                        <p className="text-base font-medium leading-relaxed">{evaluated.accuracyFeedback["Next Suggested Deep Dive?"]}</p>
+                        {Array.isArray(evaluated.accuracyFeedback["Suggestion for technical accuracy improvement."]) ? (
+                          <ul className="list-disc list-inside space-y-2">
+                            {evaluated.accuracyFeedback["Suggestion for technical accuracy improvement."].map((point: string, idx: number) => (
+                              <li key={idx} className="text-base font-medium leading-relaxed">{point}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-base font-medium leading-relaxed">{evaluated.accuracyFeedback["Suggestion for technical accuracy improvement."]}</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -648,7 +657,15 @@ const AnalysisResults = () => {
                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
                           <span>✓</span> What could you do well?
                         </h4>
-                        <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["What could you do well?"]}</p>
+                        {Array.isArray(evaluated.abilityFeedback["What could you do well?"]) ? (
+                          <ul className="list-disc list-inside space-y-2">
+                            {evaluated.abilityFeedback["What could you do well?"].map((point: string, idx: number) => (
+                              <li key={idx} className="text-base font-medium leading-relaxed">{point}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["What could you do well?"]}</p>
+                        )}
                       </div>
                     )}
                     {evaluated.abilityFeedback?.["What can you do better?"] && (
@@ -656,7 +673,15 @@ const AnalysisResults = () => {
                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
                           <span>⚠</span> What can you do better?
                         </h4>
-                        <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["What can you do better?"]}</p>
+                        {Array.isArray(evaluated.abilityFeedback["What can you do better?"]) ? (
+                          <ul className="list-disc list-inside space-y-2">
+                            {evaluated.abilityFeedback["What can you do better?"].map((point: string, idx: number) => (
+                              <li key={idx} className="text-base font-medium leading-relaxed">{point}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["What can you do better?"]}</p>
+                        )}
                       </div>
                     )}
                     {evaluated.abilityFeedback?.["Next Suggested Deep Dive?"] && (
@@ -664,7 +689,15 @@ const AnalysisResults = () => {
                         <h4 className="text-lg font-black uppercase mb-2 flex items-center gap-2">
                           <span>🎯</span> Next Suggested Deep Dive?
                         </h4>
-                        <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["Next Suggested Deep Dive?"]}</p>
+                        {Array.isArray(evaluated.abilityFeedback["Next Suggested Deep Dive?"]) ? (
+                          <ul className="list-disc list-inside space-y-2">
+                            {evaluated.abilityFeedback["Next Suggested Deep Dive?"].map((point: string, idx: number) => (
+                              <li key={idx} className="text-base font-medium leading-relaxed">{point}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-base font-medium leading-relaxed">{evaluated.abilityFeedback["Next Suggested Deep Dive?"]}</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -873,14 +906,47 @@ const AnalysisResults = () => {
                       <h4 className="text-xl font-black mb-2">Accuracy Feedback</h4>
                       {typeof evaluated.accuracyFeedback === 'object' && evaluated.accuracyFeedback !== null ? (
                         <div className="space-y-2">
-                          {evaluated.accuracyFeedback?.["What could you do well?"] && (
-                            <p className="text-lg font-bold">✓ <strong>Well:</strong> {evaluated.accuracyFeedback["What could you do well?"]}</p>
+                          {evaluated.accuracyFeedback?.["What you did well."] && (
+                            <div className="mb-2">
+                              <p className="text-lg font-bold">✓ <strong>Well:</strong></p>
+                              {Array.isArray(evaluated.accuracyFeedback["What you did well."]) ? (
+                                <ul className="list-disc list-inside ml-4">
+                                  {evaluated.accuracyFeedback["What you did well."].map((point: string, idx: number) => (
+                                    <li key={idx}>{point}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="ml-4">{evaluated.accuracyFeedback["What you did well."]}</p>
+                              )}
+                            </div>
                           )}
-                          {evaluated.accuracyFeedback?.["What can you do better?"] && (
-                            <p className="text-lg font-bold">⚠ <strong>Better:</strong> {evaluated.accuracyFeedback["What can you do better?"]}</p>
+                          {evaluated.accuracyFeedback?.["What could you do better."] && (
+                            <div className="mb-2">
+                              <p className="text-lg font-bold">⚠ <strong>Better:</strong></p>
+                              {Array.isArray(evaluated.accuracyFeedback["What could you do better."]) ? (
+                                <ul className="list-disc list-inside ml-4">
+                                  {evaluated.accuracyFeedback["What could you do better."].map((point: string, idx: number) => (
+                                    <li key={idx}>{point}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="ml-4">{evaluated.accuracyFeedback["What could you do better."]}</p>
+                              )}
+                            </div>
                           )}
-                          {evaluated.accuracyFeedback?.["Next Suggested Deep Dive?"] && (
-                            <p className="text-lg font-bold">🎯 <strong>Next:</strong> {evaluated.accuracyFeedback["Next Suggested Deep Dive?"]}</p>
+                          {evaluated.accuracyFeedback?.["Suggestion for technical accuracy improvement."] && (
+                            <div className="mb-2">
+                              <p className="text-lg font-bold">🎯 <strong>Next:</strong></p>
+                              {Array.isArray(evaluated.accuracyFeedback["Suggestion for technical accuracy improvement."]) ? (
+                                <ul className="list-disc list-inside ml-4">
+                                  {evaluated.accuracyFeedback["Suggestion for technical accuracy improvement."].map((point: string, idx: number) => (
+                                    <li key={idx}>{point}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="ml-4">{evaluated.accuracyFeedback["Suggestion for technical accuracy improvement."]}</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       ) : (
@@ -892,13 +958,46 @@ const AnalysisResults = () => {
                       {typeof evaluated.abilityFeedback === 'object' && evaluated.abilityFeedback !== null ? (
                         <div className="space-y-2">
                           {evaluated.abilityFeedback?.["What could you do well?"] && (
-                            <p className="text-lg font-bold">✓ <strong>Well:</strong> {evaluated.abilityFeedback["What could you do well?"]}</p>
+                            <div className="mb-2">
+                              <p className="text-lg font-bold">✓ <strong>Well:</strong></p>
+                              {Array.isArray(evaluated.abilityFeedback["What could you do well?"]) ? (
+                                <ul className="list-disc list-inside ml-4">
+                                  {evaluated.abilityFeedback["What could you do well?"].map((point: string, idx: number) => (
+                                    <li key={idx}>{point}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="ml-4">{evaluated.abilityFeedback["What could you do well?"]}</p>
+                              )}
+                            </div>
                           )}
                           {evaluated.abilityFeedback?.["What can you do better?"] && (
-                            <p className="text-lg font-bold">⚠ <strong>Better:</strong> {evaluated.abilityFeedback["What can you do better?"]}</p>
+                            <div className="mb-2">
+                              <p className="text-lg font-bold">⚠ <strong>Better:</strong></p>
+                              {Array.isArray(evaluated.abilityFeedback["What can you do better?"]) ? (
+                                <ul className="list-disc list-inside ml-4">
+                                  {evaluated.abilityFeedback["What can you do better?"].map((point: string, idx: number) => (
+                                    <li key={idx}>{point}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="ml-4">{evaluated.abilityFeedback["What can you do better?"]}</p>
+                              )}
+                            </div>
                           )}
                           {evaluated.abilityFeedback?.["Next Suggested Deep Dive?"] && (
-                            <p className="text-lg font-bold">🎯 <strong>Next:</strong> {evaluated.abilityFeedback["Next Suggested Deep Dive?"]}</p>
+                            <div className="mb-2">
+                              <p className="text-lg font-bold">🎯 <strong>Next:</strong></p>
+                              {Array.isArray(evaluated.abilityFeedback["Next Suggested Deep Dive?"]) ? (
+                                <ul className="list-disc list-inside ml-4">
+                                  {evaluated.abilityFeedback["Next Suggested Deep Dive?"].map((point: string, idx: number) => (
+                                    <li key={idx}>{point}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="ml-4">{evaluated.abilityFeedback["Next Suggested Deep Dive?"]}</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       ) : (

@@ -9,7 +9,14 @@
  * 3. Project Evaluation - Comprehensive project assessment
  */
 
-import { Type } from '@google/genai';
+// import { Type } from '@google/genai';
+
+const Type = {
+  OBJECT: 'OBJECT',
+  ARRAY: 'ARRAY',
+  STRING: 'STRING',
+  NUMBER: 'NUMBER',
+} as const;
 
 /**
  * Accuracy Evaluation Prompt
@@ -69,16 +76,22 @@ export const AccuracyConfig = {
             },
             "Feedback": {
               type: Type.OBJECT,
-              required: ["What could you do well?", "What can you do better?", "Next Suggested Deep Dive?"],
+              required: ["What you did well.", "What could you do better.", "Suggestion for technical accuracy improvement."],
               properties: {
-                "What could you do well?": {
-                  type: Type.STRING,
+                "What you did well.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 2-4 specific points highlighting major strengths and accomplishments from the video, where user explained topics very well with proper clarity & examples"
                 },
-                "What can you do better?": {
-                  type: Type.STRING,
+                "What could you do better.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 2-4 specific points mentioning partial or incorrect explanations with examples of what user explained and how they can explain those topics better"
                 },
-                "Next Suggested Deep Dive?": {
-                  type: Type.STRING,
+                "Suggestion for technical accuracy improvement.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 2-4 actionable suggestions for what user can improve from technical POV and how to explain topics better"
                 },
               },
             },
@@ -139,13 +152,19 @@ export const AbilityToExplainConfig = {
                   required: ["What could you do well?", "What can you do better?", "Next Suggested Deep Dive?"],
                   properties: {
                     "What could you do well?": {
-                      type: Type.STRING,
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                      description: "Array of 2-4 specific points highlighting communication strengths"
                     },
                     "What can you do better?": {
-                      type: Type.STRING,
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                      description: "Array of 2-4 specific points for improving explanation clarity"
                     },
                     "Next Suggested Deep Dive?": {
-                      type: Type.STRING,
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                      description: "Array of 2-4 actionable suggestions for deeper learning"
                     },
                   },
                 },
