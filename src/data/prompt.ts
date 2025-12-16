@@ -202,6 +202,7 @@ export const AbilityToExplainConfig = {
  * - Returning ONLY JSON output (no conversational text)
  * 
  * @constant {string}
+ * 
  */
 export const ProjectPrompt = `TASK: You are a supportive mentor evaluating a student's project explanation video. Your goal is to help them learn and improve.
 
