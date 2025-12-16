@@ -210,9 +210,9 @@ IMPORTANT: Write all feedback in simple, easy-to-understand English (A1/A2 level
 1. Analyze the video as per the given rubric parameters.
 2. For each parameter in the required JSON schema, assign a **weightage** (a number as per given in rubric reflecting the relative importance of this parameter) and a **level** (a categorical rating like "Beginner", "Intermediate", "Advanced", or "Expert").
 3. For each parameter in the required JSON schema, in the feedback object, provide specific, detailed commentary for the video:
-   * What you did well.: Describe 2-4 major **strengths** and accomplishments from the video.
-   * What could you do better.: Identify 2-4 key areas where the student **missed major requirements** or made significant errors.
-   * Suggestion for project improvement.: Suggest 2-4 actionable, high-impact improvements for **future projects** or presentations.
+   * What you did well.: Describe 3-5 major **strengths** and accomplishments from the video.
+   * What could you do better.: Identify 3-5 key areas where the student **missed major requirements** or made significant errors.
+   * Suggestion for project improvement.: Suggest 3-5 actionable, high-impact improvements for **future projects** or presentations.
 4. Crucially, **do not include any conversational text, preamble, or explanation** outside of the structured JSON output.
 
 Input Sections`;

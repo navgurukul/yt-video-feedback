@@ -205,24 +205,25 @@ const VideoAnalyzer = () => {
 
           switch (selectedPhase) {
             case "Phase 1: HTML Only — Student Profile & Course Portal":
-              projectRubric= Phase1Rubric;
+              projectRubric = Phase1Rubric;
               break;
             case "Phase 2: CSS Styling — Interactive Portfolio & Blog":
-            projectRubric= Phase1Rubric;
+              projectRubric = Phase2Rubric;
               break;
             case "Phase 3: JavaScript Basics — To-Do List & Weather App":
-              projectRubric = Phase3Rubric
-            case "phase 4: Advanced JavaScript — E-Commerce Site & Chat Application":
-            projectRubric = Phase4Rubric
-                break;
-              case "Phase 5: Full-Stack Development — Social Media Platform & Project Management Tool":
-              projectRubric= Phase5Rubric;
+              projectRubric = Phase3Rubric;
               break;
-              case "Phase 6: Deployment & Optimization — Blog Platform & Portfolio Site":
-              projectRubric = Phase6Rubric
+            case "Phase 4: Advanced JavaScript — E-Commerce Site & Chat Application":
+              projectRubric = Phase4Rubric;
+              break;
+            case "Phase 5: Full-Stack Development — Social Media Platform & Project Management Tool":
+              projectRubric = Phase5Rubric;
+              break;
+            case "Phase 6: Deployment & Optimization — Blog Platform & Portfolio Site":
+              projectRubric = Phase6Rubric;
               break;
             default:
-              projectRubric = "Phase1"; // Default to Phase1 rubric
+              projectRubric = Phase1Rubric; // Default to Phase1 rubric
           }
 
           const projectPayload = {
