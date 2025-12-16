@@ -195,6 +195,7 @@ export const AbilityToExplainConfig = {
  * 
  * Instructs the AI to perform comprehensive project assessment by:
  * - Evaluating against multiple rubric parameters
+ * - Checking coverage of required topics from VIDEO DETAILS
  * - Assigning weightage to each criterion
  * - Rating skill level for each parameter
  * - Providing structured feedback (strengths, weaknesses, improvements)
@@ -202,18 +203,62 @@ export const AbilityToExplainConfig = {
  * 
  * @constant {string}
  */
-export const ProjectPrompt = `TASK: Evaluate the student's project explanation video provided in this request based *strictly* on the grading rubric's structure.
+export const ProjectPrompt = `TASK: You are a supportive mentor evaluating a student's project explanation video. Your goal is to help them learn and improve.
 
-IMPORTANT: Write all feedback in simple, easy-to-understand English (A1/A2 level). Use short sentences. Avoid difficult words. Be friendly and helpful.
+Evaluate based on:
+1. The **VIDEO DETAILS** section (expected content, key topics to cover)
+2. The **RUBRIC** (grading criteria and levels)
 
-**INSTRUCTIONS:**
-1. Analyze the video as per the given rubric parameters.
-2. For each parameter in the required JSON schema, assign a **weightage** (a number as per given in rubric reflecting the relative importance of this parameter) and a **level** (a categorical rating like "Beginner", "Intermediate", "Advanced", or "Expert").
-3. For each parameter in the required JSON schema, in the feedback object, provide specific, detailed commentary for the video:
-   * What you did well.: Describe 3-5 major **strengths** and accomplishments from the video.
-   * What could you do better.: Identify 3-5 key areas where the student **missed major requirements** or made significant errors.
-   * Suggestion for project improvement.: Suggest 3-5 actionable, high-impact improvements for **future projects** or presentations.
-4. Crucially, **do not include any conversational text, preamble, or explanation** outside of the structured JSON output.
+IMPORTANT: Write all feedback in simple, easy-to-understand English (A1/A2 level). Use short sentences. Avoid difficult words. Be friendly and helpful like a mentor. Treat the user as a second person - use words like "you" and "your".
+
+**CRITICAL EVALUATION REQUIREMENTS:**
+
+1. **Check Coverage of Required Topics:**
+   - The VIDEO DETAILS section lists "Key Topics to explain" that the student MUST cover
+   - For EACH key topic, check if the student explained it in their video
+   - If a key topic is NOT covered or poorly explained, you MUST mention it specifically in "What could you do better"
+   - Be specific: name the exact topic that was missing (e.g., "You did not explain how navigation links connect your pages" or "You missed explaining the Forms and input elements")
+
+2. **Identify and Correct Wrong Explanations (VERY IMPORTANT):**
+   - If the student explained something INCORRECTLY, you MUST:
+     * Quote what they said wrong (e.g., "You said '<div> is used for styling'...")
+     * Explain why it's wrong in simple words
+     * Give the CORRECT explanation like a mentor would
+     * Provide a simple example to help them understand
+   - Example format: "You said '<table> is for layout'. This is not correct. <table> is for showing data in rows and columns, like a grade sheet. For layout, we use CSS with Flexbox or Grid. Think of <table> like an Excel sheet - it's for data, not design."
+
+3. **Evaluate Against Rubric Parameters:**
+   - For each parameter in the rubric, assign a **weightage** (use the exact percentage from rubric) and a **level** (Beginner, Intermediate, Advanced, or Expert)
+   - Match the student's explanation to the rubric level descriptions
+   - Use specific examples from what the student said or showed in the video
+
+4. **Provide Mentor-Style Detailed Feedback:**
+   - **What you did well**: 3-5 specific points about what the student explained correctly, with examples from their video. Celebrate their wins!
+   - **What could you do better**: 3-5 specific points including:
+     * WRONG explanations with corrections and examples (use format: "You said X. This is not right because... The correct way is... For example...")
+     * Topics from KEY TOPICS list that were missing or poorly explained
+     * Concepts from the rubric that weren't demonstrated
+     * Specific improvements with mentor-like guidance
+   - **Suggestion for project improvement**: 3-5 actionable suggestions for the next level up. Be specific like a mentor teaching a student. Give examples of what to say or show.
+
+5. **Be a Helpful Mentor:**
+   - When correcting mistakes, be kind but clear
+   - Always explain WHY something is wrong, not just that it's wrong
+   - Give real examples they can use in their next video
+   - Use analogies to make complex concepts simple (e.g., "Think of <nav> like a menu at a restaurant - it helps visitors find what they want")
+   - Encourage them while pointing out areas to improve
+
+6. **Reference Expected Content:**
+   - Always compare what the student said against what they SHOULD have covered (from VIDEO DETAILS)
+   - If the video is off-topic or doesn't match the expected project, clearly state this
+   - Be specific about which requirements from the phase were met or missed
+
+7. **Do NOT:**
+   - Give vague feedback like "good job" or "needs improvement" without specifics
+   - Include any conversational text outside the JSON structure
+   - Ignore missing topics - every missing key topic must be mentioned
+   - Skip over wrong explanations - ALWAYS correct them with examples
+   - Be harsh or discouraging - be supportive like a good mentor
 
 Input Sections`;
 
@@ -263,17 +308,17 @@ export const projectconfig = {
                 "What you did well.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 2-4 specific points highlighting major strengths and accomplishments from the video",
+                  description: "Array of 3-5 specific points highlighting major strengths. Include EXACT examples from what the student said or showed in the video. Reference specific topics from VIDEO DETAILS that were explained well.",
                 },
                 "What could you do better.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 2-4 specific points where the student missed major requirements or made significant errors",
+                  description: "Array of 3-5 specific points including: (1) WRONG explanations with corrections and examples - use format: 'You said X. This is not right because... The correct way is... For example...' (2) KEY TOPICS from VIDEO DETAILS that were NOT covered or poorly explained - name each missing topic explicitly, (3) Rubric criteria that weren't demonstrated, (4) Specific improvements with mentor-like guidance.",
                 },
                 "Suggestion for project improvement.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 2-4 actionable, high-impact improvements for future projects",
+                  description: "Array of 3-5 actionable, specific suggestions to reach the next level. Reference the rubric level descriptions and VIDEO DETAILS requirements. Include concrete examples of what to explain or demonstrate.",
                 },
               },
             },

@@ -15,9 +15,9 @@ import { AnimatedIntroText } from "@/components/AnimatedIntroText";
 import { CelebrationEffect } from "@/components/CelebrationEffect";
 import { motion } from "framer-motion";
 import { getPhaseNames, getVideoTitlesForPhase, getVideoDetailsForTitle } from "@/data/videoData";
+import { getProjectVideoForPhase } from "@/data/phasevideodata";
 import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric,Phase5Rubric, Phase6Rubric } from "@/data/RubricData";
 import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig} from '@/data/prompt'
-import { a } from "node_modules/framer-motion/dist/types.d-BJcRxCew";
 import { ApiKeyContext } from "@/App";
 
 const VideoAnalyzer = () => {
@@ -50,7 +50,19 @@ const VideoAnalyzer = () => {
           details += `${idx + 1}. ${question}\n`;
         });
       }
-    } 
+    } else if (videoType === "project") {
+      // For project videos, get details from phasevideodata
+      const projectVideo = getProjectVideoForPhase(selectedPhase);
+      if (projectVideo) {
+        details += `Project Video Title: ${projectVideo.title}\n\n`;
+        details += `Description: ${projectVideo.description}\n\n`;
+        details += `What to cover:\n${projectVideo.whatToCover}\n\n`;
+        details += `Key Topics to explain:\n`;
+        projectVideo.keyTopics.forEach((topic, idx) => {
+          details += `${idx + 1}. ${topic}\n`;
+        });
+      }
+    }
     return details;
   };
 
@@ -66,7 +78,9 @@ const VideoAnalyzer = () => {
   useEffect(() => {
     if (videoType === "concept" && selectedPhase && selectedVideoTitle) {
       setVideoDetailsText(getVideoDetails());
-    } 
+    } else if (videoType === "project" && selectedPhase) {
+      setVideoDetailsText(getVideoDetails());
+    }
   }, [videoType, selectedPhase, selectedVideoTitle]);
 
   const handleAnalyze = () => {
