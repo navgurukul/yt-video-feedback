@@ -108,9 +108,9 @@ export const Header = () => {
               <Link to="/history" className="font-bold hover:text-primary hover:scale-105 transition-all">
                 History
               </Link>
-              <Link to="/all-evaluations" className="font-bold hover:text-primary hover:scale-105 transition-all">
+              {/* <Link to="/all-evaluations" className="font-bold hover:text-primary hover:scale-105 transition-all">
                 All Evaluations
-              </Link>
+              </Link> */}
             </nav>
           </div>
           <div className="flex gap-3">
