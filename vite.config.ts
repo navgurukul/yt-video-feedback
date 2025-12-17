@@ -40,6 +40,33 @@ export default defineConfig(({ mode }) => {
           target: apiUrl,
           changeOrigin: true,
           secure: false
+        },
+        // Forward all evaluations requests to API server
+        '/all-evaluations': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false
+        },
+        // Forward history requests to API server
+        '/concept-history': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false
+        },
+        '/project-history': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false
+        },
+        '/concept-evaluation': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false
+        },
+        '/project-evaluation': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false
         }
       } : undefined
     },

@@ -754,6 +754,133 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
+// Fetch ALL evaluations (admin view - all students)
+app.get('/all-evaluations', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, type, search, sortBy = 'created_at', sortOrder = 'desc' } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    console.log('All evaluations request:', { page, limit, type, search, sortBy, sortOrder });
+    
+    let conceptQuery = '';
+    let projectQuery = '';
+    let conceptParams = [];
+    let projectParams = [];
+    
+    // Build search condition
+    const searchCondition = search 
+      ? `WHERE email ILIKE $1 OR project_name ILIKE $1 OR page_name ILIKE $1` 
+      : '';
+    const projectSearchCondition = search 
+      ? `WHERE email ILIKE $1 OR project_name ILIKE $1` 
+      : '';
+    
+    if (search) {
+      conceptParams = [`%${search}%`];
+      projectParams = [`%${search}%`];
+    }
+    
+    // Fetch concept evaluations if type is 'all' or 'concept'
+    let conceptRecords = [];
+    if (!type || type === 'all' || type === 'concept') {
+      conceptQuery = `
+        SELECT 
+          id,
+          email,
+          project_name,
+          page_name,
+          video_url,
+          concept_explanation_accuracy,
+          concept_explanation_feedback,
+          ability_to_explain_evaluation,
+          ability_to_explain_feedback,
+          created_at,
+          'concept' as type
+        FROM tbl_ailabs_ytfeedback_concept_evaluations
+        ${searchCondition}
+        ORDER BY created_at DESC
+      `;
+      const conceptResult = await pgPool.query(conceptQuery, conceptParams);
+      conceptRecords = conceptResult.rows;
+    }
+    
+    // Fetch project evaluations if type is 'all' or 'project'
+    let projectRecords = [];
+    if (!type || type === 'all' || type === 'project') {
+      projectQuery = `
+        SELECT 
+          id,
+          email,
+          project_name,
+          NULL as page_name,
+          video_url,
+          project_explanation_evaluation,
+          project_explanation_feedback,
+          project_explanation_evaluationjson,
+          created_at,
+          'project' as type
+        FROM tbl_ailabs_ytfeedback_project_evaluation
+        ${projectSearchCondition}
+        ORDER BY created_at DESC
+      `;
+      const projectResult = await pgPool.query(projectQuery, projectParams);
+      projectRecords = projectResult.rows;
+    }
+    
+    // Combine and sort all records
+    let allRecords = [...conceptRecords, ...projectRecords];
+    
+    // Sort combined records
+    allRecords.sort((a, b) => {
+      if (sortBy === 'email') {
+        return sortOrder === 'asc' 
+          ? a.email.localeCompare(b.email)
+          : b.email.localeCompare(a.email);
+      } else if (sortBy === 'project_name') {
+        return sortOrder === 'asc' 
+          ? (a.project_name || '').localeCompare(b.project_name || '')
+          : (b.project_name || '').localeCompare(a.project_name || '');
+      } else {
+        // Default: sort by created_at
+        return sortOrder === 'asc' 
+          ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+    
+    // Get total count before pagination
+    const totalCount = allRecords.length;
+    
+    // Apply pagination
+    const paginatedRecords = allRecords.slice(offset, offset + parseInt(limit));
+    
+    // Get unique emails count (unique students)
+    const uniqueEmails = new Set(allRecords.map(r => r.email));
+    
+    console.log('All evaluations found:', totalCount, 'records from', uniqueEmails.size, 'students');
+    
+    res.json({ 
+      success: true, 
+      data: paginatedRecords,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / parseInt(limit))
+      },
+      stats: {
+        totalEvaluations: totalCount,
+        uniqueStudents: uniqueEmails.size,
+        conceptCount: conceptRecords.length,
+        projectCount: projectRecords.length
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching all evaluations:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Evaluation API listening on http://localhost:${PORT}`);
 });

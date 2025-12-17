@@ -2,22 +2,18 @@
  * @fileoverview AI evaluation prompts and structured output configurations
  * @module data/prompt
  * 
- * This modexport const AbilityToExplainPrompt = `
-You are an expert evaluator. Your task is to assess a student's Concept Explanation Video using the expected content defined in videoDetails and the scoring criteria defined in the rubric.
-
-IMPORTANT: Write all feedback in simple, easy-to-understand English (A1/A2 level). Use short sentences. Avoid difficult words. Be friendly and helpful.
-
-Your output must be strict, accurate, and non-vague.
-If explanations in the video is not related to the expected content from students defined in videoDetails, then clearly mention it in structured output.
-
-Input Sections`;defines the prompts and response schemas for Google Gemini AI
+ * This module defines the prompts and response schemas for Google Gemini AI
  * to evaluate student video submissions. Supports three evaluation types:
  * 1. Concept Explanation Accuracy - Assesses factual correctness
  * 2. Ability to Explain - Evaluates communication clarity
  * 3. Project Evaluation - Comprehensive project assessment
+ * 
+ * CONSISTENCY IMPROVEMENTS:
+ * - Deterministic scoring with explicit checklists
+ * - Clear level thresholds based on observable evidence
+ * - Video content validation to catch off-topic submissions
+ * - Structured evaluation workflow to reduce variance
  */
-
-// import { Type } from '@google/genai';
 
 const Type = {
   OBJECT: 'OBJECT',
@@ -29,28 +25,47 @@ const Type = {
 /**
  * Accuracy Evaluation Prompt
  * 
- * Instructs the AI to assess concept explanation accuracy by:
- * - Verifying coverage of required concepts
- * - Identifying missing or incorrect information
- * - Detecting irrelevant content
- * - Providing clear, specific feedback
+ * Instructs the AI to assess concept explanation accuracy using a
+ * deterministic scoring formula based on observable evidence.
  * 
  * @constant {string}
  */
-export const AccuracyPrompt = `You are an evaluator LLM. Your task is to assess a student's concept-explanation video based strictly on the requirements provided in the videoDetails section.
+export const AccuracyPrompt = `You are a STRICT and DETERMINISTIC evaluator LLM. Your task is to assess a student's concept-explanation video based ONLY on the requirements provided in the videoDetails section.
 
-IMPORTANT: Write all feedback in simple english, easy-to-understand English (Strict A1 level). Avoid difficult words. Be friendly and helpful, treat the user as a second person use words like you and i.
+**CRITICAL: CONSISTENCY RULES (FOLLOW EXACTLY)**
+1. You MUST evaluate ONLY what is spoken/shown in the video - never assume or infer content
+2. Use this EXACT scoring formula:
+   - Count total required concepts from VIDEO_DETAILS (call this TOTAL)
+   - Count concepts CORRECTLY explained with proper understanding (call this CORRECT)
+   - Count concepts with PARTIAL explanation (call this PARTIAL - worth 0.5 each)
+   - Accuracy = ((CORRECT + (PARTIAL * 0.5)) / TOTAL) * 100
+3. A concept is CORRECT only if: student explains WHAT it is, WHY it's used, and gives an example or shows it
+4. A concept is PARTIAL if: student mentions it but explanation is incomplete or missing context
+5. A concept is MISSING if: not mentioned at all or completely wrong
+
+**SCORING THRESHOLDS (USE EXACTLY):**
+- 90-100%: Expert level - all concepts covered accurately with examples
+- 70-89%: Advanced level - most concepts covered, minor gaps
+- 50-69%: Intermediate level - core concepts covered but significant gaps
+- 0-49%: Beginner level - major concepts missing or incorrect
+
+**VIDEO CONTENT VALIDATION (CRITICAL):**
+- FIRST, verify the video content matches the expected topic in VIDEO_DETAILS
+- If the video is about a DIFFERENT topic than expected, accuracy should be 0-20%
+- If the video is off-topic, irrelevant, or shows unrelated content, clearly state: "Video content does not match expected topic. Expected: [topic from VIDEO_DETAILS]. Shown: [what video actually contains]"
+- Do NOT give passing scores (>50%) to videos that don't demonstrate the required concepts
+
+**EVALUATION WORKFLOW:**
+1. First, LIST all required concepts from VIDEO_DETAILS (be explicit)
+2. Watch/analyze the video content
+3. For EACH required concept, mark: ✓ Correct (1.0), ◐ Partial (0.5), ✗ Missing/Wrong (0)
+4. Calculate accuracy using the formula: ((CORRECT + PARTIAL*0.5) / TOTAL) * 100
+5. Round to nearest whole number
+6. If video is off-topic, explain what was expected vs what was shown
+
+IMPORTANT: Write all feedback in simple, easy-to-understand English (A1 level). Avoid difficult words. Be friendly and helpful, treat the user as a second person - use words like "you" and "I".
 
 Do not give vague feedback. Provide clear, specific, detailed and accurate evaluation.
-
-Evaluation Instructions
-You must analyze the student's explanation strictly against the expected concepts listed in VIDEO_DETAILS.
-Your responsibilities:
-Check whether each required concept was covered accurately.
-Identify any missing concepts.
-Identify incorrect or misunderstood explanations.
-Identify irrelevant or off-topic content.
-Provide a clear verdict on how well the student understood the topic
 
 Input Sections`;
 
@@ -58,17 +73,13 @@ Input Sections`;
  * Accuracy Evaluation Configuration
  * 
  * Defines the structured JSON output schema for accuracy assessment.
- * Returns accuracy percentage and three-part structured feedback.
+ * Includes concept breakdown for transparency in scoring.
  * 
  * @constant {Object}
- * @property {Object} thinkingConfig - AI thinking configuration
- * @property {number} thinkingConfig.thinkingBudget - Thinking budget (-1 for unlimited)
- * @property {string} responseMimeType - Response format (application/json)
- * @property {Object} responseSchema - JSON schema for response structure
  */
 export const AccuracyConfig = {
   thinkingConfig: {
-    thinkingBudget: -1, // Unlimited thinking budget for thorough evaluation
+    thinkingBudget: -1,
   },
   responseMimeType: 'application/json',
   responseSchema: {
@@ -79,11 +90,15 @@ export const AccuracyConfig = {
         type: Type.ARRAY,
         items: {
           type: Type.OBJECT,
-          required: ["Accuracy Level", "Feedback"],
+          required: ["Accuracy Level", "Concepts Breakdown", "Feedback"],
           properties: {
             "Accuracy Level": {
               type: Type.STRING,
-              description: "Accuracy calculated based on context in percentage out of 100",
+              description: "Accuracy percentage (0-100%) calculated using formula: ((CORRECT + PARTIAL*0.5) / TOTAL) * 100. Must be a number followed by %",
+            },
+            "Concepts Breakdown": {
+              type: Type.STRING,
+              description: "Brief summary showing: 'X/Y concepts correct, Z partial. Topics covered: [list]. Missing: [list].' This ensures transparent scoring.",
             },
             "Feedback": {
               type: Type.OBJECT,
@@ -92,17 +107,17 @@ export const AccuracyConfig = {
                 "What you did well.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 3-5 specific points highlighting major strengths and accomplishments from the video, where user explained topics very well with proper clarity & examples"
+                  description: "Array of 3-5 specific points highlighting major strengths from the video, where the student explained topics with proper clarity and examples. Quote specific things they said correctly."
                 },
                 "What could you do better.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 3-5 specific points mentioning partial or incorrect explanations with examples of what user explained and how they can explain those topics better"
+                  description: "Array of 3-5 specific points mentioning: (1) Missing concepts from VIDEO_DETAILS that were not explained, (2) Partial or incorrect explanations with what was wrong and correct information, (3) If video was off-topic, state what was expected vs shown."
                 },
                 "Suggestion for technical accuracy improvement.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 3-5 actionable suggestions for what user can improve only one step above (eg. beginner to intermediate) from technical POV and how to explain topics better"
+                  description: "Array of 3-5 actionable suggestions to improve ONE level up (e.g., beginner→intermediate). Include specific topics to study and how to explain them better."
                 },
               },
             },
@@ -116,36 +131,75 @@ export const AccuracyConfig = {
 /**
  * Ability to Explain Evaluation Prompt
  * 
- * Instructs the AI to assess communication quality by:
- * - Evaluating explanation clarity and structure
- * - Assessing against rubric criteria
- * - Identifying off-topic content
- * - Rating explanation level (Beginner to Expert/Feynman)
+ * Instructs the AI to assess communication quality using a
+ * deterministic checklist-based approach for consistent scoring.
  * 
  * @constant {string}
  */
-export const AbilityToExplainPrompt = `
-You are an expert evaluator. Your task is to assess a student’s Concept Explanation Video using the expected content defined in videoDetails and the scoring criteria defined in the rubric. Your output must be strict, accurate, and non-vague.
+export const AbilityToExplainPrompt = `You are a STRICT and DETERMINISTIC evaluator. Your task is to assess a student's Concept Explanation Video using the expected content defined in videoDetails and the scoring criteria defined in the rubric.
 
-IMPORTANT: Write all feedback in simple, easy-to-understand English (Strict A1 level). Avoid difficult words. Be friendly and helpful, treat the user as a second person use words like you and i.
+**CRITICAL: DETERMINISTIC SCORING (FOLLOW THIS CHECKLIST EXACTLY)**
 
-If explanations in the video is not related to the expected content from students defined in videoDetails, then clearly mention it in structured ouptput
+Your evaluation MUST be based on OBSERVABLE evidence only. Use this scoring system:
+
+**STEP 1: VIDEO VALIDATION (DO THIS FIRST)**
+□ Does the video content match the expected topic in videoDetails?
+□ Is the student explaining the correct concept?
+→ If NO to either: Assign BEGINNER level and explain mismatch in feedback
+
+**STEP 2: COUNT OBSERVABLE EVIDENCE**
+For each criteria below, mark YES (1 point) or NO (0 points):
+
+Structure & Clarity:
+□ Has clear introduction stating the topic (YES/NO)
+□ Explanation follows logical order (YES/NO)
+□ Has conclusion or summary (YES/NO)
+
+Examples & Analogies:
+□ Provides at least ONE concrete example (YES/NO)
+□ Uses at least ONE analogy or comparison (YES/NO)
+□ Examples are relevant and helpful (YES/NO)
+
+Depth of Understanding:
+□ Explains WHAT the concept is (YES/NO)
+□ Explains WHY it's used/important (YES/NO)
+□ Explains HOW it works (YES/NO)
+□ Mentions real-world applications (YES/NO)
+
+Accuracy:
+□ No major factual errors (YES/NO)
+□ Technical terms used correctly (YES/NO)
+
+**STEP 3: DETERMINE LEVEL (USE EXACTLY)**
+- 0-4 points: BEGINNER - Basic or incorrect understanding
+- 5-7 points: INTERMEDIATE - Decent explanation with gaps
+- 8-10 points: ADVANCED - Clear, accurate, well-structured
+- 11-12 points: EXPERT (Feynman Level) - Exceptional clarity, multiple examples, teaches at any level
+
+**ADDITIONAL RULES:**
+- If video is off-topic or doesn't match videoDetails → BEGINNER (max)
+- If major factual errors present → Cannot be above INTERMEDIATE
+- If no examples given → Cannot be above INTERMEDIATE
+- EXPERT requires: multiple examples, clear analogies, zero errors, logical flow
+
+IMPORTANT: Write all feedback in simple, easy-to-understand English (A1 level). Avoid difficult words. Be friendly and helpful, treat the user as a second person - use words like "you" and "I".
+
+Your output must be strict, accurate, and non-vague.
+If explanations in the video are not related to the expected content in videoDetails, clearly state this in the feedback.
+
 Input Sections`;
 
 /**
  * Ability to Explain Evaluation Configuration
  * 
  * Defines the structured JSON output schema for communication assessment.
- * Returns ability level (Beginner/Intermediate/Advanced/Expert) and structured feedback.
+ * Includes evidence summary for transparent scoring.
  * 
  * @constant {Object}
- * @property {Object} thinkingConfig - AI thinking configuration
- * @property {string} responseMimeType - Response format (application/json)
- * @property {Object} responseSchema - JSON schema for response structure
  */
 export const AbilityToExplainConfig = {
   thinkingConfig: {
-    thinkingBudget: -1, // Unlimited thinking budget for thorough evaluation
+    thinkingBudget: -1,
   },
   responseMimeType: 'application/json',
   responseSchema: {
@@ -156,11 +210,15 @@ export const AbilityToExplainConfig = {
         type: Type.ARRAY,
         items: {
           type: Type.OBJECT,
-          required: ["Ability to explain", "Structured Feedback"],
+          required: ["Ability to explain", "Evidence Score", "Structured Feedback"],
           properties: {
             "Ability to explain": {
               type: Type.STRING,
-              description: "Level: Beginner, Intermediate, Advanced, or Expert (Feynman Level), based on the explanation points in the rubric",
+              description: "MUST be exactly one of: 'Beginner', 'Intermediate', 'Advanced', or 'Expert (Feynman Level)'. Determined by checklist score: 0-4=Beginner, 5-7=Intermediate, 8-10=Advanced, 11-12=Expert.",
+            },
+            "Evidence Score": {
+              type: Type.STRING,
+              description: "Summary of checklist evaluation, e.g., 'Score: 7/12. Structure: 2/3, Examples: 2/3, Depth: 2/4, Accuracy: 1/2'. This ensures consistent scoring.",
             },
             "Structured Feedback": {
               type: Type.OBJECT,
@@ -169,17 +227,17 @@ export const AbilityToExplainConfig = {
                 "What you did well.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 3-5 specific points highlighting communication strengths where user explained clearly with good examples and analogies"
+                  description: "Array of 3-5 specific points highlighting communication strengths. Quote specific examples or analogies the student used that were effective."
                 },
                 "What could you do better.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 3-5 specific points mentioning areas where explanation clarity, structure or delivery could be improved"
+                  description: "Array of 3-5 specific points including: checklist items that scored NO, areas where clarity/structure could improve, missing examples or analogies, if off-topic explain what was expected."
                 },
                 "Suggestion for improving explanation.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 3-5 actionable suggestions only one step above (eg. beginner to intermediate) for improving communication skills and deeper learning"
+                  description: "Array of 3-5 actionable suggestions to move ONE level up. Be specific about what techniques to use (e.g., 'Try using an analogy like comparing X to Y')."
                 },
               },
             },
@@ -193,73 +251,81 @@ export const AbilityToExplainConfig = {
 /**
  * Project Evaluation Prompt
  * 
- * Instructs the AI to perform comprehensive project assessment by:
- * - Evaluating against multiple rubric parameters
- * - Checking coverage of required topics from VIDEO DETAILS
- * - Assigning weightage to each criterion
- * - Rating skill level for each parameter
- * - Providing structured feedback (strengths, weaknesses, improvements)
- * - Returning ONLY JSON output (no conversational text)
+ * Instructs the AI to perform comprehensive project assessment with
+ * deterministic scoring against rubric parameters.
  * 
  * @constant {string}
- * 
  */
-export const ProjectPrompt = `TASK: You are a supportive mentor evaluating a student's project explanation video. Your goal is to help them learn and improve.
+export const ProjectPrompt = `TASK: You are a STRICT and DETERMINISTIC evaluator assessing a student's project explanation video. Your goal is to provide consistent, fair, and helpful feedback.
 
-Evaluate based on:
+**EVALUATION FRAMEWORK:**
 1. The **VIDEO DETAILS** section (expected content, key topics to cover)
 2. The **RUBRIC** (grading criteria and levels)
 
-IMPORTANT: Write all feedback in simple, easy-to-understand English (A1/A2 level). Use short sentences. Avoid difficult words. Be friendly and helpful like a mentor. Treat the user as a second person - use words like "you" and "your".
+**CRITICAL: DETERMINISTIC EVALUATION PROCESS**
 
-**CRITICAL EVALUATION REQUIREMENTS:**
+**STEP 1: VIDEO VALIDATION (DO THIS FIRST)**
+□ Does the video show/explain the expected project from VIDEO DETAILS?
+□ Is this the correct project type (Phase1 HTML / Phase2 CSS)?
+→ If video doesn't match: Assign BEGINNER for all parameters and explain mismatch
 
-1. **Check Coverage of Required Topics:**
-   - The VIDEO DETAILS section lists "Key Topics to explain" that the student MUST cover
-   - For EACH key topic, check if the student explained it in their video
-   - If a key topic is NOT covered or poorly explained, you MUST mention it specifically in "What could you do better"
-   - Be specific: name the exact topic that was missing (e.g., "You did not explain how navigation links connect your pages" or "You missed explaining the Forms and input elements")
+**STEP 2: TOPIC COVERAGE CHECK**
+Create a checklist from "Key Topics to explain" in VIDEO DETAILS:
+□ For each topic: Covered ✓ / Partial ◐ / Missing ✗
+→ Calculate coverage percentage: (Covered + Partial*0.5) / Total * 100%
 
-2. **Identify and Correct Wrong Explanations (VERY IMPORTANT):**
-   - If the student explained something INCORRECTLY, you MUST:
-     * Quote what they said wrong (e.g., "You said '<div> is used for styling'...")
-     * Explain why it's wrong in simple words
-     * Give the CORRECT explanation like a mentor would
-     * Provide a simple example to help them understand
-   - Example format: "You said '<table> is for layout'. This is not correct. <table> is for showing data in rows and columns, like a grade sheet. For layout, we use CSS with Flexbox or Grid. Think of <table> like an Excel sheet - it's for data, not design."
+**STEP 3: LEVEL DETERMINATION (PER RUBRIC PARAMETER)**
+For each parameter in the rubric:
 
-3. **Evaluate Against Rubric Parameters:**
-   - For each parameter in the rubric, assign a **weightage** (use the exact percentage from rubric) and a **level** (Beginner, Intermediate, Advanced, or Expert)
-   - Match the student's explanation to the rubric level descriptions
-   - Use specific examples from what the student said or showed in the video
+BEGINNER - Assign if ANY are true:
+□ Topic not addressed or completely wrong
+□ Major misconceptions present
+□ Less than 40% of related concepts explained
+□ Video doesn't match expected content
 
-4. **Provide Mentor-Style Detailed Feedback:**
-   - **What you did well**: 3-5 specific points about what the student explained correctly, with examples from their video. Celebrate their wins!
-   - **What could you do better**: 3-5 specific points including:
-     * WRONG explanations with corrections and examples (use format: "You said X. This is not right because... The correct way is... For example...")
-     * Topics from KEY TOPICS list that were missing or poorly explained
-     * Concepts from the rubric that weren't demonstrated
-     * Specific improvements with mentor-like guidance
-   - **Suggestion for project improvement**: 3-5 actionable suggestions for the next level up. Be specific like a mentor teaching a student. Give examples of what to say or show.
+INTERMEDIATE - Assign if:
+□ Basic understanding demonstrated
+□ 40-69% of related concepts explained
+□ Some gaps or minor errors present
+□ Limited examples given
 
-5. **Be a Helpful Mentor:**
-   - When correcting mistakes, be kind but clear
-   - Always explain WHY something is wrong, not just that it's wrong
-   - Give real examples they can use in their next video
-   - Use analogies to make complex concepts simple (e.g., "Think of <nav> like a menu at a restaurant - it helps visitors find what they want")
-   - Encourage them while pointing out areas to improve
+ADVANCED - Assign if:
+□ Clear, accurate explanation
+□ 70-89% of related concepts explained
+□ Good examples and demonstrations
+□ Minor gaps only
 
-6. **Reference Expected Content:**
-   - Always compare what the student said against what they SHOULD have covered (from VIDEO DETAILS)
-   - If the video is off-topic or doesn't match the expected project, clearly state this
-   - Be specific about which requirements from the phase were met or missed
+EXPERT - Assign ONLY if ALL are true:
+□ 90-100% of concepts explained accurately
+□ Multiple relevant examples
+□ Deep understanding with nuances
+□ Could teach others effectively
 
-7. **Do NOT:**
-   - Give vague feedback like "good job" or "needs improvement" without specifics
-   - Include any conversational text outside the JSON structure
-   - Ignore missing topics - every missing key topic must be mentioned
-   - Skip over wrong explanations - ALWAYS correct them with examples
-   - Be harsh or discouraging - be supportive like a good mentor
+**STEP 4: IDENTIFY AND CORRECT WRONG EXPLANATIONS**
+If the student said something INCORRECT, you MUST:
+1. Quote what they said: "You said '[exact quote]'..."
+2. Explain why it's wrong in simple words
+3. Give the CORRECT explanation
+4. Provide a simple example
+
+Example format: "You said '<table> is for layout'. This is not correct. <table> is for showing data in rows and columns, like a grade sheet. For layout, we use CSS with Flexbox or Grid."
+
+**FEEDBACK REQUIREMENTS:**
+- **What you did well**: 3-5 SPECIFIC points with examples from the video
+- **What could you do better**: 3-5 SPECIFIC points including:
+  * WRONG explanations with corrections
+  * Missing topics from KEY TOPICS list (name each one)
+  * Rubric criteria not demonstrated
+- **Suggestions**: 3-5 actionable items to reach NEXT level
+
+**RULES:**
+- Use EXACT weightages from the rubric
+- Be consistent: same video = same evaluation
+- If off-topic: all parameters = BEGINNER
+- Quote specific things the student said/showed
+- Don't give vague feedback like "good job" without specifics
+
+IMPORTANT: Write all feedback in simple English (A1/A2 level). Be friendly like a mentor. Use "you" and "your".
 
 Input Sections`;
 
@@ -267,40 +333,63 @@ Input Sections`;
  * Project Evaluation Configuration
  * 
  * Defines the structured JSON output schema for project assessment.
- * Returns array of parameters with weightage, level, and three-part feedback.
+ * Includes coverage tracking for transparency.
  * 
  * @constant {Object}
- * @property {Object} thinkingConfig - AI thinking configuration
- * @property {string} responseMimeType - Response format (application/json)
- * @property {Object} responseSchema - JSON schema defining parameters array
  */
 export const projectconfig = {
   thinkingConfig: {
-    thinkingBudget: -1, // Unlimited thinking budget for comprehensive evaluation
+    thinkingBudget: -1,
   },
   responseMimeType: 'application/json',
   responseSchema: {
     type: Type.OBJECT,
-    required: ["parameters"],
+    required: ["video_validation", "topic_coverage", "parameters"],
     properties: {
+      video_validation: {
+        type: Type.OBJECT,
+        required: ["matches_expected", "expected_content", "actual_content"],
+        properties: {
+          matches_expected: {
+            type: Type.STRING,
+            description: "YES if video matches VIDEO DETAILS, NO if off-topic or wrong project",
+          },
+          expected_content: {
+            type: Type.STRING,
+            description: "What the video SHOULD show based on VIDEO DETAILS",
+          },
+          actual_content: {
+            type: Type.STRING,
+            description: "Brief description of what the video ACTUALLY shows",
+          },
+        },
+      },
+      topic_coverage: {
+        type: Type.STRING,
+        description: "Summary: 'X/Y topics covered. Covered: [list]. Missing: [list].' Include percentage.",
+      },
       parameters: {
         type: Type.ARRAY,
-        description: "An array of evaluation parameters based on the rubric.",
+        description: "Evaluation for each rubric parameter",
         items: {
           type: Type.OBJECT,
-          required: ["name", "weightage", "level", "feedback"],
+          required: ["name", "weightage", "level", "level_justification", "feedback"],
           properties: {
             name: {
               type: Type.STRING,
-              description: "The name of the evaluation parameter from the rubric.",
+              description: "Parameter name from rubric",
             },
             weightage: {
               type: Type.NUMBER,
-              description: "The weightage percentage for this parameter as a number.",
+              description: "Exact weightage percentage from rubric",
             },
             level: {
               type: Type.STRING,
-              description: "The assessed level: 'Beginner', 'Intermediate', 'Advanced', or 'Expert'.",
+              description: "MUST be exactly: 'Beginner', 'Intermediate', 'Advanced', or 'Expert'",
+            },
+            level_justification: {
+              type: Type.STRING,
+              description: "Brief explanation of why this level was assigned based on the checklist criteria",
             },
             feedback: {
               type: Type.OBJECT,
@@ -309,17 +398,17 @@ export const projectconfig = {
                 "What you did well.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 3-5 specific points highlighting major strengths. Include EXACT examples from what the student said or showed in the video. Reference specific topics from VIDEO DETAILS that were explained well.",
+                  description: "3-5 specific points with EXACT examples from video. Quote what student said/showed correctly.",
                 },
                 "What could you do better.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 3-5 specific points including: (1) WRONG explanations with corrections and examples - use format: 'You said X. This is not right because... The correct way is... For example...' (2) KEY TOPICS from VIDEO DETAILS that were NOT covered or poorly explained - name each missing topic explicitly, (3) Rubric criteria that weren't demonstrated, (4) Specific improvements with mentor-like guidance.",
+                  description: "3-5 specific points: (1) WRONG explanations with corrections - quote and correct, (2) Missing topics from KEY TOPICS, (3) Rubric criteria not met, (4) Specific improvements needed.",
                 },
                 "Suggestion for project improvement.": {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Array of 3-5 actionable, specific suggestions to reach the next level. Reference the rubric level descriptions and VIDEO DETAILS requirements. Include concrete examples of what to explain or demonstrate.",
+                  description: "3-5 actionable suggestions to reach NEXT level. Reference rubric descriptions. Give specific examples of what to explain or demonstrate.",
                 },
               },
             },
@@ -329,7 +418,3 @@ export const projectconfig = {
     },
   },
 } as const;
-
-// Note: If you do not have an external 'Type' enum, you might need to define it or
-// replace it with the literal strings if the SDK allows it.
-// Example: type: 'OBJECT', type: 'ARRAY', type: 'STRING'
