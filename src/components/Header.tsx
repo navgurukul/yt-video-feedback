@@ -6,7 +6,7 @@
 import { useState, useEffect, useContext } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { MessageSquareQuote, LogOut, Key } from "lucide-react";
+import { MessageSquareQuote, LogOut, Key, Menu, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ApiKeyContext } from "@/App";
@@ -26,6 +26,7 @@ export const Header = () => {
   const [loading, setLoading] = useState(false);
   const { apiKey, setApiKey } = useContext(ApiKeyContext);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     console.log("Header: useEffect mount - checking user");
@@ -123,17 +124,18 @@ export const Header = () => {
 
   return (
     <>
-      <header className="border-b-4 border-foreground bg-card">
+      <header className="border-b-4 border-foreground bg-card relative">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-3 group">
+          <div className="flex items-center gap-4 md:gap-8">
+            <Link to="/" className="flex items-center gap-2 md:gap-3 group">
               <div className="bg-primary border-4 border-foreground p-2 shadow-brutal-sm group-hover:translate-x-1 group-hover:translate-y-1 group-hover:shadow-none group-hover:rotate-3 transition-all duration-300">
-                <MessageSquareQuote className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                <MessageSquareQuote className="w-5 h-5 md:w-6 md:h-6 group-hover:scale-110 transition-transform" />
               </div>
-              <span className="text-2xl font-black uppercase tracking-tight group-hover:scale-105 transition-transform">
+              <span className="text-lg md:text-2xl font-black uppercase tracking-tight group-hover:scale-105 transition-transform">
                 Feedback<span className="text-primary">Hub</span> 💬
               </span>
             </Link>
+            {/* Desktop Navigation */}
             <nav className="hidden md:flex gap-6">
               <Link to="/" className="font-bold hover:text-primary hover:scale-105 transition-all">
                 Home
@@ -144,22 +146,33 @@ export const Header = () => {
               <Link to="/history" className="font-bold hover:text-primary hover:scale-105 transition-all">
                 History
               </Link>
-              {/* <Link to="/all-evaluations" className="font-bold hover:text-primary hover:scale-105 transition-all">
+              <Link to="/all-evaluations" className="font-bold hover:text-primary hover:scale-105 transition-all">
                 All Evaluations
-              </Link> */}
+              </Link>
             </nav>
           </div>
-          <div className="flex gap-3">
-            {/* API Key Management Button */}
+          
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Mobile Menu Toggle */}
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden"
+            >
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
+
+            {/* Desktop API Key Button */}
             <Button 
               variant="outline" 
               size="sm" 
               onClick={handleApiKeyManagement}
-              className={`gap-2 ${apiKey ? 'border-green-500 text-green-700 hover:bg-green-50' : 'border-orange-500 text-orange-700 hover:bg-orange-50'}`}
+              className={`hidden md:flex gap-2 ${apiKey ? 'border-green-500 text-green-700 hover:bg-green-50' : 'border-orange-500 text-orange-700 hover:bg-orange-50'}`}
               title={apiKey ? "API Key Set - Click to Manage" : "No API Key - Click to Set"}
             >
               <Key className={`w-4 h-4 ${apiKey ? 'text-green-600' : 'text-orange-600'}`} />
-              <span className="hidden sm:inline">
+              <span>
                 {apiKey ? "API Key" : "Set API Key"}
               </span>
               {apiKey && (
@@ -167,28 +180,126 @@ export const Header = () => {
               )}
             </Button>
 
+            {/* Desktop User Controls */}
             {user ? (
-              <div className="flex items-center gap-3">
-                <span className="font-bold text-sm">
+              <div className="hidden md:flex items-center gap-3">
+                <span className="font-bold text-sm truncate max-w-[150px]">
                   {user.email}
                 </span>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={handleLogout}
-                  className="gap-2"
+                  className="gap-2 whitespace-nowrap"
                 >
                   <LogOut className="w-4 h-4" />
-                  Logout
+                  <span>Logout</span>
                 </Button>
               </div>
             ) : (
-              <Button variant="outline" size="sm" onClick={handleGoogleSignIn} disabled={loading}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleGoogleSignIn} 
+                disabled={loading}
+                className="hidden md:flex whitespace-nowrap"
+              >
                 {loading ? "Redirecting..." : "Sign in with Google"}
               </Button>
             )}
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t-4 border-foreground bg-card">
+            <nav className="container mx-auto px-4 py-4 flex flex-col gap-3">
+              {/* Navigation Links */}
+              <Link 
+                to="/" 
+                className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Home
+              </Link>
+              <Link 
+                to="/video-analyzer" 
+                className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Analyzer
+              </Link>
+              <Link 
+                to="/history" 
+                className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                History
+              </Link>
+              <Link 
+                to="/all-evaluations" 
+                className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                All Evaluations
+              </Link>
+
+              {/* Divider */}
+              <div className="border-t-2 border-foreground my-2"></div>
+
+              {/* API Key Button */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  handleApiKeyManagement();
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`gap-2 justify-start ${apiKey ? 'border-green-500 text-green-700 hover:bg-green-50' : 'border-orange-500 text-orange-700 hover:bg-orange-50'}`}
+                title={apiKey ? "API Key Set - Click to Manage" : "No API Key - Click to Set"}
+              >
+                <Key className={`w-4 h-4 ${apiKey ? 'text-green-600' : 'text-orange-600'}`} />
+                <span>
+                  {apiKey ? "API Key" : "Set API Key"}
+                </span>
+                {apiKey && (
+                  <div className="w-2 h-2 bg-green-500 rounded-full ml-1" title="API Key Active" />
+                )}
+              </Button>
+
+              {/* User Info / Auth */}
+              {user ? (
+                <>
+                  <div className="font-bold text-sm py-2 px-3 truncate">
+                    {user.email}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      handleLogout();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="gap-2 justify-start"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleGoogleSignIn} 
+                  disabled={loading}
+                  className="justify-start"
+                >
+                  {loading ? "Redirecting..." : "Sign in with Google"}
+                </Button>
+              )}
+            </nav>
+          </div>
+        )}
       </header>
 
       {/* API Key Management Modal */}
