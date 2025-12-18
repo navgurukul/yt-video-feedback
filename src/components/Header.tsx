@@ -3,12 +3,14 @@
  * @module components/Header
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { MessageSquareQuote, LogOut } from "lucide-react";
+import { MessageSquareQuote, LogOut, Key } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ApiKeyContext } from "@/App";
+import { ApiKeyModal } from "@/components/ApiKeyModal";
 
 /**
  * Header Component
@@ -22,6 +24,8 @@ export const Header = () => {
   const [user, setUser] = useState<any>(null);
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const { apiKey, setApiKey } = useContext(ApiKeyContext);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
   useEffect(() => {
     console.log("Header: useEffect mount - checking user");
@@ -85,6 +89,38 @@ export const Header = () => {
     }
   };
 
+  /**
+   * Handles API key management - opens modal to change/clear API key
+   */
+  const handleApiKeyManagement = () => {
+    setShowApiKeyModal(true);
+  };
+
+  /**
+   * Handles removing the API key
+   */
+  const handleRemoveApiKey = () => {
+    setApiKey('');
+    localStorage.removeItem('gemini_api_key');
+    setShowApiKeyModal(false);
+    toast({
+      title: "API Key Removed! 🗑️",
+      description: "You'll need to enter a new API key for evaluations",
+    });
+  };
+
+  /**
+   * Handles API key modal submission
+   */
+  const handleApiKeySubmit = (newApiKey: string) => {
+    setApiKey(newApiKey);
+    setShowApiKeyModal(false);
+    toast({
+      title: "API Key Updated! ✅",
+      description: "Your new API key has been saved",
+    });
+  };
+
   return (
     <>
       <header className="border-b-4 border-foreground bg-card">
@@ -114,6 +150,23 @@ export const Header = () => {
             </nav>
           </div>
           <div className="flex gap-3">
+            {/* API Key Management Button */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleApiKeyManagement}
+              className={`gap-2 ${apiKey ? 'border-green-500 text-green-700 hover:bg-green-50' : 'border-orange-500 text-orange-700 hover:bg-orange-50'}`}
+              title={apiKey ? "API Key Set - Click to Manage" : "No API Key - Click to Set"}
+            >
+              <Key className={`w-4 h-4 ${apiKey ? 'text-green-600' : 'text-orange-600'}`} />
+              <span className="hidden sm:inline">
+                {apiKey ? "API Key" : "Set API Key"}
+              </span>
+              {apiKey && (
+                <div className="w-2 h-2 bg-green-500 rounded-full ml-1" title="API Key Active" />
+              )}
+            </Button>
+
             {user ? (
               <div className="flex items-center gap-3">
                 <span className="font-bold text-sm">
@@ -137,6 +190,15 @@ export const Header = () => {
           </div>
         </div>
       </header>
+
+      {/* API Key Management Modal */}
+      <ApiKeyModal
+        isOpen={showApiKeyModal}
+        onClose={() => setShowApiKeyModal(false)}
+        onSubmit={handleApiKeySubmit}
+        onRemove={handleRemoveApiKey}
+        currentApiKey={apiKey}
+      />
     </>
   );
 };

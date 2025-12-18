@@ -23,7 +23,7 @@ const AnalysisResults = () => {
   const analysisId = searchParams.get('id');
   const stateData = location.state;
   
-  const { videoUrl, evaluationMethod, rubric, evaluation, videoType, selectedPhase, selectedVideoTitle } = stateData || {};
+  const { videoUrl, evaluationMethod, rubric, evaluation, videoType, selectedPhase, selectedVideoTitle, customPrompt, customContext } = stateData || {};
   
   const [showDetailedResults, setShowDetailedResults] = useState(videoType === 'project');
   const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
@@ -93,6 +93,50 @@ const AnalysisResults = () => {
   // Normalise evaluation data from state or DB into a consistent structure
   const normalizeEvaluation = (maybeEval: any, videoType: string) => {
     if (!maybeEval) return null;
+
+    // Handle custom evaluation (other type) - completely flexible structure
+    if (videoType === 'other') {
+      // For custom evaluations, we accept any JSON structure the user requested
+      const customEval = maybeEval;
+      
+      if (customEval) {
+        try {
+          const parsedCustom = customEval.parsed || customEval;
+          
+          // Extract the evaluation_result or use the entire structure
+          const evaluationData = parsedCustom?.evaluation_result || parsedCustom;
+          
+          console.log('Raw Custom Data:', evaluationData); // Debug log
+          
+          // Return the evaluation data for maximum flexibility
+          return {
+            isCustomEvaluation: true,
+            rawCustomData: evaluationData,
+            // Try to extract some common fields for backward compatibility
+            overallAssessment: evaluationData?.["Overall Assessment"] || evaluationData?.overallAssessment || evaluationData?.assessment || evaluationData?.result || '',
+            criteriaAnalysis: evaluationData?.["Criteria Analysis"] || evaluationData?.analysis || evaluationData?.summary || evaluationData?.description || '',
+            customFeedback: evaluationData?.["Feedback"] || evaluationData?.feedback || evaluationData?.observations || evaluationData
+          };
+        } catch (e) {
+          console.warn('Failed to parse custom evaluation:', e);
+          return {
+            isCustomEvaluation: true,
+            rawCustomData: customEval,
+            overallAssessment: '',
+            criteriaAnalysis: '',
+            customFeedback: customEval
+          };
+        }
+      }
+      
+      return {
+        isCustomEvaluation: true,
+        rawCustomData: null,
+        overallAssessment: '',
+        criteriaAnalysis: '',
+        customFeedback: ''
+      };
+    }
 
     // Handle concept explanation evaluations (different structure)
     if (videoType === 'concept') {
@@ -422,6 +466,14 @@ const AnalysisResults = () => {
                   {selectedPhase}
                 </motion.span>
               )}
+              {videoType === 'other' && (
+                <motion.span 
+                  className="bg-card border-2 border-foreground px-4 py-2"
+                  whileHover={{ scale: 1.1, rotate: -2 }}
+                >
+                  Custom Evaluation
+                </motion.span>
+              )}
             </div>
           </MotionWrapper>
         </div>
@@ -435,11 +487,11 @@ const AnalysisResults = () => {
         </MotionWrapper>
 
         {/* Rubric Cards - Modern & Creative */}
-        {videoType !== 'concept' && videoType !== 'project' && effectiveMethod !== 'rating' && (
+        {videoType !== 'concept' && videoType !== 'project' && videoType !== 'other' && effectiveMethod !== 'rating' && (
           <MotionWrapper delay={0.7} direction="up">
             <div className="max-w-6xl mx-auto mb-12">
-              <h2 className="text-4xl font-black uppercase mb-8 text-center">
-                📋 Rubric <span className="text-primary">Evaluation</span>
+              <h2 className="text-4xl font-black uppercase mb-8 text-center text-primary">
+                📋 <span className="text-secondary">Assessment Details</span>
               </h2>
               
               <div className="grid gap-6">
@@ -504,7 +556,7 @@ const AnalysisResults = () => {
         )}
 
         {/* Evaluation Points for Rating Mode */}
-        {videoType !== 'concept' && effectiveMethod === 'rating' && stateData?.evaluationPoints && (
+        {videoType !== 'concept' && videoType !== 'other' && effectiveMethod === 'rating' && stateData?.evaluationPoints && (
           <MotionWrapper delay={0.7} direction="up">
             <div className="max-w-6xl mx-auto mb-12">
               <h2 className="text-4xl font-black uppercase mb-8 text-center">
@@ -536,6 +588,106 @@ const AnalysisResults = () => {
             </div>
           </MotionWrapper>
         )}
+
+        {/* Custom Evaluation Results - Clean Display */}
+        {videoType === 'other' && evaluated?.isCustomEvaluation && evaluated.rawCustomData && (() => {
+          // Helper function to render any value as clean, readable text (minimal containers)
+          const renderValue = (value: any, level: number = 0): JSX.Element => {
+            // Handle null or undefined
+            if (value === null || value === undefined) {
+              return <p className="text-muted-foreground">No data</p>;
+            }
+
+            // Handle arrays - simple numbered list
+            if (Array.isArray(value)) {
+              return (
+                <div className="space-y-1">
+                  {value.map((item: any, idx: number) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <span className="text-primary font-black text-sm mt-1 flex-shrink-0">
+                        {idx + 1}.
+                      </span>
+                      <div className="flex-1">
+                        {typeof item === 'object' && item !== null ? 
+                          renderValue(item, level + 1) :
+                          <p className="text-base font-medium leading-relaxed">{String(item)}</p>
+                        }
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            } 
+            
+            // Handle objects - simple key-value pairs
+            else if (typeof value === 'object' && value !== null) {
+              return (
+                <div className="space-y-2">
+                  {Object.entries(value).map(([subKey, subValue], subIdx) => (
+                    <div key={subIdx}>
+                      <h4 className="font-bold text-base text-primary mb-1">
+                        {subKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace(/_/g, ' ')}:
+                      </h4>
+                      <div className="ml-4">
+                        {renderValue(subValue, level + 1)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            } 
+            
+            // Handle primitive values - simple text
+            else {
+              const stringValue = String(value);
+              
+              // Check if it's a stringified JSON and try to parse it
+              if (stringValue.startsWith('{') || stringValue.startsWith('[')) {
+                try {
+                  const parsed = JSON.parse(stringValue);
+                  return renderValue(parsed, level);
+                } catch (e) {
+                  // If parsing fails, just display as string
+                  return <p className="text-base font-medium leading-relaxed">{stringValue}</p>;
+                }
+              }
+              
+              return <p className="text-base font-medium leading-relaxed">{stringValue}</p>;
+            }
+          };
+
+          return (
+            <MotionWrapper delay={1} direction="zoom">
+              <div className="max-w-6xl mx-auto mb-8">
+                <h2 className="text-4xl font-black uppercase mb-8 text-center">
+                  📋 <span className="text-secondary">Evaluation Results</span>
+                </h2>
+                
+                {/* Clean, Minimal Display */}
+                <Card className="p-8">
+                  <div className="space-y-8">
+                    {Object.entries(evaluated.rawCustomData).map(([key, value], index) => (
+                      <div key={index}>
+                        <h3 className="text-2xl font-black uppercase mb-4 text-foreground flex items-center gap-3">
+                          <span className="text-3xl font-black text-primary">
+                            {index + 1}.
+                          </span>
+                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace(/_/g, ' ')}
+                        </h3>
+                        
+                        <div className="ml-8">
+                          {renderValue(value)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+            </MotionWrapper>
+          );
+        })()}
+
+
 
         {/* Concept Explanation Results */}
         {videoType === 'concept' && evaluated?.isConceptEvaluation && (
@@ -706,9 +858,11 @@ const AnalysisResults = () => {
             </div>
           </MotionWrapper>
         )}
+
+
         
-        {/* Project Explanation Results - Hide for project type */}
-        {videoType !== 'concept' && videoType !== 'project' && (
+        {/* Project Explanation Results - Hide for project type and other type */}
+        {videoType !== 'concept' && videoType !== 'project' && videoType !== 'other' && (
           <MotionWrapper delay={1} direction="zoom">
             <div className="max-w-4xl mx-auto mb-8">
               <h2 className="text-4xl font-black uppercase mb-8 text-center">
@@ -797,7 +951,7 @@ const AnalysisResults = () => {
               <div className="space-y-8">
                 <MotionWrapper delay={0.2} direction="zoom">
                   <h2 className="text-4xl font-black uppercase text-center mb-8">
-                    {videoType === 'project' ? '📋 Detailed Breakdown' : videoType === 'concept' ? '📋 Concept Evaluation' : effectiveMethod === 'rating' ? '📋 Evaluation Points' : '💡 Detailed'} {videoType !== 'project' && <span className="text-accent">Breakdown</span>}
+                    {videoType === 'project' ? '📋 Detailed Breakdown' : videoType === 'concept' ? '📋 Concept Evaluation' : videoType === 'other' ? '📋 Custom Evaluation Details' : effectiveMethod === 'rating' ? '📋 Evaluation Points' : '💡 Detailed'} {videoType !== 'project' && videoType !== 'other' && <span className="text-accent">Breakdown</span>}
                   </h2>
                 </MotionWrapper>
 
@@ -811,6 +965,10 @@ const AnalysisResults = () => {
                 {videoType === 'concept' && evaluated?.isConceptEvaluation ? (
                   <div className="text-center">
                     <p className="text-xl font-bold">Concept explanation evaluations are displayed above.</p>
+                  </div>
+                ) : videoType === 'other' && evaluated?.isCustomEvaluation ? (
+                  <div className="text-center">
+                    <p className="text-xl font-bold">Custom evaluation feedback is displayed above.</p>
                   </div>
                 ) : (
                   <div className="grid gap-6">
@@ -915,8 +1073,8 @@ const AnalysisResults = () => {
           )}
         </AnimatePresence>
 
-        {/* Overall Feedback - Hide for project evaluations */}
-        {videoType !== 'project' && videoType !== 'concept' && (
+        {/* Overall Feedback - Hide for project evaluations and other type */}
+        {videoType !== 'project' && videoType !== 'concept' && videoType !== 'other' && (
         <MotionWrapper delay={1.3} direction="zoom">
           <div className="max-w-4xl mx-auto mb-12">
             <motion.div whileHover={{ scale: 1.02 }}>

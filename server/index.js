@@ -65,7 +65,7 @@ if (GEMINI_KEY) {
 
 app.post('/evaluate', async (req, res) => {
   try {
-    const { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey } = req.body;
+    const { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext } = req.body;
 
     if (!videoUrl) return res.status(400).json({ error: 'Missing videoUrl' });
     
@@ -95,8 +95,16 @@ app.post('/evaluate', async (req, res) => {
       apiConfig = structuredreturnedconfig;
     }
 
+    // Build custom prompt section if provided
+    const customPromptContent = customPrompt 
+      ? `CUSTOM_PROMPT:
+${customPrompt}
+
+`
+      : '';
+
     const promptText = promptbegining+`
-          VIDEO DETAILS:
+          ${customPromptContent}VIDEO DETAILS:
           ${videoDetails}
 
           ${rubricContent}`;
@@ -165,9 +173,27 @@ app.post('/evaluate', async (req, res) => {
       });
     } catch (error) {
       console.error('An error occurred during the API call:', error);
-      return res.status(502).json({ 
-        error: 'Upstream model API error', 
-        message: error.message || String(error)
+      
+      // Determine appropriate status code based on error type
+      let statusCode = 502; // Default to Bad Gateway
+      let errorMessage = 'Upstream model API error';
+      
+      const errorString = error.message || String(error);
+      
+      if (errorString.includes('API key not valid') || errorString.includes('API_KEY_INVALID')) {
+        statusCode = 401; // Unauthorized
+        errorMessage = 'Invalid API key';
+      } else if (errorString.includes('quota') || errorString.includes('QUOTA_EXCEEDED')) {
+        statusCode = 429; // Too Many Requests
+        errorMessage = 'API quota exceeded';
+      } else if (errorString.includes('Bad Request') || error.status === 400) {
+        statusCode = 400; // Bad Request
+        errorMessage = 'Invalid request to AI model';
+      }
+      
+      return res.status(statusCode).json({ 
+        error: errorMessage, 
+        message: errorString
       });
     }
   } catch (err) {
@@ -179,7 +205,7 @@ app.post('/evaluate', async (req, res) => {
 // New endpoint to store evaluation results in PostgreSQL
 app.post('/store-evaluation', async (req, res) => {
   try {
-    const { userId, userEmail, videoUrl, videoType, evaluationData, videoDetails,selectedPhase,selectedVideoTitle } = req.body;
+    const { userId, userEmail, videoUrl, videoType, evaluationData, videoDetails,selectedPhase,selectedVideoTitle, customPrompt, customContext } = req.body;
 
     console.log('Received request to store evaluation:', { userId, userEmail, videoUrl, videoDetails, selectedPhase, selectedVideoTitle });
     //console.log('Full request body:', JSON.stringify(req.body, null, 2));
@@ -446,7 +472,7 @@ app.post('/store-evaluation', async (req, res) => {
         id: result.rows[0].id,
         message: 'Concept evaluation stored successfully' 
       });
-    } else {
+    } else if (videoType === 'project') {
       // For project explanation with new structured format
       const projectEvaluation = evaluationData.evaluation_result;
       
@@ -536,6 +562,124 @@ app.post('/store-evaluation', async (req, res) => {
         id: result.rows[0].id,
         message: 'Project evaluation stored successfully' 
       });
+    } else if (videoType === 'other') {
+      // For custom evaluation (other type)
+      const customEvaluation = evaluationData.evaluation_result;
+      
+      console.log('Storing custom evaluation data:', JSON.stringify(customEvaluation, null, 2));
+      
+      // Extract data from the custom evaluation format
+      let overallAssessment = '';
+      let criteriaAnalysis = '';
+      let feedbackText = '';
+      let evaluationJson = '';
+      
+      if (customEvaluation) {
+        try {
+          // Handle completely flexible JSON structure
+          const parsedCustom = customEvaluation.parsed || customEvaluation;
+          
+          // Extract the evaluation_result or use the entire structure
+          const evaluationData = parsedCustom?.evaluation_result || parsedCustom;
+          
+          // Store the entire JSON structure
+          evaluationJson = JSON.stringify(parsedCustom);
+          
+          // Try to extract common fields for database storage, but be flexible
+          overallAssessment = evaluationData?.["Overall Assessment"] || 
+                             evaluationData?.overallAssessment || 
+                             evaluationData?.assessment || 
+                             evaluationData?.result || 
+                             evaluationData?.response ||
+                             'Custom evaluation completed';
+          
+          criteriaAnalysis = evaluationData?.["Criteria Analysis"] || 
+                            evaluationData?.analysis || 
+                            evaluationData?.summary || 
+                            evaluationData?.description || 
+                            'See evaluation JSON for details';
+          
+          // Create a readable feedback text from the entire structure
+          const createFeedbackText = (obj, prefix = '') => {
+            let text = '';
+            for (const [key, value] of Object.entries(obj)) {
+              const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+              
+              if (Array.isArray(value)) {
+                text += `${prefix}${formattedKey}:\n`;
+                value.forEach((item, idx) => {
+                  text += `${prefix}  ${idx + 1}. ${typeof item === 'object' ? JSON.stringify(item) : item}\n`;
+                });
+                text += '\n';
+              } else if (typeof value === 'object' && value !== null) {
+                text += `${prefix}${formattedKey}:\n`;
+                text += createFeedbackText(value, prefix + '  ');
+              } else {
+                text += `${prefix}${formattedKey}: ${value}\n`;
+              }
+            }
+            return text;
+          };
+          
+          feedbackText = createFeedbackText(parsedCustom);
+          
+        } catch (e) {
+          console.warn('Failed to parse custom evaluation:', e);
+          evaluationJson = JSON.stringify(customEvaluation);
+          overallAssessment = 'Custom evaluation completed';
+          criteriaAnalysis = 'Parsing error - see JSON';
+          feedbackText = 'Custom feedback provided - see JSON for details';
+        }
+      }
+      
+      console.log('Final custom evaluation values to be stored:', {
+        overallAssessment,
+        criteriaAnalysis: criteriaAnalysis.substring(0, 100),
+        feedbackText: feedbackText.substring(0, 100),
+        customPrompt: customPrompt?.substring(0, 100)
+      });
+      
+      // Insert custom evaluation data into PostgreSQL
+      // We'll create a new table for custom evaluations
+      const query = `
+        INSERT INTO tbl_ailabs_ytfeedback_custom_evaluations (
+          email,
+          video_url,
+          custom_prompt,
+          custom_context,
+          overall_assessment,
+          criteria_analysis,
+          custom_feedback,
+          evaluation_json,
+          created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        RETURNING id
+      `;
+      const values = [
+        userEmail,
+        videoUrl,
+        customPrompt || '',
+        customContext || '',
+        overallAssessment,
+        criteriaAnalysis,
+        feedbackText,
+        evaluationJson
+      ];
+
+      console.log('Executing custom evaluation database query');
+
+      const result = await pgPool.query(query, values);
+      
+      console.log('Successfully inserted custom evaluation with ID:', result.rows[0].id);
+      
+      res.json({ 
+        success: true, 
+        id: result.rows[0].id,
+        message: 'Custom evaluation stored successfully' 
+      });
+    } else {
+      // Handle unexpected video types
+      return res.status(400).json({ error: `Unsupported video type: ${videoType}` });
     }
   } catch (err) {
     console.error('Error storing evaluation:', err);
@@ -749,6 +893,111 @@ app.delete('/project-evaluation/:id', async (req, res) => {
   }
 });
 
+// Fetch custom evaluations history
+app.get('/custom-history', async (req, res) => {
+  try {
+    const userEmail = req.query.email;
+    
+    console.log('Custom history request for email:', userEmail);
+    
+    if (!userEmail) {
+      return res.status(400).json({ error: 'Email parameter is required' });
+    }
+
+    const query = `
+      SELECT 
+        id,
+        email,
+        video_url,
+        custom_prompt,
+        custom_context,
+        overall_assessment,
+        criteria_analysis,
+        custom_feedback,
+        evaluation_json,
+        created_at
+      FROM tbl_ailabs_ytfeedback_custom_evaluations
+      WHERE email = $1
+      ORDER BY created_at DESC
+    `;
+    
+    const result = await pgPool.query(query, [userEmail]);
+    console.log('Custom history found:', result.rows.length, 'records');
+    
+    res.json({ 
+      success: true, 
+      data: result.rows 
+    });
+  } catch (err) {
+    console.error('Error fetching custom history:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// Fetch single custom evaluation by ID
+app.get('/custom-evaluation/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const query = `
+      SELECT 
+        id,
+        email,
+        video_url,
+        custom_prompt,
+        custom_context,
+        overall_assessment,
+        criteria_analysis,
+        custom_feedback,
+        evaluation_json,
+        created_at
+      FROM tbl_ailabs_ytfeedback_custom_evaluations
+      WHERE id = $1
+    `;
+    
+    const result = await pgPool.query(query, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Custom evaluation not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      data: result.rows[0] 
+    });
+  } catch (err) {
+    console.error('Error fetching custom evaluation:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// Delete custom evaluation
+app.delete('/custom-evaluation/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const query = `
+      DELETE FROM tbl_ailabs_ytfeedback_custom_evaluations
+      WHERE id = $1
+      RETURNING id
+    `;
+    
+    const result = await pgPool.query(query, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Custom evaluation not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Custom evaluation deleted successfully' 
+    });
+  } catch (err) {
+    console.error('Error deleting custom evaluation:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // Health endpoint for readiness checks
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
@@ -773,6 +1022,9 @@ app.get('/all-evaluations', async (req, res) => {
       : '';
     const projectSearchCondition = search 
       ? `WHERE email ILIKE $1 OR project_name ILIKE $1` 
+      : '';
+    const customSearchCondition = search 
+      ? `WHERE email ILIKE $1 OR custom_prompt ILIKE $1` 
       : '';
     
     if (search) {
@@ -827,8 +1079,33 @@ app.get('/all-evaluations', async (req, res) => {
       projectRecords = projectResult.rows;
     }
     
+    // Fetch custom evaluations if type is 'all' or 'custom'
+    let customRecords = [];
+    if (!type || type === 'all' || type === 'custom') {
+      const customQuery = `
+        SELECT 
+          id,
+          email,
+          NULL as project_name,
+          NULL as page_name,
+          video_url,
+          custom_prompt,
+          overall_assessment,
+          custom_feedback,
+          evaluation_json,
+          created_at,
+          'custom' as type
+        FROM tbl_ailabs_ytfeedback_custom_evaluations
+        ${customSearchCondition}
+        ORDER BY created_at DESC
+      `;
+      const customParams = search ? [`%${search}%`] : [];
+      const customResult = await pgPool.query(customQuery, customParams);
+      customRecords = customResult.rows;
+    }
+    
     // Combine and sort all records
-    let allRecords = [...conceptRecords, ...projectRecords];
+    let allRecords = [...conceptRecords, ...projectRecords, ...customRecords];
     
     // Sort combined records
     allRecords.sort((a, b) => {
@@ -872,7 +1149,8 @@ app.get('/all-evaluations', async (req, res) => {
         totalEvaluations: totalCount,
         uniqueStudents: uniqueEmails.size,
         conceptCount: conceptRecords.length,
-        projectCount: projectRecords.length
+        projectCount: projectRecords.length,
+        customCount: customRecords.length
       }
     });
   } catch (err) {

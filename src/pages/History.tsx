@@ -37,7 +37,21 @@ interface ProjectEvaluation {
   type: 'project';
 }
 
-type EvaluationRecord = ConceptEvaluation | ProjectEvaluation;
+interface CustomEvaluation {
+  id: string;
+  email: string;
+  video_url: string;
+  custom_prompt: string;
+  custom_context: string;
+  overall_assessment: string;
+  criteria_analysis: string;
+  custom_feedback: string;
+  evaluation_json: any;
+  created_at: string;
+  type: 'custom';
+}
+
+type EvaluationRecord = ConceptEvaluation | ProjectEvaluation | CustomEvaluation;
 
 const History = () => {
   const navigate = useNavigate();
@@ -70,21 +84,33 @@ const History = () => {
       
       // Fetch concept evaluations
       const conceptResponse = await fetch(`${API_URL}/concept-history?email=${encodeURIComponent(email)}`);
+      let conceptData = { data: [] };
       
-      if (!conceptResponse.ok) {
-        console.error('Concept history fetch failed:', await conceptResponse.text());
+      if (conceptResponse.ok) {
+        conceptData = await conceptResponse.json();
+      } else {
+        console.error('Concept history fetch failed:', conceptResponse.status, conceptResponse.statusText);
       }
-      
-      const conceptData = await conceptResponse.json();
       
       // Fetch project evaluations
       const projectResponse = await fetch(`${API_URL}/project-history?email=${encodeURIComponent(email)}`);
+      let projectData = { data: [] };
       
-      if (!projectResponse.ok) {
-        console.error('Project history fetch failed:', await projectResponse.text());
+      if (projectResponse.ok) {
+        projectData = await projectResponse.json();
+      } else {
+        console.error('Project history fetch failed:', projectResponse.status, projectResponse.statusText);
       }
       
-      const projectData = await projectResponse.json();
+      // Fetch custom evaluations
+      const customResponse = await fetch(`${API_URL}/custom-history?email=${encodeURIComponent(email)}`);
+      let customData = { data: [] };
+      
+      if (customResponse.ok) {
+        customData = await customResponse.json();
+      } else {
+        console.error('Custom history fetch failed:', customResponse.status, customResponse.statusText);
+      }
       
       // Combine and sort by created_at
       const conceptRecords: ConceptEvaluation[] = (conceptData.data || []).map((item: any) => ({
@@ -97,7 +123,12 @@ const History = () => {
         type: 'project' as const
       }));
       
-      const allRecords = [...conceptRecords, ...projectRecords].sort((a, b) => 
+      const customRecords: CustomEvaluation[] = (customData.data || []).map((item: any) => ({
+        ...item,
+        type: 'custom' as const
+      }));
+      
+      const allRecords = [...conceptRecords, ...projectRecords, ...customRecords].sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
       
@@ -114,14 +145,16 @@ const History = () => {
     }
   };
 
-  const handleDelete = async (id: string, type: 'concept' | 'project', e: React.MouseEvent) => {
+  const handleDelete = async (id: string, type: 'concept' | 'project' | 'custom', e: React.MouseEvent) => {
     e.stopPropagation();
     
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
       const endpoint = type === 'concept' 
         ? `${API_URL}/concept-evaluation/${id}` 
-        : `${API_URL}/project-evaluation/${id}`;
+        : type === 'project'
+        ? `${API_URL}/project-evaluation/${id}`
+        : `${API_URL}/custom-evaluation/${id}`;
       
       const response = await fetch(endpoint, {
         method: 'DELETE'
@@ -133,9 +166,10 @@ const History = () => {
       
       setEvaluationHistory(prev => prev.filter(item => item.id !== id));
       
+      const typeLabel = type === 'concept' ? 'Concept' : type === 'project' ? 'Project' : 'Custom';
       toast({
         title: "Deleted! 🗑️",
-        description: `${type === 'concept' ? 'Concept' : 'Project'} evaluation removed from history`,
+        description: `${typeLabel} evaluation removed from history`,
       });
     } catch (error) {
       console.error('Error deleting analysis:', error);
@@ -148,7 +182,31 @@ const History = () => {
   };
 
   const handleCardClick = (record: EvaluationRecord) => {
-    if (record.type === 'concept') {
+    if (record.type === 'custom') {
+      const customRecord = record as CustomEvaluation;
+      
+      // Parse the evaluation JSON
+      let evaluationData: any = {};
+      try {
+        evaluationData = typeof customRecord.evaluation_json === 'string'
+          ? JSON.parse(customRecord.evaluation_json)
+          : customRecord.evaluation_json;
+      } catch (e) {
+        console.error('Error parsing custom evaluation:', e);
+        evaluationData = {};
+      }
+      
+      navigate('/analysis-results', {
+        state: {
+          videoUrl: customRecord.video_url,
+          videoType: 'other',
+          evaluation: evaluationData,
+          customPrompt: customRecord.custom_prompt,
+          customContext: customRecord.custom_context,
+          fromHistory: true
+        }
+      });
+    } else if (record.type === 'concept') {
       const conceptRecord = record as ConceptEvaluation;
       
       // Parse the accuracy and ability data
@@ -356,10 +414,29 @@ const History = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
               {evaluationHistory.map((record, index) => {
                 const isConcept = record.type === 'concept';
-                const title = isConcept 
-                  ? (record as ConceptEvaluation).project_name || (record as ConceptEvaluation).page_name || 'Concept Evaluation'
-                  : (record as ProjectEvaluation).project_name;
-                const typeLabel = isConcept ? '📚 Concept' : '🚀 Project';
+                const isProject = record.type === 'project';
+                const isCustom = record.type === 'custom';
+                
+                let title = '';
+                let typeLabel = '';
+                let emoji = '';
+                
+                if (isConcept) {
+                  const conceptRecord = record as ConceptEvaluation;
+                  title = conceptRecord.project_name || conceptRecord.page_name || 'Concept Evaluation';
+                  typeLabel = '📚 Concept';
+                  emoji = '📚';
+                } else if (isProject) {
+                  const projectRecord = record as ProjectEvaluation;
+                  title = projectRecord.project_name || 'Project Evaluation';
+                  typeLabel = '🚀 Project';
+                  emoji = '🚀';
+                } else if (isCustom) {
+                  const customRecord = record as CustomEvaluation;
+                  title = customRecord.custom_prompt?.substring(0, 50) + (customRecord.custom_prompt?.length > 50 ? '...' : '') || 'Custom Evaluation';
+                  typeLabel = '⚡ Custom';
+                  emoji = '⚡';
+                }
                 
                 return (
                   <MotionWrapper key={record.id} delay={0.1 + index * 0.05} direction="up">
@@ -385,7 +462,7 @@ const History = () => {
                         </motion.button>
                         <CardHeader>
                           <div className="flex items-center justify-between mb-3">
-                            <div className="text-6xl">{isConcept ? '📚' : '🚀'}</div>
+                            <div className="text-6xl">{emoji}</div>
                             <motion.div
                               whileHover={{ scale: 1.2, rotate: 90 }}
                               transition={{ duration: 0.3 }}

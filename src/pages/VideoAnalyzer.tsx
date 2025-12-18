@@ -17,7 +17,7 @@ import { motion } from "framer-motion";
 import { getPhaseNames, getVideoTitlesForPhase, getVideoDetailsForTitle } from "@/data/videoData";
 import { getProjectVideoForPhase } from "@/data/phasevideodata";
 import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric,Phase5Rubric, Phase6Rubric } from "@/data/RubricData";
-import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig} from '@/data/prompt'
+import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig, CustomPrompt, CustomConfig} from '@/data/prompt'
 import { ApiKeyContext } from "@/App";
 
 const VideoAnalyzer = () => {
@@ -27,11 +27,14 @@ const VideoAnalyzer = () => {
   const { apiKey } = useContext(ApiKeyContext);
   
   const [videoUrl, setVideoUrl] = useState("https://youtu.be/XLvrN6ZcGQ4?si=cfy2QnblXCd4UEsa&t=1");
-  const [videoType, setVideoType] = useState<"concept" | "project">("concept");
+  const [videoType, setVideoType] = useState<"concept" | "project" | "other">("concept");
   const [selectedPhase, setSelectedPhase] = useState<string>("");
   const [selectedVideoTitle, setSelectedVideoTitle] = useState<string>("");
   const [videoDetailsText, setVideoDetailsText] = useState("");
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [customContext, setCustomContext] = useState("");
   const [error, setError] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   const phaseNames = getPhaseNames();
   const availableVideoTitles = selectedPhase ? getVideoTitlesForPhase(selectedPhase) : [];
@@ -62,6 +65,12 @@ const VideoAnalyzer = () => {
           details += `${idx + 1}. ${topic}\n`;
         });
       }
+    } else if (videoType === "other") {
+      // For other type, use the custom prompt and context as video details
+      details = `Custom Evaluation Criteria:\n${customPrompt}`;
+      if (customContext && customContext.trim()) {
+        details += `\n\nAdditional Context:\n${customContext}`;
+      }
     }
     return details;
   };
@@ -80,27 +89,40 @@ const VideoAnalyzer = () => {
       setVideoDetailsText(getVideoDetails());
     } else if (videoType === "project" && selectedPhase) {
       setVideoDetailsText(getVideoDetails());
+    } else if (videoType === "other" && customPrompt) {
+      setVideoDetailsText(getVideoDetails());
     }
-  }, [videoType, selectedPhase, selectedVideoTitle]);
+  }, [videoType, selectedPhase, selectedVideoTitle, customPrompt, customContext]);
 
   const handleAnalyze = () => {
     setError("");
+    setIsAnalyzing(true);
     
     // Validate video URL
     if (!videoUrl || !videoUrl.includes("youtube.com") && !videoUrl.includes("youtu.be")) {
       setError("Please enter a valid YouTube URL");
+      setIsAnalyzing(false);
       return;
     }
 
-    // Validate that a phase is selected
-    if (!selectedPhase || selectedPhase === "") {
+    // Validate that a phase is selected (not required for other type)
+    if (videoType !== "other" && (!selectedPhase || selectedPhase === "")) {
       setError("Please select a Phase");
+      setIsAnalyzing(false);
       return;
     }
 
     // Validate that a video title is selected when in concept explanation mode
     if (videoType === "concept" && (!selectedVideoTitle || selectedVideoTitle === "")) {
       setError("Please select a Video Title for concept explanation evaluation");
+      setIsAnalyzing(false);
+      return;
+    }
+
+    // Validate that a custom prompt is provided when in other mode
+    if (videoType === "other" && (!customPrompt || customPrompt.trim() === "")) {
+      setError("Please enter a custom evaluation prompt for Other type evaluation");
+      setIsAnalyzing(false);
       return;
     }
 
@@ -172,6 +194,7 @@ const VideoAnalyzer = () => {
             }
             
             setError(errorMessage);
+            setIsAnalyzing(false);
             return;
           }
 
@@ -206,6 +229,7 @@ const VideoAnalyzer = () => {
             }
             
             setError(errorMessage);
+            setIsAnalyzing(false);
             return;
           }
 
@@ -214,6 +238,56 @@ const VideoAnalyzer = () => {
             accuracy: accuracyEvaluation,
             abilityToExplain: abilityEvaluation
           };
+        } else if (videoType === "other") {
+          // For Other type, use custom prompt evaluation
+          const customPayload = {
+            ...payload,
+            promptbegining: CustomPrompt,
+            structuredreturnedconfig: CustomConfig,
+            customPrompt: customPrompt, // Include the user's custom prompt
+            customContext: customContext, // Include the user's custom context
+            evaluationType: "custom",
+            apiKey: apiKey // Include user's API key
+          };
+
+          const resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(customPayload),
+          });
+
+          const data = await resp.json();
+          evaluationPayload = data.parsed ?? data;
+
+          if (!resp.ok) {
+            console.error('Custom Evaluation API error', data);
+            setShowCelebration(false);
+            dismiss(); // Dismiss the processing toast
+            
+            // Handle specific API errors with user-friendly messages
+            let errorMessage = 'Custom evaluation failed. See console for details.';
+            
+            if (resp.status === 401) {
+              errorMessage = 'Invalid API key. Please check your Gemini API key in settings.';
+            } else if (resp.status === 429) {
+              errorMessage = 'API quota exceeded. Please try again later or check your API limits.';
+            } else if (resp.status === 400) {
+              errorMessage = 'Invalid request. Please check your prompt and try again.';
+            } else if (data.error && data.message) {
+              // Try to extract a user-friendly message
+              if (data.message.includes('API key not valid')) {
+                errorMessage = 'Invalid API key. Please check your Gemini API key in settings.';
+              } else if (data.message.includes('quota')) {
+                errorMessage = 'API quota exceeded. Please try again later.';
+              } else {
+                errorMessage = `${data.error}: ${data.message}`;
+              }
+            }
+            
+            setError(errorMessage);
+            setIsAnalyzing(false);
+            return;
+          }
         } else {
           // For Project Explanation, use the appropriate project rubric
 
@@ -270,6 +344,7 @@ const VideoAnalyzer = () => {
             }
             
             setError(errorMessage);
+            setIsAnalyzing(false);
             return;
           }
         }
@@ -293,8 +368,10 @@ const VideoAnalyzer = () => {
                 video_type: videoType,
               },
               videoType,
-              selectedPhase,
-              selectedVideoTitle
+              selectedPhase: videoType !== "other" ? selectedPhase : null,
+              selectedVideoTitle: videoType === "concept" ? selectedVideoTitle : null,
+              customPrompt: videoType === "other" ? customPrompt : null,
+              customContext: videoType === "other" ? customContext : null
             };
             
             const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/store-evaluation';
@@ -319,6 +396,7 @@ const VideoAnalyzer = () => {
 
         setTimeout(() => {
           setShowCelebration(false);
+          setIsAnalyzing(false);
           dismiss(); // Dismiss the processing toast before navigation
           navigate('/analysis-results', { 
             state: { 
@@ -328,7 +406,9 @@ const VideoAnalyzer = () => {
               videoType,
               projectRubric,
               selectedPhase,
-              selectedVideoTitle
+              selectedVideoTitle,
+              customPrompt,
+              customContext
             } 
           });
         }, 800);
@@ -337,6 +417,7 @@ const VideoAnalyzer = () => {
         setShowCelebration(false);
         dismiss(); // Dismiss the processing toast on error
         setError('Evaluation failed. See console for details.');
+        setIsAnalyzing(false);
       }
     })();
   };
@@ -404,28 +485,41 @@ const VideoAnalyzer = () => {
                 >
                   Project Explanation
                 </Button>
+                <Button
+                  variant={videoType === "other" ? "default" : "outline"}
+                  size="lg"
+                  onClick={() => {
+                    setVideoType("other");
+                    setError("");
+                  }}
+                  className="flex-1"
+                >
+                  Other
+                </Button>
               </div>
             </div>
 
-            {/* Phase Selection Dropdown */}
-            <div className="space-y-3">
-              <Label className="text-xl font-black uppercase flex items-center gap-2">
-                <Code className="w-6 h-6" />
-                Select Phase
-              </Label>
-              <Select onValueChange={setSelectedPhase} value={selectedPhase}>
-                <SelectTrigger className="w-full text-lg h-12">
-                  <SelectValue placeholder="Select a Phase" />
-                </SelectTrigger>
-                <SelectContent>
-                  {phaseNames.map((phase) => (
-                    <SelectItem key={phase} value={phase}>
-                      {phase}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Phase Selection Dropdown (hidden for other type) */}
+            {videoType !== "other" && (
+              <div className="space-y-3">
+                <Label className="text-xl font-black uppercase flex items-center gap-2">
+                  <Code className="w-6 h-6" />
+                  Select Phase
+                </Label>
+                <Select onValueChange={setSelectedPhase} value={selectedPhase}>
+                  <SelectTrigger className="w-full text-lg h-12">
+                    <SelectValue placeholder="Select a Phase" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {phaseNames.map((phase) => (
+                      <SelectItem key={phase} value={phase}>
+                        {phase}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Video Title Selection (only for concept explanation) */}
             {videoType === "concept" && selectedPhase && (
@@ -450,6 +544,45 @@ const VideoAnalyzer = () => {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {/* Custom Prompt Input (only for other type) */}
+            {videoType === "other" && (
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <Label className="text-xl font-black uppercase flex items-center gap-2">
+                    <FileJson className="w-6 h-6" />
+                    Custom Evaluation Prompt
+                  </Label>
+                  <textarea
+                    placeholder="Enter your custom evaluation criteria or specific aspects you want the AI to focus on when analyzing this video..."
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    className="w-full min-h-[120px] p-4 border-4 border-foreground bg-background font-mono text-lg resize-vertical"
+                    rows={5}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Describe what you want the AI to evaluate in your video. Be specific about the criteria, topics, or skills you want feedback on.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-xl font-black uppercase flex items-center gap-2">
+                    <Sheet className="w-6 h-6" />
+                    Additional Context (Optional)
+                  </Label>
+                  <textarea
+                    placeholder="Add any additional context, rules, or details about the video that might help with evaluation. For example: target audience, specific requirements, background information, etc."
+                    value={customContext}
+                    onChange={(e) => setCustomContext(e.target.value)}
+                    className="w-full min-h-[100px] p-4 border-4 border-foreground bg-background font-mono text-lg resize-vertical"
+                    rows={4}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Optional: Provide additional context, rules, or background information that might be relevant for the evaluation.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -486,8 +619,9 @@ const VideoAnalyzer = () => {
                 size="lg"
                 variant="default"
                 className="w-full text-2xl h-16"
+                disabled={isAnalyzing}
               >
-                🎯 ANALYZE VIDEO
+                {isAnalyzing ? "🔄 ANALYZING..." : "🎯 ANALYZE VIDEO"}
               </Button>
             </motion.div>
           </div>
