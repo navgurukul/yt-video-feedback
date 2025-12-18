@@ -173,6 +173,12 @@ ${customPrompt}
       });
     } catch (error) {
       console.error('An error occurred during the API call:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        cause: error.cause,
+        code: error.code
+      });
       
       // Determine appropriate status code based on error type
       let statusCode = 502; // Default to Bad Gateway
@@ -189,11 +195,15 @@ ${customPrompt}
       } else if (errorString.includes('Bad Request') || error.status === 400) {
         statusCode = 400; // Bad Request
         errorMessage = 'Invalid request to AI model';
+      } else if (errorString.includes('fetch failed') || errorString.includes('ECONNREFUSED') || errorString.includes('ETIMEDOUT')) {
+        statusCode = 503; // Service Unavailable
+        errorMessage = 'Unable to connect to AI service';
       }
       
       return res.status(statusCode).json({ 
         error: errorMessage, 
-        message: errorString
+        message: errorString,
+        details: error.code || 'Unknown error'
       });
     }
   } catch (err) {
