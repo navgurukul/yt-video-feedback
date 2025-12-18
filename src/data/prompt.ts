@@ -81,6 +81,9 @@ export const AccuracyConfig = {
   thinkingConfig: {
     thinkingBudget: -1,
   },
+  temperature: 0,
+  topK: 1,
+  seed: 42,
   responseMimeType: 'application/json',
   responseSchema: {
     type: Type.OBJECT,
@@ -201,6 +204,9 @@ export const AbilityToExplainConfig = {
   thinkingConfig: {
     thinkingBudget: -1,
   },
+  temperature: 0,
+  topK: 1,
+  seed: 42,
   responseMimeType: 'application/json',
   responseSchema: {
     type: Type.OBJECT,
@@ -341,6 +347,9 @@ export const projectconfig = {
   thinkingConfig: {
     thinkingBudget: -1,
   },
+  temperature: 0,
+  topK: 1,
+  seed: 42,
   responseMimeType: 'application/json',
   responseSchema: {
     type: Type.OBJECT,
@@ -490,6 +499,9 @@ export const CustomConfig = {
   thinkingConfig: {
     thinkingBudget: -1,
   },
+  temperature: 0,
+  topK: 1,
+  seed: 42,
   responseMimeType: 'application/json',
   responseSchema: {
     type: Type.OBJECT,

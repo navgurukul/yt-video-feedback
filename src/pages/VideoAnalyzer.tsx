@@ -462,7 +462,7 @@ const VideoAnalyzer = () => {
                 <Film className="w-6 h-6" />
                 Video Type
               </Label>
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Button
                   variant={videoType === "concept" ? "default" : "outline"}
                   size="lg"
@@ -470,7 +470,7 @@ const VideoAnalyzer = () => {
                     setVideoType("concept");
                     setError("");
                   }}
-                  className="flex-1"
+                  className="flex-1 w-full sm:w-auto"
                 >
                   Concept Explanation
                 </Button>
@@ -481,7 +481,7 @@ const VideoAnalyzer = () => {
                     setVideoType("project");
                     setError("");
                   }}
-                  className="flex-1"
+                  className="flex-1 w-full sm:w-auto"
                 >
                   Project Explanation
                 </Button>
@@ -492,7 +492,7 @@ const VideoAnalyzer = () => {
                     setVideoType("other");
                     setError("");
                   }}
-                  className="flex-1"
+                  className="flex-1 w-full sm:w-auto"
                 >
                   Other
                 </Button>
