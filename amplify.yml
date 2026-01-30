@@ -6,24 +6,9 @@ frontend:
         - npm ci
     build:
       commands:
-        - echo "No build step required for backend"
+        - npm run build
   artifacts:
-    baseDirectory: /
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - node_modules/**/*
-backend:
-  phases:
-    preBuild:
-      commands:
-        - npm ci
-    build:
-      commands:
-        - echo "Building backend"
-  artifacts:
-    baseDirectory: dist/
+    baseDirectory: dist
     files:
       - '**/*'
   cache:
