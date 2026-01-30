@@ -67,6 +67,22 @@ export default defineConfig(({ mode }) => {
           target: apiUrl,
           changeOrigin: true,
           secure: false
+        },
+        // Forward variance test requests to API server
+        '/test-variance': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false
+        },
+        '/custom-evaluation': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false
+        },
+        '/custom-history': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false
         }
       } : undefined
     },

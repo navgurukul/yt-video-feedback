@@ -1169,6 +1169,503 @@ app.get('/all-evaluations', async (req, res) => {
   }
 });
 
+/**
+ * Test Variance Endpoint
+ * 
+ * Tests consistency of Gemini API evaluations by running the same video
+ * through multiple evaluation iterations and comparing results.
+ * 
+ * POST /test-variance
+ * Body: {
+ *   videoUrl: string,
+ *   evaluationType: "accuracy" | "ability" | "project" | "custom",
+ *   videoDetails: string,
+ *   promptbegining: string (optional, for accuracy/ability),
+ *   rubric: object (optional, for project),
+ *   structuredreturnedconfig: object,
+ *   customPrompt: string (optional, for custom),
+ *   customContext: string (optional, for custom),
+ *   iterations: number (default 3),
+ *   apiKey: string (optional)
+ * }
+ * 
+ * Returns: {
+ *   success: boolean,
+ *   iterations: number,
+ *   responses: array of parsed responses,
+ *   variance_analysis: {
+ *     identical_count: number,
+ *     variance_percentage: number,
+ *     differing_fields: array of field names with differences,
+ *     consistency_score: number (0-100)
+ *   },
+ *   recommendations: array of strings
+ * }
+ */
+app.post('/test-variance', async (req, res) => {
+  try {
+    const {
+      videoUrl,
+      evaluationType = "accuracy",
+      videoDetails,
+      promptbegining,
+      rubric,
+      structuredreturnedconfig,
+      customPrompt,
+      customContext,
+      iterations = 3,
+      apiKey
+    } = req.body;
+
+    if (!videoUrl) {
+      return res.status(400).json({ error: 'Missing videoUrl' });
+    }
+
+    if (iterations < 2 || iterations > 10) {
+      return res.status(400).json({ error: 'Iterations must be between 2 and 10' });
+    }
+
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`🧪 VARIANCE TEST STARTED`);
+    console.log(`${'='.repeat(80)}`);
+    console.log(`Video URL: ${videoUrl}`);
+    console.log(`Evaluation Type: ${evaluationType}`);
+    console.log(`Iterations: ${iterations}`);
+    console.log(`Timestamp: ${new Date().toISOString()}`);
+    console.log(`${'='.repeat(80)}\n`);
+
+    // Prepare payload for /evaluate endpoint
+    const evaluatePayload = {
+      videoUrl,
+      evaluationType,
+      videoDetails,
+      promptbegining,
+      rubric,
+      structuredreturnedconfig,
+      customPrompt,
+      customContext,
+      apiKey
+    };
+
+    // Array to store all responses
+    const responses = [];
+    const startTime = Date.now();
+
+    // Run evaluations sequentially
+    for (let i = 0; i < iterations; i++) {
+      console.log(`\n🔄 Running iteration ${i + 1}/${iterations}...`);
+      const iterationStart = Date.now();
+
+      try {
+        // Call evaluation logic directly instead of HTTP fetch
+        const effectiveApiKey = apiKey || GEMINI_KEY;
+        
+        if (!effectiveApiKey) {
+          throw new Error('GEMINI_API_KEY not configured and not provided in request');
+        }
+
+        // Initialize Google GenAI client
+        const ai = new GoogleGenAI({ apiKey: effectiveApiKey });
+        const model = 'gemini-2.5-flash';
+        
+        // Handle different config formats
+        let apiConfig;
+        if (structuredreturnedconfig.generationConfig) {
+          apiConfig = structuredreturnedconfig.generationConfig;
+        } else {
+          apiConfig = structuredreturnedconfig;
+        }
+
+        // Build prompt
+        const rubricContent = (rubric && Object.keys(rubric).length > 0) 
+          ? `RUBRIC:\n${JSON.stringify(rubric)}`
+          : '';
+
+        const customPromptContent = customPrompt 
+          ? `CUSTOM_PROMPT:\n${customPrompt}\n\n`
+          : '';
+
+        const promptText = promptbegining + `
+          ${customPromptContent}VIDEO DETAILS:
+          ${videoDetails}
+
+          ${rubricContent}`;
+
+        const contents = [
+          {
+            role: 'user',
+            parts: [
+              {
+                fileData: {
+                  fileUri: videoUrl,
+                  mimeType: 'video/*',
+                }
+              },
+              {
+                text: promptText
+              }
+            ],
+          },
+        ];
+
+        // Call Gemini API
+        const response = await ai.models.generateContentStream({
+          model,
+          config: apiConfig,
+          contents,
+        });
+
+        // Collect the streaming response
+        let fullResponse = '';
+        for await (const chunk of response) {
+          if (chunk.text) {
+            fullResponse += chunk.text;
+          }
+        }
+
+        // Parse JSON response
+        let parsed = null;
+        try {
+          parsed = JSON.parse(fullResponse);
+        } catch (err) {
+          // Try to extract JSON from the text
+          const jsonMatch = fullResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              parsed = JSON.parse(jsonMatch[0]);
+            } catch (e) {
+              console.error('Failed to parse extracted JSON:', e);
+            }
+          }
+        }
+
+        const iterationTime = Date.now() - iterationStart;
+
+        responses.push({
+          iteration: i + 1,
+          parsed: parsed,
+          raw: fullResponse,
+          time_ms: iterationTime,
+          success: true
+        });
+
+        console.log(`✅ Iteration ${i + 1} completed in ${iterationTime}ms`);
+      } catch (err) {
+        const iterationTime = Date.now() - iterationStart;
+        console.error(`❌ Iteration ${i + 1} threw error:`, err.message);
+        responses.push({
+          iteration: i + 1,
+          error: err.message,
+          time_ms: iterationTime
+        });
+      }
+    }
+
+    const totalTime = Date.now() - startTime;
+    console.log(`\n⏱️  Total test time: ${totalTime}ms`);
+    console.log(`📊 Average iteration time: ${Math.round(totalTime / iterations)}ms\n`);
+
+    // Filter successful responses for comparison
+    const successfulResponses = responses.filter(r => r.success && r.parsed);
+    
+    if (successfulResponses.length < 2) {
+      return res.json({
+        success: false,
+        error: 'Not enough successful responses to analyze variance',
+        iterations,
+        responses,
+        successful_count: successfulResponses.length
+      });
+    }
+
+    console.log(`${'='.repeat(80)}`);
+    console.log(`📊 VARIANCE ANALYSIS`);
+    console.log(`${'='.repeat(80)}`);
+
+    // Perform variance analysis
+    const varianceAnalysis = analyzeVariance(successfulResponses, evaluationType);
+    
+    console.log(`\n🔍 Results:`);
+    console.log(`   Identical Responses: ${varianceAnalysis.identical_count}/${successfulResponses.length}`);
+    console.log(`   Variance: ${varianceAnalysis.variance_percentage.toFixed(2)}%`);
+    console.log(`   Consistency Score: ${varianceAnalysis.consistency_score.toFixed(2)}/100`);
+    
+    if (varianceAnalysis.differing_fields.length > 0) {
+      console.log(`\n⚠️  Fields with differences:`);
+      varianceAnalysis.differing_fields.forEach(field => {
+        console.log(`   - ${field}`);
+      });
+    } else {
+      console.log(`\n✅ All fields are identical across iterations!`);
+    }
+
+    // Generate recommendations
+    const recommendations = generateRecommendations(varianceAnalysis, evaluationType);
+    
+    if (recommendations.length > 0) {
+      console.log(`\n💡 Recommendations:`);
+      recommendations.forEach((rec, idx) => {
+        console.log(`   ${idx + 1}. ${rec}`);
+      });
+    }
+
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`🧪 VARIANCE TEST COMPLETED`);
+    console.log(`${'='.repeat(80)}\n`);
+
+    res.json({
+      success: true,
+      iterations,
+      responses,
+      successful_count: successfulResponses.length,
+      failed_count: responses.length - successfulResponses.length,
+      total_time_ms: totalTime,
+      avg_iteration_time_ms: Math.round(totalTime / iterations),
+      variance_analysis: varianceAnalysis,
+      recommendations
+    });
+
+  } catch (err) {
+    console.error('❌ Test variance endpoint error:', err);
+    res.status(500).json({ 
+      success: false,
+      error: String(err) 
+    });
+  }
+});
+
+/**
+ * Analyze variance between multiple evaluation responses
+ * 
+ * @param {Array} responses - Array of successful response objects
+ * @param {string} evaluationType - Type of evaluation being tested
+ * @returns {Object} Variance analysis results
+ */
+function analyzeVariance(responses, evaluationType) {
+  const parsed = responses.map(r => r.parsed);
+  const firstResponse = parsed[0];
+  
+  let identicalCount = 0;
+  const differingFields = new Set();
+  const fieldComparisons = {};
+
+  // Compare each response with the first one
+  for (let i = 1; i < parsed.length; i++) {
+    const comparison = deepCompare(firstResponse, parsed[i], '', evaluationType);
+    
+    if (comparison.identical) {
+      identicalCount++;
+    }
+    
+    comparison.differences.forEach(diff => {
+      differingFields.add(diff);
+      if (!fieldComparisons[diff]) {
+        fieldComparisons[diff] = [];
+      }
+      fieldComparisons[diff].push(i);
+    });
+  }
+
+  // Calculate metrics
+  const totalComparisons = parsed.length - 1;
+  const variancePercentage = ((totalComparisons - identicalCount) / totalComparisons) * 100;
+  const consistencyScore = 100 - variancePercentage;
+
+  return {
+    identical_count: identicalCount,
+    total_comparisons: totalComparisons,
+    variance_percentage: variancePercentage,
+    consistency_score: consistencyScore,
+    differing_fields: Array.from(differingFields),
+    field_comparison_details: fieldComparisons
+  };
+}
+
+/**
+ * Deep comparison of two objects to detect differences
+ * 
+ * @param {any} obj1 - First object
+ * @param {any} obj2 - Second object
+ * @param {string} path - Current path in object tree
+ * @param {string} evaluationType - Type of evaluation
+ * @returns {Object} Comparison result with differences array
+ */
+function deepCompare(obj1, obj2, path = '', evaluationType) {
+  const differences = [];
+  
+  // Handle null/undefined cases
+  if (obj1 === null || obj1 === undefined || obj2 === null || obj2 === undefined) {
+    if (obj1 !== obj2) {
+      differences.push(path || 'root');
+    }
+    return { identical: differences.length === 0, differences };
+  }
+
+  // Handle primitive types
+  if (typeof obj1 !== 'object' || typeof obj2 !== 'object') {
+    if (obj1 !== obj2) {
+      // For strings, check if they're semantically similar (ignore minor wording differences)
+      if (typeof obj1 === 'string' && typeof obj2 === 'string') {
+        const similarity = calculateStringSimilarity(obj1, obj2);
+        if (similarity < 0.95) { // 95% similarity threshold
+          differences.push(path || 'value');
+        }
+      } else {
+        differences.push(path || 'value');
+      }
+    }
+    return { identical: differences.length === 0, differences };
+  }
+
+  // Handle arrays
+  if (Array.isArray(obj1) && Array.isArray(obj2)) {
+    if (obj1.length !== obj2.length) {
+      differences.push(`${path}.length`);
+    }
+    
+    const maxLen = Math.max(obj1.length, obj2.length);
+    for (let i = 0; i < maxLen; i++) {
+      const itemPath = `${path}[${i}]`;
+      const itemComparison = deepCompare(obj1[i], obj2[i], itemPath, evaluationType);
+      differences.push(...itemComparison.differences);
+    }
+    
+    return { identical: differences.length === 0, differences };
+  }
+
+  // Handle objects
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+  const allKeys = new Set([...keys1, ...keys2]);
+
+  for (const key of allKeys) {
+    const newPath = path ? `${path}.${key}` : key;
+    
+    if (!(key in obj1)) {
+      differences.push(`${newPath} (missing in first)`);
+      continue;
+    }
+    
+    if (!(key in obj2)) {
+      differences.push(`${newPath} (missing in second)`);
+      continue;
+    }
+
+    const keyComparison = deepCompare(obj1[key], obj2[key], newPath, evaluationType);
+    differences.push(...keyComparison.differences);
+  }
+
+  return { identical: differences.length === 0, differences };
+}
+
+/**
+ * Calculate string similarity using Levenshtein distance
+ * 
+ * @param {string} str1 - First string
+ * @param {string} str2 - Second string
+ * @returns {number} Similarity score (0-1)
+ */
+function calculateStringSimilarity(str1, str2) {
+  if (str1 === str2) return 1.0;
+  if (!str1 || !str2) return 0.0;
+
+  const longer = str1.length > str2.length ? str1 : str2;
+  const shorter = str1.length > str2.length ? str2 : str1;
+  
+  if (longer.length === 0) return 1.0;
+
+  const editDistance = levenshteinDistance(longer, shorter);
+  return (longer.length - editDistance) / longer.length;
+}
+
+/**
+ * Calculate Levenshtein distance between two strings
+ * 
+ * @param {string} str1 - First string
+ * @param {string} str2 - Second string
+ * @returns {number} Edit distance
+ */
+function levenshteinDistance(str1, str2) {
+  const matrix = [];
+
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+
+  return matrix[str2.length][str1.length];
+}
+
+/**
+ * Generate recommendations based on variance analysis
+ * 
+ * @param {Object} analysis - Variance analysis results
+ * @param {string} evaluationType - Type of evaluation
+ * @returns {Array<string>} Array of recommendation strings
+ */
+function generateRecommendations(analysis, evaluationType) {
+  const recommendations = [];
+
+  if (analysis.consistency_score >= 95) {
+    recommendations.push('✅ Excellent consistency! Current configuration (temperature: 0, topK: 1, topP: 1.0, candidateCount: 1, seed: 42) is working well.');
+    recommendations.push('Consider implementing response caching for identical inputs to guarantee 100% consistency and reduce API costs.');
+  } else if (analysis.consistency_score >= 80) {
+    recommendations.push('⚠️ Good consistency, but some variance detected. Review differing fields to identify patterns.');
+    recommendations.push('Consider switching from streaming (generateContentStream) to non-streaming (generateContent) API calls.');
+    recommendations.push('Verify that all config parameters (topP, candidateCount) are being passed correctly to the Gemini API.');
+  } else if (analysis.consistency_score >= 60) {
+    recommendations.push('⚠️ Moderate variance detected. Prompt engineering improvements needed.');
+    recommendations.push('Add more explicit scoring formulas and checklists in prompts to reduce interpretation variance.');
+    recommendations.push('Consider using example-based few-shot prompting to demonstrate expected output format.');
+    recommendations.push('Test with non-streaming API calls (generateContent instead of generateContentStream).');
+  } else {
+    recommendations.push('❌ High variance detected. Urgent action needed:');
+    recommendations.push('1. Verify Gemini API configuration is being applied correctly (check server logs).');
+    recommendations.push('2. Simplify prompts with more deterministic instructions (checklists, formulas, exact thresholds).');
+    recommendations.push('3. Switch to non-streaming API calls.');
+    recommendations.push('4. Consider using a different model version or API endpoint.');
+    recommendations.push('5. Implement response validation and retry logic with stricter constraints.');
+  }
+
+  // Specific recommendations based on differing fields
+  if (analysis.differing_fields.length > 0) {
+    const feedbackFields = analysis.differing_fields.filter(f => 
+      f.includes('feedback') || f.includes('Feedback')
+    );
+    
+    if (feedbackFields.length > 0) {
+      recommendations.push('📝 Feedback text is varying. Consider using more structured feedback templates in prompts.');
+    }
+
+    const scoreFields = analysis.differing_fields.filter(f => 
+      f.includes('Level') || f.includes('level') || f.includes('Accuracy')
+    );
+    
+    if (scoreFields.length > 0) {
+      recommendations.push('🎯 Scoring levels are inconsistent. Strengthen level determination criteria in prompts with exact thresholds.');
+    }
+  }
+
+  return recommendations;
+}
+
 app.listen(PORT, () => {
   console.log(`Evaluation API listening on http://localhost:${PORT}`);
 });

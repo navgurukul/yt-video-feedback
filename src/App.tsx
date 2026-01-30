@@ -6,6 +6,7 @@ import VideoAnalyzer from "./pages/VideoAnalyzer";
 import AnalysisResults from "./pages/AnalysisResults";
 import History from "./pages/History";
 import AllEvaluations from "./pages/AllEvaluations";
+import VarianceTest from "./pages/VarianceTest";
 import NotFound from "./pages/NotFound";
 import { useEffect, useState, createContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -88,6 +89,7 @@ const App = () => {
               <Route path="/video-analyzer" element={<VideoAnalyzer />} />
               <Route path="/history" element={<History />} />
               <Route path="/all-evaluations" element={<AllEvaluations />} />
+              <Route path="/variance-test" element={<VarianceTest />} />
               <Route path="/analysis-results" element={<AnalysisResults />} />
               <Route path="/yt-feedback" element={<YoutubeFeedback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

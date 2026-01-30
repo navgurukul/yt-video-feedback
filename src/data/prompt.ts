@@ -83,6 +83,8 @@ export const AccuracyConfig = {
   },
   temperature: 0,
   topK: 1,
+  topP: 1.0,
+  candidateCount: 1,
   seed: 42,
   responseMimeType: 'application/json',
   responseSchema: {
@@ -206,6 +208,8 @@ export const AbilityToExplainConfig = {
   },
   temperature: 0,
   topK: 1,
+  topP: 1.0,
+  candidateCount: 1,
   seed: 42,
   responseMimeType: 'application/json',
   responseSchema: {
@@ -349,6 +353,8 @@ export const projectconfig = {
   },
   temperature: 0,
   topK: 1,
+  topP: 1.0,
+  candidateCount: 1,
   seed: 42,
   responseMimeType: 'application/json',
   responseSchema: {
@@ -501,6 +507,8 @@ export const CustomConfig = {
   },
   temperature: 0,
   topK: 1,
+  topP: 1.0,
+  candidateCount: 1,
   seed: 42,
   responseMimeType: 'application/json',
   responseSchema: {
