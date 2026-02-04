@@ -17,7 +17,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: ["http://localhost:8080", "http://localhost:3000", "http://ai-lab-be.navgurukul.org"],
+    origin: ["http://localhost:8080", "http://localhost:3000", "https://master.d33dd8pvqtvje3.amplifyapp.com"],
     credentials: true
   })
 );
