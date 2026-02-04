@@ -13,7 +13,14 @@ import { GoogleGenAI, Type } from '@google/genai';
 dotenv.config();
 
 const app = express();
-app.use(cors());
+// app.use(cors());
+
+app.use(
+  cors({
+    origin: ["http://localhost:8080", "http://localhost:3000", "http://ai-lab-be.navgurukul.org"],
+    credentials: true
+  })
+);
 app.use(express.json({ limit: '5mb' }));
 
 const PORT = process.env.PORT || 3001;
