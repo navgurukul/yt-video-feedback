@@ -19,11 +19,11 @@ export const Footer = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="font-bold">
-            © 2024 NG YT VIDEO FEEDBACK. All rights reserved.
+            © 2026 NG YT VIDEO FEEDBACK. All rights reserved.
           </p>
           <div className="flex gap-4">
             <a
-              href="https://github.com"
+              href="https://github.com/navgurukul"
               target="_blank"
               rel="noopener noreferrer"
               className="p-3 bg-primary border-4 border-foreground shadow-brutal-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all"
@@ -31,7 +31,7 @@ export const Footer = () => {
               <Github className="w-5 h-5" />
             </a>
             <a
-              href="https://twitter.com"
+              href="https://x.com/NavGurukul"
               target="_blank"
               rel="noopener noreferrer"
               className="p-3 bg-secondary border-4 border-foreground shadow-brutal-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all"
@@ -39,7 +39,7 @@ export const Footer = () => {
               <Twitter className="w-5 h-5" />
             </a>
             <a
-              href="https://linkedin.com"
+              href="https://in.linkedin.com/school/navgurukul/"
               target="_blank"
               rel="noopener noreferrer"
               className="p-3 bg-primary border-4 border-foreground shadow-brutal-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all"
