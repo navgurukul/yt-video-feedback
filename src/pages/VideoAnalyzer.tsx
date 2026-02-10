@@ -590,7 +590,7 @@ const VideoAnalyzer = () => {
             <div className="space-y-3">
               <Label className="text-xl font-black uppercase flex items-center gap-2">
                 <Youtube className="w-6 h-6" />
-                Video URL
+                Video URL (≤ 10 min video)
               </Label>
               <Input
                 type="url"
