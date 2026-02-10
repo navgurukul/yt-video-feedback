@@ -26,7 +26,8 @@ const VideoAnalyzer = () => {
   const [showCelebration, setShowCelebration] = useState(false);
   const { apiKey } = useContext(ApiKeyContext);
   
-  const [videoUrl, setVideoUrl] = useState("https://youtu.be/XLvrN6ZcGQ4?si=cfy2QnblXCd4UEsa&t=1");
+  const [videoUrl, setVideoUrl] = useState("");
+  // const [videoUrl, setVideoUrl] = useState("https://youtu.be/XLvrN6ZcGQ4?si=cfy2QnblXCd4UEsa&t=1"); // Test URL for local testing
   const [videoType, setVideoType] = useState<"concept" | "project" | "other">("concept");
   const [selectedPhase, setSelectedPhase] = useState<string>("");
   const [selectedVideoTitle, setSelectedVideoTitle] = useState<string>("");
