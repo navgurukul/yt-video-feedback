@@ -42,11 +42,11 @@ export const projectVideoDataStructure: ProjectPhaseData[] = [
     }
   },
   {
-    phase: "Phase 2: CSS Styling — Interactive Portfolio & Blog",
+    phase: "Phase 2: CSS Styling — Design & Layout Fundamentals",
     projectVideo: {
-      title: "Interactive Portfolio & Blog - Complete Project Walkthrough",
-      description: "A complete walkthrough of the CSS-styled Interactive Portfolio & Blog project, explaining design choices, layout techniques, and responsive design.",
-      whatToCover: "Walk through your complete Interactive Portfolio & Blog project. Explain your CSS organization, layout choices (Flexbox/Grid), color scheme, typography, responsive design with media queries, and how CSS enhances the user experience.",
+      title: "Design & Layout Fundamentals - Complete Project Walkthrough",
+      description: "A complete walkthrough of the CSS-styled project demonstrating design and layout fundamentals, explaining layout techniques, responsive design, and styling principles.",
+      whatToCover: "Walk through your complete CSS project demonstrating design and layout fundamentals. Explain your CSS organization, layout choices (Flexbox/Grid), color scheme, typography, responsive design with media queries, and how CSS enhances the user experience.",
       keyTopics: [
         "CSS file organization and structure",
         "Box model understanding and application",
@@ -59,7 +59,7 @@ export const projectVideoDataStructure: ProjectPhaseData[] = [
     }
   },
   {
-    phase: "Phase 3: JavaScript Basics — To-Do List & Weather App",
+    phase: "Phase 3: JavaScript — Bringing Websites to Life",
     projectVideo: {
       title: "To-Do List & Weather App - Complete Project Walkthrough",
       description: "A complete walkthrough of the JavaScript-powered To-Do List & Weather App, explaining DOM manipulation, event handling, and interactive features.",
@@ -76,7 +76,7 @@ export const projectVideoDataStructure: ProjectPhaseData[] = [
     }
   },
   {
-    phase: "Phase 4: Advanced JavaScript — E-Commerce Site & Chat Application",
+    phase: "Phase 4: Advanced JavaScript & Gemini API Integration",
     projectVideo: {
       title: "E-Commerce Site & Chat Application - Complete Project Walkthrough",
       description: "A complete walkthrough of the Advanced JavaScript project featuring E-Commerce and Chat functionality with Gemini API integration.",
@@ -93,7 +93,7 @@ export const projectVideoDataStructure: ProjectPhaseData[] = [
     }
   },
   {
-    phase: "Phase 5: Full-Stack Development — Social Media Platform & Project Management Tool",
+    phase: "Phase 5: Backend with Node.js & Express",
     projectVideo: {
       title: "Full-Stack Social Media & Project Management - Complete Project Walkthrough",
       description: "A complete walkthrough of the full-stack project with Node.js/Express backend, covering server setup, API endpoints, and frontend-backend communication.",
@@ -110,7 +110,7 @@ export const projectVideoDataStructure: ProjectPhaseData[] = [
     }
   },
   {
-    phase: "Phase 6: Deployment & Optimization — Blog Platform & Portfolio Site",
+    phase: "Phase 6: MongoDB & Mongoose — Student Feedback Manager",
     projectVideo: {
       title: "MongoDB & Mongoose Full-Stack Application - Complete Project Walkthrough",
       description: "A complete walkthrough of the MongoDB-integrated full-stack application, covering database design, Mongoose models, CRUD operations, and deployment.",

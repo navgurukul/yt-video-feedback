@@ -296,19 +296,19 @@ const VideoAnalyzer = () => {
             case "Phase 1: HTML Only — Student Profile & Course Portal":
               projectRubric = Phase1Rubric;
               break;
-            case "Phase 2: CSS Styling — Interactive Portfolio & Blog":
+            case "Phase 2: CSS Styling — Design & Layout Fundamentals":
               projectRubric = Phase2Rubric;
               break;
-            case "Phase 3: JavaScript Basics — To-Do List & Weather App":
+            case "Phase 3: JavaScript — Bringing Websites to Life":
               projectRubric = Phase3Rubric;
               break;
-            case "Phase 4: Advanced JavaScript — E-Commerce Site & Chat Application":
+            case "Phase 4: Advanced JavaScript & Gemini API Integration":
               projectRubric = Phase4Rubric;
               break;
-            case "Phase 5: Full-Stack Development — Social Media Platform & Project Management Tool":
+            case "Phase 5: Backend with Node.js & Express":
               projectRubric = Phase5Rubric;
               break;
-            case "Phase 6: Deployment & Optimization — Blog Platform & Portfolio Site":
+            case "Phase 6: MongoDB & Mongoose — Student Feedback Manager":
               projectRubric = Phase6Rubric;
               break;
             default:

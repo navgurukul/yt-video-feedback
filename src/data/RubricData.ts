@@ -151,10 +151,64 @@ export const Phase4Rubric = [
 
 // Phase 5 Rubric - Backend with Node.js & Express Evaluation
 export const Phase5Rubric = [
-  // Add Phase 5 rubric here when available
+  {
+    "Parameter": "Understanding the Problem / Problem Articulation (e.g., 'What is the purpose of your backend application?' 'How does the backend serve the frontend?' 'Why did you choose Node.js and Express?')",
+    "Weightage (%)": 25,
+    "Beginner (1)": "Cannot clearly describe the backend's purpose; confuses client and server roles; cannot explain why backend development is needed.",
+    "Intermediate (2)": "Explains basic backend goals and mentions server-client separation but lacks understanding of their interaction and API communication.",
+    "Advanced (3)": "Clearly explains backend purpose, server-client roles, and basic API communication; understands why Node.js/Express were chosen for the project.",
+    "Expert (4)": "Comprehensively explains the backend architecture, API design, Express middleware, and how server efficiently handles client requests; demonstrates deep understanding of backend development choices."
+  },
+  {
+    "Parameter": "Backend Implementation & API Development (e.g., 'How do your Express routes work?' 'Why did you structure your API this way?' 'How do you handle different HTTP methods?' 'Explain your middleware usage')",
+    "Weightage (%)": 35,
+    "Beginner (1)": "Backend incomplete or non-functional; cannot explain routes, HTTP methods, or Express concepts; major errors prevent basic functionality.",
+    "Intermediate (2)": "Basic backend with some working routes; partial understanding of Express and HTTP methods; some endpoints work but with inconsistencies or errors.",
+    "Advanced (3)": "Well-structured backend with functional API routes; proper use of Express methods, middleware, and HTTP status codes; handles most API operations correctly.",
+    "Expert (4)": "Professional backend architecture with RESTful APIs, proper error handling, middleware implementation, and clean code structure; follows Express best practices and industry standards."
+  },
+  {
+    "Parameter": "Server-Client Communication & Data Flow (e.g., 'How does your frontend communicate with your backend?' 'How do you handle API requests and responses?' 'Explain your data validation')",
+    "Weightage (%)": 25,
+    "Beginner (1)": "Poor understanding of client-server communication; cannot explain HTTP requests/responses or how data flows between frontend and backend.",
+    "Intermediate (2)": "Basic understanding of API communication; can explain simple GET/POST requests but struggles with error handling or data validation.",
+    "Advanced (3)": "Good understanding of HTTP methods, API communication, and data validation; can explain request/response cycle and basic error handling.",
+    "Expert (4)": "Excellent understanding of full client-server communication, comprehensive error handling, data validation, and API security considerations; can explain complex data flows and edge cases."
+  },
+  {
+    "Parameter": "Communication & Technical Explanation (e.g., 'Can you walk through a complete API request?' 'Explain how you debugged backend issues?' 'How would you improve your backend architecture?')",
+    "Weightage (%)": 15,
+    "Beginner (1)": "Cannot explain technical decisions or API flows; struggles to communicate how backend components work together.",
+    "Intermediate (2)": "Explains basic functionality and some technical choices; can describe simple API flows but lacks depth in technical reasoning.",
+    "Advanced (3)": "Clearly explains most technical decisions, API flows, and backend challenges; communicates effectively about development process and problem-solving.",
+    "Expert (4)": "Expertly explains all technical decisions, complete API workflows, debugging approaches, and potential improvements; can teach others and discuss scalability and performance considerations."
+  }
 ];
 
 // Phase 6 Rubric - MongoDB & Mongoose Evaluation
 export const Phase6Rubric = [
-  // Add Phase 6 rubric here when available
+  {
+    "Parameter": "Understanding Database Concepts & MongoDB (e.g., 'What is MongoDB and why did you choose it?' 'What is the difference between SQL and NoSQL?' 'How does Mongoose help with MongoDB integration?')",
+    "Weightage (%)": 30,
+    "Beginner (1)": "Cannot explain database concepts; thinks MongoDB and SQL databases are the same; no understanding of NoSQL advantages or Mongoose purpose.",
+    "Intermediate (2)": "Basic understanding that MongoDB stores data differently; some awareness of NoSQL vs SQL but cannot explain specific benefits or use cases.",
+    "Advanced (3)": "Understands MongoDB's document-based structure and NoSQL benefits; can explain why MongoDB was chosen and basic Mongoose functionality.",
+    "Expert (4)": "Comprehensive understanding of database design, MongoDB's advantages for specific use cases, Mongoose ODM benefits, and can compare different database solutions effectively."
+  },
+  {
+    "Parameter": "Technical Implementation & CRUD Operations (e.g., 'How do you create, read, update, and delete data?' 'Explain your database schema design' 'How do you handle database connections?' 'Walk through your Mongoose models')",
+    "Weightage (%)": 40,
+    "Beginner (1)": "Database integration incomplete or non-functional; cannot perform basic CRUD operations; major errors in schema design or database connections.",
+    "Intermediate (2)": "Basic CRUD operations implemented but with issues; partial understanding of schemas and models; some database operations work but inconsistently.",
+    "Advanced (3)": "Well-implemented CRUD operations with proper schema design; good understanding of Mongoose models and database connections; most operations work correctly.",
+    "Expert (4)": "Professional database implementation with optimized CRUD operations, well-designed schemas, proper error handling, data validation, and follows MongoDB/Mongoose best practices."
+  },
+  {
+    "Parameter": "Data Management & Application Integration (e.g., 'How does your frontend interact with the database?' 'How do you handle data validation?' 'Explain your API endpoints for database operations' 'How do you manage data relationships?')",
+    "Weightage (%)": 30,
+    "Beginner (1)": "Poor integration between frontend and database; no data validation; cannot explain how data flows through the application stack.",
+    "Intermediate (2)": "Basic integration with some working data operations; minimal validation; can explain simple data flow but struggles with complex scenarios.",
+    "Advanced (3)": "Good integration with proper API endpoints for database operations; implements data validation and can explain most data flow scenarios effectively.",
+    "Expert (4)": "Excellent full-stack integration with comprehensive data validation, optimized API endpoints, proper error handling, and can explain complex data relationships and edge cases."
+  }
 ];
