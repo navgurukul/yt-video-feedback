@@ -13,7 +13,7 @@ export interface PhaseData {
 
 export const videoDataStructure: PhaseData[] = [
   {
-    phase: "Phase 1: HTML Only — Student Profile & Course Portal",
+    phase: "Phase 1: Student Profile & Course Portal (HTML Only)",
     videos: [
       {
         title: "Let's Build Your First Website: The Home Page",
@@ -115,7 +115,7 @@ export const videoDataStructure: PhaseData[] = [
     ]
   },
   {
-    phase: "Phase 2: CSS Styling — Design & Layout Fundamentals",
+    phase: "Phase 2: Dressing Up Your Websites with CSS",
     videos: [
       {
         title: "Your First Stylesheet: Global CSS for Your Website",
@@ -220,7 +220,7 @@ export const videoDataStructure: PhaseData[] = [
     ]
   },
   {
-    phase: "Phase 3: JavaScript — Bringing Websites to Life",
+    phase: "Phase 3: Bringing Your Websites to Life with JavaScript!",
     videos: [
       {
         title: "Your First JavaScript Project: A Simple Quiz App",
@@ -325,7 +325,7 @@ export const videoDataStructure: PhaseData[] = [
     ]
   },
   {
-    phase: "Phase 4: Advanced JavaScript & Gemini API Integration",
+    phase: "Phase 4: Building an AI-Powered Content Generator with Modern JavaScript & Gemini API",
     videos: [
       {
         title: "What is an API? Your First Gemini API Call",
@@ -430,7 +430,7 @@ export const videoDataStructure: PhaseData[] = [
     ]
   },
   {
-    phase: "Phase 5: Backend with Node.js & Express",
+    phase: "Phase 5: Your First Backend with Node.js, Express & Gemini AI",
     videos: [
       {
         title: "Your First Backend Server with Node.js and Express",
@@ -535,7 +535,7 @@ export const videoDataStructure: PhaseData[] = [
     ]
   },
   {
-    phase: "Phase 6: MongoDB & Mongoose — Student Feedback Manager",
+    phase: "Phase 6: Your First Database with MongoDB & Mongoose",
     videos: [
       {
         title: "What is MongoDB? Setting Up Your First Database",

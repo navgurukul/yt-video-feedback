@@ -25,7 +25,7 @@ export interface ProjectPhaseData {
  */
 export const projectVideoDataStructure: ProjectPhaseData[] = [
   {
-    phase: "Phase 1: HTML Only — Student Profile & Course Portal",
+    phase: "Phase 1: Student Profile & Course Portal (HTML Only)",
     projectVideo: {
       title: "Student Profile & Course Portal - Complete Project Walkthrough",
       description: "A complete walkthrough of the HTML-only Student Profile & Course Portal project, explaining all pages, structure, and semantic HTML choices.",
@@ -42,7 +42,7 @@ export const projectVideoDataStructure: ProjectPhaseData[] = [
     }
   },
   {
-    phase: "Phase 2: CSS Styling — Design & Layout Fundamentals",
+    phase: "Phase 2: Dressing Up Your Websites with CSS",
     projectVideo: {
       title: "Design & Layout Fundamentals - Complete Project Walkthrough",
       description: "A complete walkthrough of the CSS-styled project demonstrating design and layout fundamentals, explaining layout techniques, responsive design, and styling principles.",
@@ -59,70 +59,70 @@ export const projectVideoDataStructure: ProjectPhaseData[] = [
     }
   },
   {
-    phase: "Phase 3: JavaScript — Bringing Websites to Life",
+    phase: "Phase 3: Bringing Your Websites to Life with JavaScript!",
     projectVideo: {
-      title: "To-Do List & Weather App - Complete Project Walkthrough",
-      description: "A complete walkthrough of the JavaScript-powered To-Do List & Weather App, explaining DOM manipulation, event handling, and interactive features.",
-      whatToCover: "Walk through your To-Do List & Weather App project. Explain how JavaScript adds interactivity, DOM manipulation techniques, event listeners, data structures (arrays/objects), and how the app responds to user input.",
+      title: "Interactive Quiz Master - Complete Project Walkthrough",
+      description: "A complete walkthrough of the JavaScript-powered Interactive Quiz Master, explaining DOM manipulation, event handling, dynamic question display, and score calculation features.",
+      whatToCover: "Walk through your Interactive Quiz Master project. Explain how JavaScript creates quiz interactivity, DOM manipulation for dynamic question display, event listeners for user interactions, data structures for storing questions and answers, and how the application manages quiz flow and score calculation.",
       keyTopics: [
-        "DOM selection and manipulation",
+        "DOM selection and manipulation for quiz interface",
         "Event listeners and handling user interactions",
-        "Arrays and objects for data storage",
-        "Functions and code organization",
-        "Dynamic HTML creation with JavaScript",
-        "Form handling and validation",
-        "Debugging techniques used"
+        "Arrays and objects for question and answer storage",
+        "Functions and code organization for quiz logic",
+        "Dynamic HTML creation for question display",
+        "Conditional statements for answer validation and scoring",
+        "Debugging techniques and testing quiz functionality"
       ]
     }
   },
   {
-    phase: "Phase 4: Advanced JavaScript & Gemini API Integration",
+    phase: "Phase 4: Building an AI-Powered Content Generator with Modern JavaScript & Gemini API",
     projectVideo: {
-      title: "E-Commerce Site & Chat Application - Complete Project Walkthrough",
-      description: "A complete walkthrough of the Advanced JavaScript project featuring E-Commerce and Chat functionality with Gemini API integration.",
-      whatToCover: "Walk through your E-Commerce Site & Chat Application project. Explain API integration with Gemini, async/await patterns, fetch requests, ES6+ features, error handling, and how different components work together.",
+      title: "AI-Powered Content Generator - Complete Project Walkthrough",
+      description: "A complete walkthrough of the modern JavaScript project featuring an AI-Powered Content Generator with ES6+ features and Gemini API integration for intelligent content creation.",
+      whatToCover: "Walk through your AI-Powered Content Generator project. Explain modern ES6+ features implementation, Gemini API integration using fetch(), async/await patterns, destructuring for API responses, and how different content generation features work together.",
       keyTopics: [
-        "API integration and fetch requests",
-        "Async/await and Promise handling",
-        "ES6+ features (arrow functions, destructuring, template literals)",
-        "Error handling and user feedback",
-        "Code organization and modularity",
-        "State management in the application",
-        "Gemini API prompt engineering"
+        "ES6+ features (let/const, arrow functions, template literals)",
+        "Destructuring and spread/rest operators",
+        "Array methods for data processing (map, filter, reduce)",
+        "Fetch API and Promise handling for Gemini integration",
+        "Async/await patterns for API communication",
+        "Error handling and user feedback systems",
+        "Code organization and modern JavaScript best practices"
       ]
     }
   },
   {
-    phase: "Phase 5: Backend with Node.js & Express",
+    phase: "Phase 5: Your First Backend with Node.js, Express & Gemini AI",
     projectVideo: {
-      title: "Full-Stack Social Media & Project Management - Complete Project Walkthrough",
-      description: "A complete walkthrough of the full-stack project with Node.js/Express backend, covering server setup, API endpoints, and frontend-backend communication.",
-      whatToCover: "Walk through your Full-Stack Social Media Platform & Project Management Tool. Explain your Express server setup, API endpoints (GET, POST, PUT, DELETE), middleware usage, frontend-backend communication, and how data flows through the application.",
+      title: "Ask Gemini Full-Stack Application - Complete Project Walkthrough",
+      description: "A complete walkthrough of the full-stack Ask Gemini web application with Node.js/Express backend, covering server setup, API integration with Gemini AI, and secure frontend-backend communication.",
+      whatToCover: "Walk through your Ask Gemini full-stack application. Explain your Node.js server setup, Express route configuration, secure Gemini API integration from the backend, middleware usage, environment variable management, and how data flows from frontend to backend to Gemini API and back.",
       keyTopics: [
-        "Express server setup and configuration",
-        "RESTful API design and endpoints",
-        "Middleware (CORS, JSON parsing, custom middleware)",
-        "Frontend fetch calls to backend",
-        "Error handling on both frontend and backend",
-        "Environment variables and configuration",
-        "Project file structure and organization"
+        "Node.js server initialization and Express app setup",
+        "Express routes and HTTP request handling (GET, POST)",
+        "Backend Gemini API integration and fetch requests",
+        "Environment variables and API key security (.env, dotenv)",
+        "Express middleware (JSON parsing, static file serving)",
+        "Frontend-backend communication and data flow",
+        "Error handling and debugging in backend applications"
       ]
     }
   },
   {
-    phase: "Phase 6: MongoDB & Mongoose — Student Feedback Manager",
+    phase: "Phase 6: Your First Database with MongoDB & Mongoose",
     projectVideo: {
-      title: "MongoDB & Mongoose Full-Stack Application - Complete Project Walkthrough",
-      description: "A complete walkthrough of the MongoDB-integrated full-stack application, covering database design, Mongoose models, CRUD operations, and deployment.",
-      whatToCover: "Walk through your complete full-stack application with MongoDB. Explain your database design, Mongoose schemas and models, CRUD operations, data validation, and the complete flow from user interaction to database storage and back.",
+      title: "Student Feedback Manager - Complete Project Walkthrough",
+      description: "A complete walkthrough of the full-stack Student Feedback Manager application with MongoDB database integration, covering database connection, Mongoose schemas and models, CRUD operations, and persistent data storage.",
+      whatToCover: "Walk through your Student Feedback Manager application. Explain your MongoDB Atlas setup and connection, Mongoose schema and model design for feedback data, CRUD operations implementation (create feedback, read all feedback), data validation, and the complete flow from frontend form submission to database storage and data retrieval.",
       keyTopics: [
-        "MongoDB Atlas setup and connection",
-        "Mongoose schemas and models",
-        "CRUD operations (Create, Read, Update, Delete)",
-        "Data validation and error handling",
-        "Frontend to backend to database flow",
-        "Deployment considerations",
-        "Security best practices"
+        "MongoDB Atlas setup and database connection (mongoose.connect)",
+        "Mongoose schemas and models for data structure definition",
+        "CRUD operations (Create with .save(), Read with .find())",
+        "Data validation and error handling in database operations",
+        "Environment variables for secure database credentials",
+        "Frontend to backend to database data flow",
+        "Express middleware for JSON parsing and database integration"
       ]
     }
   }

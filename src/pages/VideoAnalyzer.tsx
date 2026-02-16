@@ -293,22 +293,22 @@ const VideoAnalyzer = () => {
           // For Project Explanation, use the appropriate project rubric
 
           switch (selectedPhase) {
-            case "Phase 1: HTML Only — Student Profile & Course Portal":
+            case "Phase 1: Student Profile & Course Portal (HTML Only)":
               projectRubric = Phase1Rubric;
               break;
-            case "Phase 2: CSS Styling — Design & Layout Fundamentals":
+            case "Phase 2: Dressing Up Your Websites with CSS":
               projectRubric = Phase2Rubric;
               break;
-            case "Phase 3: JavaScript — Bringing Websites to Life":
+            case "Phase 3: Bringing Your Websites to Life with JavaScript!":
               projectRubric = Phase3Rubric;
               break;
-            case "Phase 4: Advanced JavaScript & Gemini API Integration":
+            case "Phase 4: Building an AI-Powered Content Generator with Modern JavaScript & Gemini API":
               projectRubric = Phase4Rubric;
               break;
-            case "Phase 5: Backend with Node.js & Express":
+            case "Phase 5: Your First Backend with Node.js, Express & Gemini AI":
               projectRubric = Phase5Rubric;
               break;
-            case "Phase 6: MongoDB & Mongoose — Student Feedback Manager":
+            case "Phase 6: Your First Database with MongoDB & Mongoose":
               projectRubric = Phase6Rubric;
               break;
             default:
