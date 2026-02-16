@@ -85,30 +85,36 @@ const Index = () => {
         <section className="container mx-auto px-4 py-12">
           <MotionWrapper delay={0.3} direction="up">
             <div className="max-w-3xl mx-auto">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <motion.div
-                  whileHover={{ scale: 1.03, rotate: -1 }}
-                  className="bg-secondary/50 border-4 border-foreground p-6 shadow-brutal-sm text-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="bg-secondary/30 border-2 border-secondary/50 rounded-lg p-6 text-center"
                 >
-                  <div className="text-4xl mb-2">✨</div>
-                  <h3 className="font-black text-lg mb-1">Collect</h3>
-                  <p className="text-sm font-bold">Gather video feedback</p>
+                  <div className="text-4xl mb-3">✨</div>
+                  <h3 className="font-bold text-lg mb-2 text-foreground/90">Collect</h3>
+                  <p className="text-sm text-foreground/70">Gather video feedback</p>
                 </motion.div>
                 <motion.div
-                  whileHover={{ scale: 1.03, rotate: 1 }}
-                  className="bg-accent/50 border-4 border-foreground p-6 shadow-brutal-sm text-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="bg-accent/30 border-2 border-accent/50 rounded-lg p-6 text-center"
                 >
-                  <div className="text-4xl mb-2">🔥</div>
-                  <h3 className="font-black text-lg mb-1">Analyze</h3>
-                  <p className="text-sm font-bold">AI-powered insights</p>
+                  <div className="text-4xl mb-3">🔥</div>
+                  <h3 className="font-bold text-lg mb-2 text-foreground/90">Analyze</h3>
+                  <p className="text-sm text-foreground/70">AI-powered insights</p>
                 </motion.div>
                 <motion.div
-                  whileHover={{ scale: 1.03, rotate: -1 }}
-                  className="bg-primary/50 border-4 border-foreground p-6 shadow-brutal-sm text-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9 }}
+                  className="bg-primary/30 border-2 border-primary/50 rounded-lg p-6 text-center"
                 >
-                  <div className="text-4xl mb-2">🎉</div>
-                  <h3 className="font-black text-lg mb-1">Improve</h3>
-                  <p className="text-sm font-bold">Enhance your concepts & Skills</p>
+                  <div className="text-4xl mb-3">🎉</div>
+                  <h3 className="font-bold text-lg mb-2 text-foreground/90">Improve</h3>
+                  <p className="text-sm text-foreground/70">Enhance your concepts & Skills</p>
                 </motion.div>
               </div>
             </div>
