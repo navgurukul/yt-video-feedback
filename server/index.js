@@ -10,7 +10,9 @@ const { Client } = pkg;
 import { GoogleGenAI, Type } from '@google/genai';
 
 // Load environment variables from .env when running via node
-dotenv.config();
+const __filename_env = fileURLToPath(import.meta.url);
+const __dirname_env = path.dirname(__filename_env);
+dotenv.config({ path: path.join(__dirname_env, '.env') });
 
 const app = express();
 app.use(cors());
@@ -18,6 +20,7 @@ app.use(express.json({ limit: '5mb' }));
 
 const PORT = process.env.PORT || 3001;
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY || process.env.VITE_HUGGINGFACE_API_KEY;
 
 // PostgreSQL connection configuration
 const pgConfig = {
@@ -63,12 +66,200 @@ if (GEMINI_KEY) {
   console.log('GEMINI_KEY not provided in environment');
 }
 
+if (HUGGINGFACE_API_KEY) {
+  try {
+    const masked = `${HUGGINGFACE_API_KEY.slice(0,4)}...${HUGGINGFACE_API_KEY.slice(-4)}`;
+    console.log('HUGGINGFACE_API_KEY loaded from environment (masked):', masked);
+  } catch (e) {
+    console.log('HUGGINGFACE_API_KEY loaded (length):', HUGGINGFACE_API_KEY.length || 'unknown');
+  }
+} else {
+  console.log('HUGGINGFACE_API_KEY not provided in environment');
+}
+
 app.post('/evaluate', async (req, res) => {
   try {
-    const { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext } = req.body;
+    const { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext, modelProvider } = req.body;
 
     if (!videoUrl) return res.status(400).json({ error: 'Missing videoUrl' });
     
+    // Determine which model provider to use (default to gemini for backward compatibility)
+    const provider = modelProvider || 'gemini';
+    
+    if (provider === 'huggingface') {
+      // Use Hugging Face API with Gemma model
+      return await evaluateWithHuggingFace(req, res, { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext });
+    } else {
+      // Use existing Gemini API (default)
+      return await evaluateWithGemini(req, res, { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext });
+    }
+  } catch (err) {
+    console.error('evaluate error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// Hugging Face evaluation function
+async function evaluateWithHuggingFace(req, res, { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext }) {
+  try {
+    // For HuggingFace, always use the HuggingFace API key from environment
+    // The apiKey from the request body is a Gemini key and should NOT be used here
+    const effectiveApiKey = HUGGINGFACE_API_KEY;
+    
+    if (!effectiveApiKey) {
+      return res.status(500).json({ error: 'HUGGINGFACE_API_KEY not configured in server environment. Add it to server/.env' });
+    }
+
+    // Build the rubric content
+    const rubricContent = (rubric && Object.keys(rubric).length > 0) 
+      ? `RUBRIC:\n${JSON.stringify(rubric)}`
+      : '';
+
+    // Build custom prompt section if provided
+    const customPromptContent = customPrompt 
+      ? `CUSTOM_PROMPT:
+${customPrompt}
+
+`
+      : '';
+
+    const promptText = promptbegining + `
+${customPromptContent}VIDEO DETAILS:
+${videoDetails}
+
+${rubricContent}
+
+NOTE: This is a YouTube video. Please analyze the video content and provide a detailed evaluation based on the criteria above. Return your response as a valid JSON object matching the expected schema.`;
+
+    console.log(`--- Calling Hugging Face API with Gemma model to evaluate video (${evaluationType} evaluation) ---`);
+
+    // Debug: diagnose API key issues
+    const keySource = apiKey ? 'request body' : (HUGGINGFACE_API_KEY ? 'environment variable' : 'NONE');
+    console.log('--- HF API Key Diagnostics ---');
+    console.log('  Key source:', keySource);
+    console.log('  Key type:', typeof effectiveApiKey);
+    console.log('  Key length:', effectiveApiKey ? effectiveApiKey.length : 0);
+    console.log('  Key is empty string:', effectiveApiKey === '');
+    console.log('  Key is undefined:', effectiveApiKey === undefined);
+    console.log('  Key starts with "hf_":', effectiveApiKey ? effectiveApiKey.startsWith('hf_') : false);
+    console.log('  Key has leading/trailing whitespace:', effectiveApiKey ? (effectiveApiKey !== effectiveApiKey.trim()) : false);
+    console.log('  Key has newlines:', effectiveApiKey ? /[\r\n]/.test(effectiveApiKey) : false);
+    console.log('  Key masked:', effectiveApiKey ? `${effectiveApiKey.slice(0,4)}...${effectiveApiKey.slice(-4)}` : 'N/A');
+    console.log('  Authorization header:', `Bearer ${effectiveApiKey ? effectiveApiKey.trim().slice(0,6) + '...' : 'MISSING'}`);
+    console.log('--- End Diagnostics ---');
+
+    // Trim whitespace/newlines from key just in case
+    const cleanApiKey = effectiveApiKey.trim();
+
+    // Note: Hugging Face doesn't support video input directly
+    // We'll use a text-only approach and provide the YouTube URL as context
+    // Using HuggingFace Inference Providers OpenAI-compatible chat completions endpoint
+    const hfResponse = await fetch(
+      'https://router.huggingface.co/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${cleanApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemma-3-27b-it',
+          messages: [
+            {
+              role: 'user',
+              content: `${promptText}\n\nYouTube Video URL: ${videoUrl}\n\nPlease provide a structured JSON response based on the evaluation criteria.`
+            }
+          ],
+          max_tokens: 2000,
+          temperature: 0.7,
+          top_p: 0.95,
+          stream: false
+        }),
+      }
+    );
+
+    if (!hfResponse.ok) {
+      const errorText = await hfResponse.text();
+      console.error('Hugging Face API error:', errorText);
+      
+      let statusCode = hfResponse.status;
+      let errorMessage = 'Hugging Face API error';
+      
+      if (statusCode === 401) {
+        errorMessage = 'Invalid Hugging Face API key';
+      } else if (statusCode === 429) {
+        errorMessage = 'Hugging Face API quota exceeded';
+      } else if (statusCode === 503) {
+        errorMessage = 'Hugging Face model is loading. Please try again in a few moments.';
+      }
+      
+      return res.status(statusCode).json({ 
+        error: errorMessage, 
+        message: errorText,
+        details: 'Hugging Face API error'
+      });
+    }
+
+    const hfData = await hfResponse.json();
+    let fullResponse = '';
+    
+    // Handle different response formats from Hugging Face
+    // Standard text-generation format
+    if (Array.isArray(hfData) && hfData.length > 0) {
+      fullResponse = hfData[0].generated_text || '';
+    } else if (hfData.generated_text) {
+      fullResponse = hfData.generated_text;
+    } 
+    // Chat completions format
+    else if (hfData.choices && Array.isArray(hfData.choices) && hfData.choices.length > 0) {
+      fullResponse = hfData.choices[0].message?.content || '';
+    }
+    else {
+      fullResponse = JSON.stringify(hfData);
+    }
+
+    console.log('--- Hugging Face response received ---');
+
+    // Parse the JSON response
+    let parsed = null;
+    try {
+      parsed = JSON.parse(fullResponse);
+    } catch (err) {
+      console.warn('Failed to parse JSON from response:', err);
+      // Try to extract JSON from the text
+      const jsonMatch = fullResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+        } catch (e) {
+          console.error('Failed to parse extracted JSON:', e);
+          // Return a basic structure if parsing fails
+          parsed = {
+            note: "Unable to parse structured response from model",
+            raw_response: fullResponse
+          };
+        }
+      }
+    }
+
+    return res.json({ 
+      raw: fullResponse, 
+      text: fullResponse, 
+      parsed 
+    });
+  } catch (error) {
+    console.error('Hugging Face evaluation error:', error);
+    return res.status(502).json({ 
+      error: 'Hugging Face API error', 
+      message: error.message,
+      details: error.code || 'Unknown error'
+    });
+  }
+}
+
+// Gemini evaluation function (existing logic)
+async function evaluateWithGemini(req, res, { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext }) {
+  try {
     // Use API key from request body if provided, otherwise fall back to environment variable
     const effectiveApiKey = apiKey || GEMINI_KEY;
     
@@ -207,10 +398,10 @@ ${customPrompt}
       });
     }
   } catch (err) {
-    console.error('evaluate error', err);
-    res.status(500).json({ error: String(err) });
+    console.error('Gemini evaluation error', err);
+    return res.status(500).json({ error: String(err) });
   }
-});
+}
 
 // New endpoint to store evaluation results in PostgreSQL
 app.post('/store-evaluation', async (req, res) => {

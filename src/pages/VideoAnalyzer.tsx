@@ -33,6 +33,7 @@ const VideoAnalyzer = () => {
   const [videoDetailsText, setVideoDetailsText] = useState("");
   const [customPrompt, setCustomPrompt] = useState("");
   const [customContext, setCustomContext] = useState("");
+  const [modelProvider, setModelProvider] = useState<"gemini" | "huggingface">("gemini");
   const [error, setError] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
@@ -159,7 +160,8 @@ const VideoAnalyzer = () => {
           promptbegining: AccuracyPrompt,
           structuredreturnedconfig: AccuracyConfig,
           evaluationType: "accuracy",
-          apiKey: apiKey // Include user's API key
+          apiKey: apiKey, // Include user's API key
+          modelProvider: modelProvider // Include selected model provider
              };
 
           const accuracyResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
@@ -205,7 +207,8 @@ const VideoAnalyzer = () => {
           promptbegining: AbilityToExplainPrompt,
           structuredreturnedconfig: AbilityToExplainConfig,
             evaluationType: "ability",
-            apiKey: apiKey // Include user's API key
+            apiKey: apiKey, // Include user's API key
+            modelProvider: modelProvider // Include selected model provider
                 };
 
           const abilityResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
@@ -247,7 +250,8 @@ const VideoAnalyzer = () => {
             customPrompt: customPrompt, // Include the user's custom prompt
             customContext: customContext, // Include the user's custom context
             evaluationType: "custom",
-            apiKey: apiKey // Include user's API key
+            apiKey: apiKey, // Include user's API key
+            modelProvider: modelProvider // Include selected model provider
           };
 
           const resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
@@ -320,7 +324,8 @@ const VideoAnalyzer = () => {
           promptbegining: ProjectPrompt,
           structuredreturnedconfig: projectconfig,
             evaluationType: "project",
-            apiKey: apiKey // Include user's API key
+            apiKey: apiKey, // Include user's API key
+            modelProvider: modelProvider // Include selected model provider
           };
 
           const resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
@@ -456,6 +461,38 @@ const VideoAnalyzer = () => {
         <MotionWrapper delay={0.4} direction="up">
           <Card className="max-w-4xl mx-auto p-8 md:p-12">
           <div className="space-y-8">
+            {/* Model Provider Selection */}
+            <div className="space-y-3">
+              <Label className="text-xl font-black uppercase flex items-center gap-2">
+                <Zap className="w-6 h-6" />
+                AI Model Provider
+              </Label>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <Button
+                  variant={modelProvider === "gemini" ? "default" : "outline"}
+                  size="lg"
+                  onClick={() => {
+                    setModelProvider("gemini");
+                    setError("");
+                  }}
+                  className="flex-1 w-full sm:w-auto"
+                >
+                  Gemini API
+                </Button>
+                <Button
+                  variant={modelProvider === "huggingface" ? "default" : "outline"}
+                  size="lg"
+                  onClick={() => {
+                    setModelProvider("huggingface");
+                    setError("");
+                  }}
+                  className="flex-1 w-full sm:w-auto"
+                >
+                  Hugging Face (Gemma 3)
+                </Button>
+              </div>
+            </div>
+
             {/* Video Type Selection */}
             <div className="space-y-3">
               <Label className="text-xl font-black uppercase flex items-center gap-2">
