@@ -520,3 +520,425 @@ export const CustomConfig = {
     }
   },
 } as const;
+
+// ============================================
+// GEMINI 2.5 FLASH - ENHANCED CONFIGURATIONS
+// ============================================
+
+/**
+ * Enhanced Accuracy Config for Gemini 2.5 Flash
+ * Adds safety settings, system instructions, and additional parameters
+ * 
+ * @constant {Object}
+ */
+export const AccuracyConfigEnhanced_2_5 = {
+  systemInstruction: "You are an expert educational content evaluator specializing in web development concepts. Provide precise, constructive feedback based on pedagogical best practices. Focus on accuracy and clarity in assessment.",
+  thinkingConfig: {
+    thinkingBudget: -1, // Unlimited thinking tokens
+  },
+  temperature: 0,
+  topK: 1,
+  topP: 0.95,
+  seed: 42,
+  maxOutputTokens: 8192,
+  safetySettings: [
+    {
+      category: "HARM_CATEGORY_HATE_SPEECH",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_HARASSMENT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    }
+  ],
+  responseMimeType: 'application/json',
+  responseSchema: {
+    type: Type.OBJECT,
+    required: ["Accuracy Level"],
+    properties: {
+      "Accuracy Level": {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          required: ["Accuracy Level", "Concepts Breakdown", "Feedback"],
+          properties: {
+            "Accuracy Level": {
+              type: Type.STRING,
+              description: "Accuracy percentage (0-100%) calculated using formula: ((CORRECT + PARTIAL*0.5) / TOTAL) * 100. Must be a number followed by %",
+            },
+            "Concepts Breakdown": {
+              type: Type.STRING,
+              description: "Brief summary showing: 'X/Y concepts correct, Z partial. Topics covered: [list]. Missing: [list].' This ensures transparent scoring.",
+            },
+            "Feedback": {
+              type: Type.OBJECT,
+              required: ["What you did well.", "What could you do better.", "Suggestion for technical accuracy improvement."],
+              properties: {
+                "What you did well.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 specific points highlighting major strengths from the video, where the student explained topics with proper clarity and examples. Quote specific things they said correctly."
+                },
+                "What could you do better.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 specific points mentioning: (1) Missing concepts from VIDEO_DETAILS that were not explained, (2) Partial or incorrect explanations with what was wrong and correct information, (3) If video was off-topic, state what was expected vs shown."
+                },
+                "Suggestion for technical accuracy improvement.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 actionable suggestions to improve ONE level up (e.g., beginner→intermediate). Include specific topics to study and how to explain them better."
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+/**
+ * Enhanced Ability to Explain Config for Gemini 2.5 Flash
+ * Adds safety settings, system instructions, and additional parameters
+ * 
+ * @constant {Object}
+ */
+export const AbilityToExplainConfigEnhanced_2_5 = {
+  systemInstruction: "You are an expert communication skills evaluator. Assess how effectively students explain technical concepts using the Feynman technique principles: simplification, analogies, and audience adaptation.",
+  thinkingConfig: {
+    thinkingBudget: -1,
+  },
+  temperature: 0,
+  topK: 1,
+  topP: 0.95,
+  seed: 42,
+  maxOutputTokens: 8192,
+  safetySettings: [
+    {
+      category: "HARM_CATEGORY_HATE_SPEECH",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_HARASSMENT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    }
+  ],
+  responseMimeType: 'application/json',
+  responseSchema: {
+    type: Type.OBJECT,
+    required: ["Ability to Explain Level"],
+    properties: {
+      "Ability to Explain Level": {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          required: ["Ability to Explain Level", "Evidence Summary", "Feedback"],
+          properties: {
+            "Ability to Explain Level": {
+              type: Type.STRING,
+              enum: ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"],
+              description: "Level based on checklist score: 0-4=BEGINNER, 5-7=INTERMEDIATE, 8-10=ADVANCED, 11-12=EXPERT"
+            },
+            "Evidence Summary": {
+              type: Type.STRING,
+              description: "Brief summary: 'Scored X/12 points. Has: [checklist items marked YES]. Missing: [items marked NO].' This ensures transparent scoring."
+            },
+            "Feedback": {
+              type: Type.OBJECT,
+              required: ["What you did well.", "What could you do better.", "Suggestion for explanation improvement."],
+              properties: {
+                "What you did well.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 specific points highlighting communication strengths observed in the video"
+                },
+                "What could you do better.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 specific points mentioning missing elements from the checklist"
+                },
+                "Suggestion for explanation improvement.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 actionable suggestions focused on improving communication and teaching skills"
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+// ============================================
+// GEMINI 3.0 FLASH - NEW CONFIGURATIONS
+// ============================================
+
+/**
+ * Accuracy Config for Gemini 3.0 Flash
+ * Includes new 3.0 features: enhanced thinking, better multimodal processing, audio timestamps
+ * 
+ * @constant {Object}
+ */
+export const AccuracyConfig_3_0 = {
+  systemInstruction: "You are an expert educational content evaluator specializing in web development concepts. Provide precise, constructive feedback based on pedagogical best practices. Utilize your enhanced video understanding capabilities to assess both visual and audio content accurately.",
+  thinkingConfig: {
+    thinkingBudget: -1, // 3.0 has enhanced thinking capabilities
+  },
+  temperature: 0,
+  topK: 1,
+  topP: 0.95,
+  seed: 42,
+  maxOutputTokens: 8192,
+  // Enhanced safety settings for Gemini 3.0
+  safetySettings: [
+    {
+      category: "HARM_CATEGORY_HATE_SPEECH",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_HARASSMENT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_CIVIC_INTEGRITY", // New in 3.0
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    }
+  ],
+  // Audio timestamp for precise video analysis (3.0 feature)
+  // audioTimestamp: true, // Not supported in current API version
+  responseMimeType: 'application/json',
+  responseSchema: {
+    type: Type.OBJECT,
+    required: ["Accuracy Level"],
+    properties: {
+      "Accuracy Level": {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          required: ["Accuracy Level", "Concepts Breakdown", "Feedback", "Timestamps"],
+          properties: {
+            "Accuracy Level": {
+              type: Type.STRING,
+              description: "Accuracy percentage (0-100%) calculated using formula: ((CORRECT + PARTIAL*0.5) / TOTAL) * 100. Must be a number followed by %",
+            },
+            "Concepts Breakdown": {
+              type: Type.STRING,
+              description: "Brief summary showing: 'X/Y concepts correct, Z partial. Topics covered: [list]. Missing: [list].' This ensures transparent scoring.",
+            },
+            "Timestamps": {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  "concept": { type: Type.STRING },
+                  "timestamp": { type: Type.STRING, description: "Format: MM:SS" },
+                  "status": { type: Type.STRING, enum: ["correct", "partial", "missing"] }
+                }
+              },
+              description: "Array of timestamps where key concepts were discussed (Gemini 3.0 feature)"
+            },
+            "Feedback": {
+              type: Type.OBJECT,
+              required: ["What you did well.", "What could you do better.", "Suggestion for technical accuracy improvement."],
+              properties: {
+                "What you did well.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 specific points highlighting major strengths from the video, where the student explained topics with proper clarity and examples. Quote specific things they said correctly."
+                },
+                "What could you do better.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 specific points mentioning: (1) Missing concepts from VIDEO_DETAILS that were not explained, (2) Partial or incorrect explanations with what was wrong and correct information, (3) If video was off-topic, state what was expected vs shown."
+                },
+                "Suggestion for technical accuracy improvement.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 actionable suggestions to improve ONE level up (e.g., beginner→intermediate). Include specific topics to study and how to explain them better."
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+/**
+ * Ability to Explain Config for Gemini 3.0 Flash
+ * Enhanced with timestamp analysis and communication highlights
+ * 
+ * @constant {Object}
+ */
+export const AbilityToExplainConfig_3_0 = {
+  systemInstruction: "You are an expert communication skills evaluator. Assess how effectively students explain technical concepts using the Feynman technique principles. Use your enhanced multimodal understanding to evaluate both verbal and visual communication elements.",
+  thinkingConfig: {
+    thinkingBudget: -1,
+  },
+  temperature: 0,
+  topK: 1,
+  topP: 0.95,
+  seed: 42,
+  maxOutputTokens: 8192,
+  safetySettings: [
+    {
+      category: "HARM_CATEGORY_HATE_SPEECH",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_HARASSMENT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_CIVIC_INTEGRITY", // New in 3.0
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    }
+  ],
+  // audioTimestamp: true, // Not supported in current API version
+  responseMimeType: 'application/json',
+  responseSchema: {
+    type: Type.OBJECT,
+    required: ["Ability to Explain Level"],
+    properties: {
+      "Ability to Explain Level": {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          required: ["Ability to Explain Level", "Evidence Summary", "Feedback", "Communication Highlights"],
+          properties: {
+            "Ability to Explain Level": {
+              type: Type.STRING,
+              enum: ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"],
+              description: "Level based on checklist score: 0-4=BEGINNER, 5-7=INTERMEDIATE, 8-10=ADVANCED, 11-12=EXPERT"
+            },
+            "Evidence Summary": {
+              type: Type.STRING,
+              description: "Brief summary: 'Scored X/12 points. Has: [checklist items marked YES]. Missing: [items marked NO].' This ensures transparent scoring."
+            },
+            "Communication Highlights": {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  "timestamp": { type: Type.STRING },
+                  "highlight": { type: Type.STRING },
+                  "type": { type: Type.STRING, enum: ["strength", "improvement"] }
+                }
+              },
+              description: "Key moments in the video with timestamps (Gemini 3.0 feature)"
+            },
+            "Feedback": {
+              type: Type.OBJECT,
+              required: ["What you did well.", "What could you do better.", "Suggestion for explanation improvement."],
+              properties: {
+                "What you did well.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 specific points highlighting communication strengths observed in the video"
+                },
+                "What could you do better.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 specific points mentioning missing elements from the checklist"
+                },
+                "Suggestion for explanation improvement.": {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "Array of 3-5 actionable suggestions focused on improving communication and teaching skills"
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+/**
+ * Project Evaluation Config for Gemini 3.0 Flash
+ * Enhanced for code evaluation with audio timestamps
+ * 
+ * @constant {Object}
+ */
+export const ProjectEvaluationConfig_3_0 = {
+  systemInstruction: "You are an expert code reviewer and web development instructor. Evaluate student project walkthrough videos with focus on code quality, problem-solving approach, and technical understanding. Use your enhanced multimodal capabilities to assess both the code shown and the explanation provided.",
+  thinkingConfig: {
+    thinkingBudget: -1,
+  },
+  temperature: 0,
+  topK: 1,
+  topP: 0.95,
+  seed: 42,
+  maxOutputTokens: 8192,
+  safetySettings: [
+    {
+      category: "HARM_CATEGORY_HATE_SPEECH",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_HARASSMENT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    },
+    {
+      category: "HARM_CATEGORY_CIVIC_INTEGRITY",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    }
+  ],
+  // audioTimestamp: true, // Not supported in current API version
+  responseMimeType: 'application/json',
+  responseSchema: {
+    type: Type.OBJECT,
+    required: ["evaluation_results"],
+    properties: {
+      "evaluation_results": {
+        type: Type.OBJECT,
+        description: "Evaluation results for each rubric parameter with scores and feedback"
+      }
+    }
+  }
+} as const;

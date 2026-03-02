@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Youtube, Zap, FileJson, Sheet, Film, Code, Layout } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Youtube, Zap, FileJson, Sheet, Film, Code, Layout, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AnimatedHeading } from "@/components/AnimatedHeading";
 import { MotionWrapper } from "@/components/MotionWrapper";
@@ -17,7 +18,7 @@ import { motion } from "framer-motion";
 import { getPhaseNames, getVideoTitlesForPhase, getVideoDetailsForTitle } from "@/data/videoData";
 import { getProjectVideoForPhase } from "@/data/phasevideodata";
 import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric,Phase5Rubric, Phase6Rubric } from "@/data/RubricData";
-import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig, CustomPrompt, CustomConfig} from '@/data/prompt'
+import {AccuracyPrompt,AccuracyConfig,AccuracyConfig_3_0, AbilityToExplainPrompt,AbilityToExplainConfig,AbilityToExplainConfig_3_0, ProjectPrompt, projectconfig,ProjectEvaluationConfig_3_0, CustomPrompt, CustomConfig} from '@/data/prompt'
 import { ApiKeyContext } from "@/App";
 
 const VideoAnalyzer = () => {
@@ -36,6 +37,7 @@ const VideoAnalyzer = () => {
   const [customContext, setCustomContext] = useState("");
   const [error, setError] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [useGemini3, setUseGemini3] = useState(true);
   
   const phaseNames = getPhaseNames();
   const availableVideoTitles = selectedPhase ? getVideoTitlesForPhase(selectedPhase) : [];
@@ -158,15 +160,19 @@ const VideoAnalyzer = () => {
           const accuracyPayload = {  
           ...payload, 
           promptbegining: AccuracyPrompt,
-          structuredreturnedconfig: AccuracyConfig,
+          structuredreturnedconfig: useGemini3 ? AccuracyConfig_3_0 : AccuracyConfig,
           evaluationType: "accuracy",
           apiKey: apiKey // Include user's API key
              };
 
-          const accuracyResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+          const evaluateEndpoint = useGemini3 ? '/evaluate-v3' : '/evaluate';
+          const accuracyResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + evaluateEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(accuracyPayload),
+            body: JSON.stringify({
+              ...accuracyPayload,
+              ...(useGemini3 && { enableSearchGrounding: true })
+            }),
           });
 
           const accuracyData = await accuracyResp.json();
@@ -204,15 +210,18 @@ const VideoAnalyzer = () => {
             ...payload,
             rubric: abilityToExplainRubric,
           promptbegining: AbilityToExplainPrompt,
-          structuredreturnedconfig: AbilityToExplainConfig,
+          structuredreturnedconfig: useGemini3 ? AbilityToExplainConfig_3_0 : AbilityToExplainConfig,
             evaluationType: "ability",
             apiKey: apiKey // Include user's API key
                 };
 
-          const abilityResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+          const abilityResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + evaluateEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(abilityPayload),
+            body: JSON.stringify({
+              ...abilityPayload,
+              ...(useGemini3 && { enableSearchGrounding: true })
+            }),
           });
 
           const abilityData = await abilityResp.json();
@@ -251,10 +260,14 @@ const VideoAnalyzer = () => {
             apiKey: apiKey // Include user's API key
           };
 
-          const resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+          const customEndpoint = useGemini3 ? '/evaluate-v3' : '/evaluate';
+          const resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + customEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(customPayload),
+            body: JSON.stringify({
+              ...customPayload,
+              ...(useGemini3 && { enableSearchGrounding: true })
+            }),
           });
 
           const data = await resp.json();
@@ -319,15 +332,19 @@ const VideoAnalyzer = () => {
             ...payload,
             rubric: projectRubric,
           promptbegining: ProjectPrompt,
-          structuredreturnedconfig: projectconfig,
+          structuredreturnedconfig: useGemini3 ? ProjectEvaluationConfig_3_0 : projectconfig,
             evaluationType: "project",
             apiKey: apiKey // Include user's API key
           };
 
-          const resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+          const projectEndpoint = useGemini3 ? '/evaluate-v3' : '/evaluate';
+          const resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + projectEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(projectPayload),
+            body: JSON.stringify({
+              ...projectPayload,
+              ...(useGemini3 && { enableSearchGrounding: true })
+            }),
           });
 
           const data = await resp.json();
@@ -360,6 +377,7 @@ const VideoAnalyzer = () => {
             // Ensure evaluationPayload is properly structured
             
             // Send data to PostgreSQL via our backend API
+            const modelUsed = useGemini3 ? 'Gemini 3 Flash Preview' : 'Gemini 2.5 Flash';
             const requestData = {
               userId: user.id,
               userEmail: user.email,
@@ -372,7 +390,8 @@ const VideoAnalyzer = () => {
               selectedPhase: videoType !== "other" ? selectedPhase : null,
               selectedVideoTitle: videoType === "concept" ? selectedVideoTitle : null,
               customPrompt: videoType === "other" ? customPrompt : null,
-              customContext: videoType === "other" ? customContext : null
+              customContext: videoType === "other" ? customContext : null,
+              modelUsed: `Evaluated using ${modelUsed}`
             };
             
             const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/store-evaluation';
@@ -498,6 +517,37 @@ const VideoAnalyzer = () => {
                   Other
                 </Button>
               </div>
+            </div>
+
+            {/* AI Model Selection */}
+            <div className="space-y-3 border-2 border-primary/20 rounded-lg p-6 bg-primary/5">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <Label className="text-lg font-black uppercase flex items-center gap-2 mb-2">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    AI Model
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {useGemini3 ? (
+                      <span className="font-semibold text-primary">
+                        ⚡ Gemini 3 Flash Preview - Enhanced analysis capabilities
+                      </span>
+                    ) : (
+                      <span>Gemini 2.5 Flash - Stable and production-ready</span>
+                    )}
+                  </p>
+                </div>
+                <Switch
+                  checked={useGemini3}
+                  onCheckedChange={setUseGemini3}
+                  className="data-[state=checked]:bg-primary"
+                />
+              </div>
+              {useGemini3 && (
+                <div className="text-xs text-muted-foreground mt-2 pt-2 border-t border-primary/20">
+                  ✨ Enhanced features: Search grounding, thinking tokens, improved accuracy
+                </div>
+              )}
             </div>
 
             {/* Phase Selection Dropdown (hidden for other type) */}

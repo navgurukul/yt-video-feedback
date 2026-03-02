@@ -4,12 +4,16 @@ Backend API server for the YouTube Video Feedback application. Handles video eva
 
 ## 🚀 Features
 
-- Video evaluation using Google Gemini AI (2.5 Flash model)
+- **Dual Gemini AI Model Support:**
+  - Gemini 2.5 Flash (stable, production-ready)
+  - Gemini 3.0 Flash (enhanced, 2-3x faster with timestamps)
+- Video evaluation with structured JSON responses
 - Dual evaluation system for concept videos (accuracy + ability-to-explain)
 - Rubric-based evaluation for project videos
-- PostgreSQL database integration
+- PostgreSQL database integration with RLS policies
 - User-provided API key support
 - CORS enabled for frontend integration
+- Enhanced features: Search grounding, audio timestamps, code execution (3.0)
 
 ## 📋 Prerequisites
 
@@ -67,7 +71,7 @@ npm start
 ## 📡 API Endpoints
 
 ### POST `/evaluate`
-Evaluates a YouTube video using Gemini AI.
+Evaluates a YouTube video using Gemini 2.5 Flash AI model (stable).
 
 **Request Body:**
 ```json
@@ -87,6 +91,42 @@ Evaluates a YouTube video using Gemini AI.
 {
   "parsed": {
     // Evaluation results based on rubric
+  }
+}
+```
+
+### POST `/evaluate-v3`
+Evaluates a YouTube video using Gemini 3.0 Flash AI model (enhanced, 2-3x faster).
+
+**Request Body:**
+```json
+{
+  "videoUrl": "https://youtu.be/...",
+  "videoDetails": "Video evaluation criteria",
+  "promptbegining": "Evaluation prompt",
+  "rubric": {...},
+  "structuredreturnedconfig": {...},
+  "evaluationType": "concept|project|accuracy|ability",
+  "apiKey": "optional_user_provided_gemini_key",
+  // Gemini 3.0 specific parameters (optional)
+  "enableSearchGrounding": false,
+  "enableCodeExecution": false,
+  "cachedContentId": null
+}
+```
+
+**Response:**
+```json
+{
+  "parsed": {
+    // Evaluation results with timestamps
+  },
+  "model_version": "gemini-3.0-flash",
+  "thinking_tokens": 1523,
+  "features_used": {
+    "searchGrounding": false,
+    "codeExecution": false,
+    "cachedContent": false
   }
 }
 ```

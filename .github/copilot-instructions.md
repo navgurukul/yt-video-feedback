@@ -3,7 +3,7 @@
 ## Project Overview
 Full-stack YouTube video analysis platform that evaluates educational content (concept explanations and project walkthroughs) using Google Gemini AI. Built for assessing student-created web development videos (HTML/CSS learning phases).
 
-**Tech Stack:** React + TypeScript (Vite), Express backend, PostgreSQL, Supabase Auth, Gemini 2.5 Flash API, shadcn/ui + Tailwind, Framer Motion
+**Tech Stack:** React + TypeScript (Vite), Express backend, PostgreSQL, Supabase Auth, Gemini AI (2.5 Flash + 3.0 Flash), shadcn/ui + Tailwind, Framer Motion
 
 ## Architecture
 
@@ -18,7 +18,8 @@ Full-stack YouTube video analysis platform that evaluates educational content (c
 ### Backend (Port 3001)
 - **File:** `server/index.js` (ES modules)
 - **Endpoints:**
-  - `POST /evaluate`: Calls Gemini API with video URL, rubric, and prompts; returns JSON evaluation
+  - `POST /evaluate`: Calls Gemini 2.5 Flash API (stable, production-ready)
+  - `POST /evaluate-v3`: Calls Gemini 3.0 Flash API (enhanced, 2-3x faster with timestamps)
   - `POST /store-evaluation`: Saves to PostgreSQL (`tbl_ailabs_ytfeedback_project_evaluation` or `tbl_ailabs_ytfeedback_concept_evaluations`)
 - **Connection:** Uses `pg` Pool for PostgreSQL with RLS policies based on user email
 
@@ -96,10 +97,18 @@ PG_SSL=true
 
 ### Gemini API Integration
 **Key details in `server/index.js`:**
-- Endpoint: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`
-- Auth: API key in query string (`?key=...`) or Bearer token header
-- Request body includes video URL in `file_data.file_uri` (YouTube URL directly, not download)
-- Response format: `json.candidates[0].content.parts[0].text` contains JSON string
+- **Two Models Available:**
+  - Gemini 2.5 Flash: `POST /evaluate` - Stable, production-ready
+  - Gemini 3.0 Flash: `POST /evaluate-v3` - Enhanced, 2-3x faster with timestamps
+- Uses `@google/genai` SDK for API calls
+- Request body includes video URL in `fileData.fileUri` (YouTube URL directly, not download)
+- Response format: Streaming chunks collected into full JSON response
+- **Gemini 3.0 Features:**
+  - Audio timestamps for precise video timing
+  - Search grounding for fact verification (optional)
+  - Code execution capability (optional)
+  - Context caching for repeated evaluations
+  - Thinking tokens reporting
 - Error handling: Status codes 400/401/403/429/500/503 mapped to user-friendly messages
 - JSON repair function: Handles truncated responses by closing braces/quotes
 

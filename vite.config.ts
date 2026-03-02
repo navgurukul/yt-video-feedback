@@ -41,6 +41,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false
         },
+        // Forward Gemini 3.0 evaluation requests to API server
+        '/evaluate-v3': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false
+        },
         // Forward all evaluations requests to API server
         '/all-evaluations': {
           target: apiUrl,

@@ -219,10 +219,205 @@ ${customPrompt}
   }
 });
 
+// ============================================
+// GEMINI 3.0 FLASH EVALUATION ENDPOINT
+// ============================================
+app.post('/evaluate-v3', async (req, res) => {
+  try {
+    const { 
+      videoUrl, 
+      videoDetails, 
+      promptbegining, 
+      rubric, 
+      evaluationType, 
+      structuredreturnedconfig, 
+      apiKey, 
+      customPrompt, 
+      customContext,
+      enableSearchGrounding = false,
+      enableCodeExecution = false,
+      cachedContentId = null
+    } = req.body;
+
+    if (!videoUrl) return res.status(400).json({ error: 'Missing videoUrl' });
+    
+    // Use API key from request body if provided, otherwise fall back to environment variable
+    const effectiveApiKey = apiKey || GEMINI_KEY;
+    
+    if (!effectiveApiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not configured and not provided in request' });
+
+    // Initialize Google GenAI client with the effective API key
+    const ai = new GoogleGenAI({ apiKey: effectiveApiKey });
+    const model = 'gemini-3-flash-preview'; // Using Gemini 3 Flash Preview
+    
+    // Build the prompt for evaluation
+    const rubricContent = (rubric && Object.keys(rubric).length > 0) 
+      ? `RUBRIC:\n${JSON.stringify(rubric)}`
+      : '';
+
+    // Handle different config formats
+    let apiConfig;
+    if (structuredreturnedconfig.generationConfig) {
+      apiConfig = structuredreturnedconfig.generationConfig;
+    } else {
+      apiConfig = structuredreturnedconfig;
+    }
+
+    // Add Gemini 3.0 specific enhancements to config
+    const enhancedConfig = {
+      ...apiConfig,
+      // Add search grounding if enabled (Gemini 3.0 feature)
+      ...(enableSearchGrounding && {
+        searchGrounding: {
+          dynamicRetrievalConfig: {
+            mode: "MODE_DYNAMIC",
+            dynamicThreshold: 0.7
+          }
+        }
+      }),
+      // Add code execution if enabled (Gemini 3.0 feature)
+      ...(enableCodeExecution && {
+        codeExecution: true
+      })
+    };
+
+    // Build custom prompt section if provided
+    const customPromptContent = customPrompt 
+      ? `CUSTOM_PROMPT:\n${customPrompt}\n\n`
+      : '';
+
+    const promptText = promptbegining + `
+          ${customPromptContent}VIDEO DETAILS:
+          ${videoDetails}
+
+          ${rubricContent}`;
+
+    const contents = [
+      {
+        role: 'user',
+        parts: [
+          {
+            fileData: {
+              fileUri: videoUrl,
+              mimeType: 'video/*',
+            }
+          },
+          {
+            text: promptText
+          }
+        ],
+      },
+    ];
+
+    // Add cached content reference if provided (Gemini 3.0 feature for efficiency)
+    const requestParams = {
+      model,
+      config: enhancedConfig,
+      contents,
+      ...(cachedContentId && { cachedContent: cachedContentId })
+    };
+   
+    console.log(`--- Calling Gemini 3.0 Flash API to evaluate video (${evaluationType} evaluation, streaming response) ---`);
+    console.log(`--- Enhanced features: searchGrounding=${enableSearchGrounding}, codeExecution=${enableCodeExecution} ---`);
+
+    try {
+      // Call the streaming API using @google/genai SDK
+      const response = await ai.models.generateContentStream(requestParams);
+
+      // Collect the streaming response chunks
+      let fullResponse = '';
+      let thinkingTokens = 0;
+      
+      for await (const chunk of response) {
+        if (chunk.text) {
+          fullResponse += chunk.text;
+        }
+        // Count thinking tokens if available (Gemini 3.0 provides this)
+        if (chunk.usageMetadata && chunk.usageMetadata.thinkingTokens) {
+          thinkingTokens = chunk.usageMetadata.thinkingTokens;
+        }
+      }
+
+      console.log('--- Gemini 3.0 Stream finished ---');
+      if (thinkingTokens > 0) {
+        console.log(`--- Thinking tokens used: ${thinkingTokens} ---`);
+      }
+
+      // Parse the JSON response
+      let parsed = null;
+      try {
+        parsed = JSON.parse(fullResponse);
+      } catch (err) {
+        console.warn('Failed to parse JSON from response:', err);
+        // If parsing fails, try to extract JSON from the text
+        const jsonMatch = fullResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            parsed = JSON.parse(jsonMatch[0]);
+          } catch (e) {
+            console.error('Failed to parse extracted JSON:', e);
+          }
+        }
+      }
+
+      return res.json({ 
+        raw: fullResponse, 
+        text: fullResponse, 
+        parsed,
+        model_version: 'gemini-3-flash-preview',
+        thinking_tokens: thinkingTokens,
+        features_used: {
+          searchGrounding: enableSearchGrounding,
+          codeExecution: enableCodeExecution,
+          cachedContent: !!cachedContentId
+        }
+      });
+    } catch (error) {
+      console.error('An error occurred during the Gemini 3.0 API call:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        cause: error.cause,
+        code: error.code
+      });
+      
+      // Determine appropriate status code based on error type
+      let statusCode = 502;
+      let errorMessage = 'Upstream model API error';
+      
+      const errorString = error.message || String(error);
+      
+      if (errorString.includes('API key not valid') || errorString.includes('API_KEY_INVALID')) {
+        statusCode = 401;
+        errorMessage = 'Invalid API key';
+      } else if (errorString.includes('quota') || errorString.includes('QUOTA_EXCEEDED')) {
+        statusCode = 429;
+        errorMessage = 'API quota exceeded';
+      } else if (errorString.includes('Bad Request') || error.status === 400) {
+        statusCode = 400;
+        errorMessage = 'Invalid request to AI model';
+      } else if (errorString.includes('fetch failed') || errorString.includes('ECONNREFUSED') || errorString.includes('ETIMEDOUT')) {
+        statusCode = 503;
+        errorMessage = 'Unable to connect to AI service';
+      }
+      
+      return res.status(statusCode).json({ 
+        error: errorMessage, 
+        message: errorString,
+        details: error.code || 'Unknown error',
+        model_version: 'gemini-3-flash-preview'
+      });
+    }
+  } catch (err) {
+    console.error('evaluate-v3 error', err);
+    res.status(500).json({ error: String(err), model_version: 'gemini-3-flash-preview' });
+  }
+});
+
 // New endpoint to store evaluation results in PostgreSQL
 app.post('/store-evaluation', async (req, res) => {
   try {
-    const { userId, userEmail, videoUrl, videoType, evaluationData, videoDetails,selectedPhase,selectedVideoTitle, customPrompt, customContext } = req.body;
+    const { userId, userEmail, videoUrl, videoType, evaluationData, videoDetails,selectedPhase,selectedVideoTitle, customPrompt, customContext, modelUsed } = req.body;
 
     console.log('Received request to store evaluation:', { userId, userEmail, videoUrl, videoDetails, selectedPhase, selectedVideoTitle });
     //console.log('Full request body:', JSON.stringify(req.body, null, 2));
@@ -457,8 +652,9 @@ app.post('/store-evaluation', async (req, res) => {
           concept_explanation_feedback,
           ability_to_explain_evaluation,
           ability_to_explain_feedback,
+          comment,
           created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         RETURNING id
       `;
       const values = [
@@ -469,7 +665,8 @@ app.post('/store-evaluation', async (req, res) => {
         accuracyScore,
         accuracyFeedback,
         abilityEvaluationText,
-        abilityFeedback
+        abilityFeedback,
+        modelUsed || 'Evaluated using Gemini 2.5 Flash'
       ];
 
       console.log('Final concept evaluation values to be stored:', {
@@ -555,8 +752,9 @@ app.post('/store-evaluation', async (req, res) => {
           project_explanation_evaluation,
           project_explanation_feedback,
           project_explanation_evaluationjson,
+          comment,
           created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
         RETURNING id
       `;
       const values = [
@@ -565,7 +763,8 @@ app.post('/store-evaluation', async (req, res) => {
         videoUrl,
         evaluationText,
         feedbackText,
-        evaluationJson
+        evaluationJson,
+        modelUsed || 'Evaluated using Gemini 2.5 Flash'
       ];
 
       //console.log('Executing project evaluation database query with values:', values);
@@ -668,8 +867,9 @@ app.post('/store-evaluation', async (req, res) => {
           criteria_analysis,
           custom_feedback,
           evaluation_json,
+          comment,
           created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         RETURNING id
       `;
       const values = [
@@ -680,7 +880,8 @@ app.post('/store-evaluation', async (req, res) => {
         overallAssessment,
         criteriaAnalysis,
         feedbackText,
-        evaluationJson
+        evaluationJson,
+        modelUsed || 'Evaluated using Gemini 2.5 Flash'
       ];
 
       console.log('Executing custom evaluation database query');
