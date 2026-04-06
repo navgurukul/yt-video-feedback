@@ -9,9 +9,11 @@ import { AnimatedHeading } from "@/components/AnimatedHeading";
 import { MotionWrapper } from "@/components/MotionWrapper";
 import { AnimatedIntroText } from "@/components/AnimatedIntroText";
 import { CelebrationEffect } from "@/components/CelebrationEffect";
+import { ErrorPanel } from "@/components/ErrorPanel";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ErrorInfo } from "@/lib/errorMessages";
 
 const AnalysisResults = () => {
   const location = useLocation();
@@ -29,6 +31,7 @@ const AnalysisResults = () => {
   const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadedAnalysis, setLoadedAnalysis] = useState<any>(null);
+  const [partialError, setPartialError] = useState<ErrorInfo | null>(null);
 
   // Determine effective evaluation method (prefer route state, then DB fields)
   const effectiveMethod = evaluationMethod || loadedAnalysis?.analysis_data?.evaluationMethod || loadedAnalysis?.evaluation_method || 'rubric';
@@ -369,6 +372,13 @@ const AnalysisResults = () => {
       }, 800);
       
       return () => clearTimeout(timer);
+    }
+  }, [stateData]);
+
+  // Check for partial errors (e.g., ability evaluation failed but accuracy succeeded)
+  useEffect(() => {
+    if (stateData?.evaluation?.ability_error) {
+      setPartialError(stateData.evaluation.ability_error);
     }
   }, [stateData]);
 
@@ -731,6 +741,22 @@ const AnalysisResults = () => {
                   </div>
                 </motion.div>
               </div>
+            </div>
+          </MotionWrapper>
+        )}
+        
+        {/* Partial Error Display for Concept Ability Evaluation */}
+        {videoType === 'concept' && partialError && (
+          <MotionWrapper delay={1.1} direction="up">
+            <div className="max-w-4xl mx-auto mb-8">
+              <ErrorPanel
+                error={partialError}
+                evaluationType="concept-ability"
+                partialResults={{
+                  accuracy: evaluated
+                }}
+                showPartialResults={true}
+              />
             </div>
           </MotionWrapper>
         )}

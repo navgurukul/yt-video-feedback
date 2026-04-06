@@ -135,12 +135,13 @@ ${customPrompt}
    
     console.log(`--- Calling Gemini API to evaluate video (${evaluationType} evaluation, streaming response) ---`);
 
+    // Initialize timing and metadata variables OUTSIDE try block so they're available in catch
+    const requestTimestamp = new Date();
+    const startTime = Date.now();
+    let usageMetadata = null;
+    let finishReason = null;
+
     try {
-      // Record request timestamp and start latency measurement
-      const requestTimestamp = new Date();
-      const startTime = Date.now();
-      let usageMetadata = null;
-      let finishReason = null;
 
       // Call the streaming API using @google/genai SDK
       const response = await ai.models.generateContentStream({
@@ -223,38 +224,60 @@ ${customPrompt}
         message: error.message,
         stack: error.stack,
         cause: error.cause,
-        code: error.code
+        code: error.code,
+        status: error.status
       });
       
-      // Determine appropriate status code based on error type
+      // Determine appropriate status code and categorize error
       let statusCode = 502; // Default to Bad Gateway
       let errorMessage = 'Upstream model API error';
+      let errorType = 'unknown_error';
+      let errorCode = error.code || 'UNKNOWN';
       
       const errorString = error.message || String(error);
       
+      // Categorize error type for better user messaging
       if (errorString.includes('API key not valid') || errorString.includes('API_KEY_INVALID')) {
-        statusCode = 401; // Unauthorized
-        errorMessage = 'Invalid API key';
+        statusCode = 401;
+        errorMessage = 'API key configuration error';
+        errorType = 'invalid_api_key';
+        errorCode = 'API_KEY_INVALID';
       } else if (errorString.includes('quota') || errorString.includes('QUOTA_EXCEEDED')) {
-        statusCode = 429; // Too Many Requests
+        statusCode = 429;
         errorMessage = 'API quota exceeded';
-      } else if (errorString.includes('Bad Request') || error.status === 400) {
-        statusCode = 400; // Bad Request
-        errorMessage = 'Invalid request to AI model';
+        errorType = 'quota_exceeded';
+        errorCode = 'QUOTA_EXCEEDED';
+      } else if (errorString.includes('INVALID_ARGUMENT') || error.status === 400) {
+        statusCode = 400;
+        errorMessage = 'Invalid video or request format';
+        errorType = 'invalid_argument';
+        errorCode = 'INVALID_ARGUMENT';
       } else if (errorString.includes('fetch failed') || errorString.includes('ECONNREFUSED') || errorString.includes('ETIMEDOUT')) {
-        statusCode = 503; // Service Unavailable
+        statusCode = 503;
         errorMessage = 'Unable to connect to AI service';
+        errorType = 'network_error';
+        errorCode = 'NETWORK_ERROR';
+      } else if (errorString.includes('PERMISSION_DENIED') || errorString.includes('permission denied')) {
+        statusCode = 403;
+        errorMessage = 'Permission denied by API';
+        errorType = 'permission_denied';
+        errorCode = 'PERMISSION_DENIED';
+      } else if (errorString.includes('UNAVAILABLE') || errorString.includes('unavailable')) {
+        statusCode = 503;
+        errorMessage = 'Service temporarily unavailable';
+        errorType = 'service_unavailable';
+        errorCode = 'SERVICE_UNAVAILABLE';
       }
       
       // Build error metrics object
       const errorMetrics = {
-        api_latency_ms: Date.now() - (startTime || Date.now()),
+        api_latency_ms: Date.now() - startTime,
         prompt_tokens: null,
         completion_tokens: null,
         total_tokens: null,
         finish_reason: null,
         model_version: model,
-        timestamp: (requestTimestamp || new Date()).toISOString(),
+        timestamp: requestTimestamp.toISOString(),
         raw_usage_metadata: null,
         http_status: statusCode,
         error_message: errorMessage
@@ -266,9 +289,12 @@ ${customPrompt}
         parsed: null,
         metrics: errorMetrics,
         error: {
+          type: errorType,
           message: errorMessage, 
-          detail: errorString,
-          code: error.code || 'Unknown error'
+          details: errorString,
+          status_code: statusCode,
+          error_code: errorCode,
+          stacktrace: error.stack || 'No stack trace available'
         }
       });
     }
@@ -599,6 +625,43 @@ app.post('/store-evaluation', async (req, res) => {
           // Don't fail the entire request, just log the error
         }
       }
+
+      // Insert user issues if any were captured
+      if (evaluationData.issues && Array.isArray(evaluationData.issues) && evaluationData.issues.length > 0) {
+        const issuesInsertPromises = evaluationData.issues.map(issue => {
+          const issueQuery = `
+            INSERT INTO tbl_user_issues (
+              evaluation_id,
+              user_email,
+              issue_type,
+              issue_description,
+              error_code,
+              stacktrace,
+              resolved,
+              created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, FALSE, NOW())
+          `;
+          
+          const issueValues = [
+            evaluationId,
+            userEmail,
+            issue.issue_type || 'unknown_error',
+            issue.issue_description || 'Unknown error occurred',
+            issue.error_code || null,
+            issue.stacktrace || null
+          ];
+          
+          return pgPool.query(issueQuery, issueValues);
+        });
+        
+        try {
+          await Promise.all(issuesInsertPromises);
+          console.log('Successfully inserted user issues');
+        } catch (issuesErr) {
+          console.error('Error inserting user issues:', issuesErr);
+          // Don't fail the entire request, just log the error
+        }
+      }
       
       res.json({ 
         success: true, 
@@ -743,6 +806,43 @@ app.post('/store-evaluation', async (req, res) => {
           console.log('Successfully inserted API call metrics');
         } catch (metricsErr) {
           console.error('Error inserting API call metrics:', metricsErr);
+          // Don't fail the entire request, just log the error
+        }
+      }
+
+      // Insert user issues if any were captured
+      if (evaluationData.issues && Array.isArray(evaluationData.issues) && evaluationData.issues.length > 0) {
+        const issuesInsertPromises = evaluationData.issues.map(issue => {
+          const issueQuery = `
+            INSERT INTO tbl_user_issues (
+              evaluation_id,
+              user_email,
+              issue_type,
+              issue_description,
+              error_code,
+              stacktrace,
+              resolved,
+              created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, FALSE, NOW())
+          `;
+          
+          const issueValues = [
+            evaluationId,
+            userEmail,
+            issue.issue_type || 'unknown_error',
+            issue.issue_description || 'Unknown error occurred',
+            issue.error_code || null,
+            issue.stacktrace || null
+          ];
+          
+          return pgPool.query(issueQuery, issueValues);
+        });
+        
+        try {
+          await Promise.all(issuesInsertPromises);
+          console.log('Successfully inserted user issues');
+        } catch (issuesErr) {
+          console.error('Error inserting user issues:', issuesErr);
           // Don't fail the entire request, just log the error
         }
       }
@@ -915,6 +1015,43 @@ app.post('/store-evaluation', async (req, res) => {
           console.log('Successfully inserted API call metrics');
         } catch (metricsErr) {
           console.error('Error inserting API call metrics:', metricsErr);
+          // Don't fail the entire request, just log the error
+        }
+      }
+
+      // Insert user issues if any were captured
+      if (evaluationData.issues && Array.isArray(evaluationData.issues) && evaluationData.issues.length > 0) {
+        const issuesInsertPromises = evaluationData.issues.map(issue => {
+          const issueQuery = `
+            INSERT INTO tbl_user_issues (
+              evaluation_id,
+              user_email,
+              issue_type,
+              issue_description,
+              error_code,
+              stacktrace,
+              resolved,
+              created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, FALSE, NOW())
+          `;
+          
+          const issueValues = [
+            evaluationId,
+            userEmail,
+            issue.issue_type || 'unknown_error',
+            issue.issue_description || 'Unknown error occurred',
+            issue.error_code || null,
+            issue.stacktrace || null
+          ];
+          
+          return pgPool.query(issueQuery, issueValues);
+        });
+        
+        try {
+          await Promise.all(issuesInsertPromises);
+          console.log('Successfully inserted user issues');
+        } catch (issuesErr) {
+          console.error('Error inserting user issues:', issuesErr);
           // Don't fail the entire request, just log the error
         }
       }

@@ -13,12 +13,14 @@ import { AnimatedHeading } from "@/components/AnimatedHeading";
 import { MotionWrapper } from "@/components/MotionWrapper";
 import { AnimatedIntroText } from "@/components/AnimatedIntroText";
 import { CelebrationEffect } from "@/components/CelebrationEffect";
+import { ErrorPanel } from "@/components/ErrorPanel";
 import { motion } from "framer-motion";
 import { getPhaseNames, getVideoTitlesForPhase, getVideoDetailsForTitle } from "@/data/videoData";
 import { getProjectVideoForPhase } from "@/data/phasevideodata";
 import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric,Phase5Rubric, Phase6Rubric } from "@/data/RubricData";
 import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig, CustomPrompt, CustomConfig} from '@/data/prompt'
 import { ApiKeyContext } from "@/App";
+import { getErrorInfo, formatErrorInfo, ErrorInfo, extractErrorStatus } from "@/lib/errorMessages";
 
 const VideoAnalyzer = () => {
   const navigate = useNavigate();
@@ -35,6 +37,7 @@ const VideoAnalyzer = () => {
   const [customPrompt, setCustomPrompt] = useState("");
   const [customContext, setCustomContext] = useState("");
   const [error, setError] = useState("");
+  const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   const phaseNames = getPhaseNames();
@@ -154,8 +157,9 @@ const VideoAnalyzer = () => {
           // 1. Accuracy evaluation based on getVideoDetails
           // 2. Ability to explain evaluation based on abilityToExplainRubric
           
-          // Array to store API call metrics
+          // Arrays to store API call metrics and issues
           const apiCalls = [];
+          const issues = [];
           
           // First, get the accuracy evaluation
           const accuracyPayload = {  
@@ -188,6 +192,16 @@ const VideoAnalyzer = () => {
                 error: accuracyData.error || null
               });
             }
+            
+            // If API returned an error, capture it as an issue
+            if (accuracyData.error) {
+              issues.push({
+                issue_type: accuracyData.error.type || 'api_error',
+                issue_description: accuracyData.error.message || 'Accuracy evaluation failed',
+                error_code: accuracyData.error.error_code || String(accuracyData.error.status_code),
+                stacktrace: accuracyData.error.stacktrace || ''
+              });
+            }
           } catch (err) {
             accuracyError = err;
             apiCalls.push({
@@ -195,9 +209,15 @@ const VideoAnalyzer = () => {
               evaluation_type: "accuracy",
               metrics: null,
               error: {
-                message: String(err),
-                type: "network_error"
+                type: "network_error",
+                message: String(err)
               }
+            });
+            issues.push({
+              issue_type: 'network_error',
+              issue_description: 'Network error during accuracy evaluation: ' + String(err),
+              error_code: 'NETWORK_ERROR',
+              stacktrace: err instanceof Error ? err.stack : ''
             });
           }
 
@@ -210,22 +230,12 @@ const VideoAnalyzer = () => {
             setShowCelebration(false);
             dismiss();
             
-            let errorMessage = 'Accuracy evaluation failed.';
-            if (accuracyEvaluation?.error && accuracyEvaluation?.message) {
-              // Parse nested error message for API key issues
-              try {
-                const parsedMessage = JSON.parse(accuracyEvaluation.message);
-                if (parsedMessage.error?.message?.includes('API key not valid')) {
-                  errorMessage = 'Invalid API key. Please check your Gemini API key in settings.';
-                } else {
-                  errorMessage = parsedMessage.error?.message || accuracyEvaluation.message;
-                }
-              } catch {
-                errorMessage = accuracyEvaluation?.message || errorMessage;
-              }
-            }
+            // Extract and format error info
+            const status = accuracyData?.error?.status_code || accuracyData?.error?.code || 500;
+            const formattedError = formatErrorInfo(accuracyData?.error || {});
             
-            setError(errorMessage);
+            setErrorInfo(formattedError);
+            setError(formattedError.message);
             setIsAnalyzing(false);
             return;
           }
@@ -234,8 +244,8 @@ const VideoAnalyzer = () => {
           const abilityPayload = {
             ...payload,
             rubric: abilityToExplainRubric,
-          promptbegining: AbilityToExplainPrompt,
-          structuredreturnedconfig: AbilityToExplainConfig,
+            promptbegining: AbilityToExplainPrompt,
+            structuredreturnedconfig: AbilityToExplainConfig,
             evaluationType: "ability",
             apiKey: apiKey // Include user's API key
                 };
@@ -282,13 +292,17 @@ const VideoAnalyzer = () => {
             setShowCelebration(false);
             dismiss(); // Dismiss the processing toast
             
-            // Handle specific Gemini API errors
-            let errorMessage = 'Ability evaluation failed. See console for details.';
-            if (abilityData?.status && abilityData?.message) {
-              errorMessage = `Ability evaluation failed (${abilityData.status}: ${abilityData.statusText}). ${abilityData.message}`;
-            }
+            // Extract error info - this is a PARTIAL error since accuracy succeeded
+            const status = abilityData?.error?.status_code || abilityData?.error?.code || 500;
+            const formattedError = formatErrorInfo(abilityData?.error || {});
             
-            setError(errorMessage);
+            // Store the error but continue with partial results (accuracy succeeded)
+            // We'll pass both accuracy results and the ability error to AnalysisResults
+            // This will be handled in AnalysisResults to show accuracy + error banner
+            
+            // For now, treat as critical error on ability alone but preserve accuracy
+            setErrorInfo(formattedError);
+            setError(formattedError.message);
             setIsAnalyzing(false);
             return;
           }
@@ -299,11 +313,13 @@ const VideoAnalyzer = () => {
               accuracy: accuracyEvaluation,
               abilityToExplain: abilityEvaluation
             },
-            api_calls: apiCalls
+            api_calls: apiCalls,
+            issues: issues
           };
         } else if (videoType === "other") {
           // For Other type, use custom prompt evaluation
           const apiCalls = [];
+          const issues = [];
           
           const customPayload = {
             ...payload,
@@ -337,6 +353,16 @@ const VideoAnalyzer = () => {
                 error: data.error || null
               });
             }
+            
+            // If API returned an error, capture it as an issue
+            if (data.error) {
+              issues.push({
+                issue_type: data.error.type || 'api_error',
+                issue_description: data.error.message || 'Custom evaluation failed',
+                error_code: data.error.error_code || String(data.error.status_code),
+                stacktrace: data.error.stacktrace || ''
+              });
+            }
           } catch (err) {
             customError = err;
             apiCalls.push({
@@ -348,6 +374,12 @@ const VideoAnalyzer = () => {
                 type: "network_error"
               }
             });
+            issues.push({
+              issue_type: 'network_error',
+              issue_description: 'Network error during custom evaluation: ' + String(err),
+              error_code: 'NETWORK_ERROR',
+              stacktrace: err instanceof Error ? err.stack : ''
+            });
           }
 
           if (customError || !resp?.ok) {
@@ -355,27 +387,12 @@ const VideoAnalyzer = () => {
             setShowCelebration(false);
             dismiss(); // Dismiss the processing toast
             
-            // Handle specific API errors with user-friendly messages
-            let errorMessage = 'Custom evaluation failed. See console for details.';
+            // Extract and format error info
+            const status = data?.error?.status_code || data?.error?.code || resp?.status || 500;
+            const formattedError = formatErrorInfo(data?.error || {});
             
-            if (resp?.status === 401) {
-              errorMessage = 'Invalid API key. Please check your Gemini API key in settings.';
-            } else if (resp?.status === 429) {
-              errorMessage = 'API quota exceeded. Please try again later or check your API limits.';
-            } else if (resp?.status === 400) {
-              errorMessage = 'Invalid request. Please check your prompt and try again.';
-            } else if (data?.error && data?.message) {
-              // Try to extract a user-friendly message
-              if (data.message.includes('API key not valid')) {
-                errorMessage = 'Invalid API key. Please check your Gemini API key in settings.';
-              } else if (data.message.includes('quota')) {
-                errorMessage = 'API quota exceeded. Please try again later.';
-              } else {
-                errorMessage = `${data.error}: ${data.message}`;
-              }
-            }
-            
-            setError(errorMessage);
+            setErrorInfo(formattedError);
+            setError(formattedError.message);
             setIsAnalyzing(false);
             return;
           }
@@ -383,11 +400,13 @@ const VideoAnalyzer = () => {
           const customEvaluation = data?.parsed ?? data;
           evaluationPayload = {
             evaluation_result: customEvaluation,
-            api_calls: apiCalls
+            api_calls: apiCalls,
+            issues: issues
           };
         } else {
           // For Project Explanation, use the appropriate project rubric
           const apiCalls = [];
+          const issues = [];
 
           switch (selectedPhase) {
             case "Phase 1: Student Profile & Course Portal (HTML Only)":
@@ -415,8 +434,8 @@ const VideoAnalyzer = () => {
           const projectPayload = {
             ...payload,
             rubric: projectRubric,
-          promptbegining: ProjectPrompt,
-          structuredreturnedconfig: projectconfig,
+            promptbegining: ProjectPrompt,
+            structuredreturnedconfig: projectconfig,
             evaluationType: "project",
             apiKey: apiKey // Include user's API key
           };
@@ -443,6 +462,16 @@ const VideoAnalyzer = () => {
                 error: data.error || null
               });
             }
+            
+            // If API returned an error, capture it as an issue
+            if (data.error) {
+              issues.push({
+                issue_type: data.error.type || 'api_error',
+                issue_description: data.error.message || 'Project evaluation failed',
+                error_code: data.error.error_code || String(data.error.status_code),
+                stacktrace: data.error.stacktrace || ''
+              });
+            }
           } catch (err) {
             projectError = err;
             apiCalls.push({
@@ -454,6 +483,12 @@ const VideoAnalyzer = () => {
                 type: "network_error"
               }
             });
+            issues.push({
+              issue_type: 'network_error',
+              issue_description: 'Network error during project evaluation: ' + String(err),
+              error_code: 'NETWORK_ERROR',
+              stacktrace: err instanceof Error ? err.stack : ''
+            });
           }
 
           if (projectError || !resp?.ok) {
@@ -461,13 +496,12 @@ const VideoAnalyzer = () => {
             setShowCelebration(false);
             dismiss(); // Dismiss the processing toast
             
-            // Handle specific Gemini API errors
-            let errorMessage = 'Evaluation API returned an error. See console for details.';
-            if (data?.status && data?.message) {
-              errorMessage = `Evaluation failed (${data.status}: ${data.statusText}). ${data.message}`;
-            }
+            // Extract and format error info
+            const status = data?.error?.status_code || data?.error?.code || 500;
+            const formattedError = formatErrorInfo(data?.error || {});
             
-            setError(errorMessage);
+            setErrorInfo(formattedError);
+            setError(formattedError.message);
             setIsAnalyzing(false);
             return;
           }
@@ -475,7 +509,8 @@ const VideoAnalyzer = () => {
           const projectEvaluation = data?.parsed ?? data;
           evaluationPayload = {
             evaluation_result: projectEvaluation,
-            api_calls: apiCalls
+            api_calls: apiCalls,
+            issues: issues
           };
         }
 
@@ -727,13 +762,26 @@ const VideoAnalyzer = () => {
                 className="font-mono text-lg placeholder:font-mono"
               />
             </div>
-            {/* Error Display */}
-            {error && (
-              <div className="border-4 border-destructive bg-destructive/10 p-6 shadow-brutal">
-                <p className="text-destructive font-black uppercase text-center">
-                  ⚠️ {error}
-                </p>
-              </div>
+            
+            {/* Error Display with Detailed ErrorPanel */}
+            {errorInfo && (
+              <ErrorPanel
+                error={errorInfo}
+                evaluationType={
+                  videoType === "concept" ? "concept-accuracy" :
+                  videoType === "project" ? "project" :
+                  "custom"
+                }
+                onRetry={() => {
+                  setError("");
+                  setErrorInfo(null);
+                  handleAnalyze();
+                }}
+                onDismiss={() => {
+                  setError("");
+                  setErrorInfo(null);
+                }}
+              />
             )}
 
             {/* Analyze Button */}
