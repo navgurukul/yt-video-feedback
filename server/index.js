@@ -172,18 +172,13 @@ ${customPrompt}
       if (response.finishReason && !finishReason) {
         finishReason = response.finishReason;
       }
-      
-      // Try to extract finish reason from nested candidates structure if still not found
-      if (!finishReason && response.candidates && Array.isArray(response.candidates) && response.candidates.length > 0) {
-        finishReason = response.candidates[0].finishReason;
-      }
 
       // Calculate latency
       const endTime = Date.now();
       const apiLatencyMs = endTime - startTime;
 
       console.log('--- Stream finished ---');
-      console.log(`API Latency: ${apiLatencyMs}ms, Tokens: ${usageMetadata?.totalTokenCount || usageMetadata?.totalTokens || 'unknown'}, Finish Reason: ${finishReason || 'unknown'}`);
+      console.log(`API Latency: ${apiLatencyMs}ms, Tokens: ${usageMetadata?.totalTokens || 'unknown'}, Finish Reason: ${finishReason || 'unknown'}`);
 
       // Parse the JSON response
       let parsed = null;
@@ -202,13 +197,12 @@ ${customPrompt}
         }
       }
 
-      // Build metrics object with proper field mapping for Gemini API response
-      // Gemini uses: totalTokenCount, promptTokenCount, candidatesTokenCount
+      // Build metrics object
       const metrics = {
         api_latency_ms: apiLatencyMs,
-        prompt_tokens: usageMetadata?.promptTokenCount || usageMetadata?.promptTokens || null,
-        completion_tokens: usageMetadata?.candidatesTokenCount || usageMetadata?.completionTokens || null,
-        total_tokens: usageMetadata?.totalTokenCount || usageMetadata?.totalTokens || null,
+        prompt_tokens: usageMetadata?.promptTokenCount || null,
+        completion_tokens: usageMetadata?.candidatesTokenCount || null,
+        total_tokens: usageMetadata?.totalTokenCount || null,
         finish_reason: finishReason || 'UNKNOWN',
         model_version: model,
         timestamp: requestTimestamp.toISOString(),
