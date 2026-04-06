@@ -94,10 +94,13 @@ const AnalysisResults = () => {
   const normalizeEvaluation = (maybeEval: any, videoType: string) => {
     if (!maybeEval) return null;
 
+    // Unwrap evaluation_result if it exists (new API response format)
+    const unwrappedEval = maybeEval.evaluation_result || maybeEval;
+
     // Handle custom evaluation (other type) - completely flexible structure
     if (videoType === 'other') {
       // For custom evaluations, we accept any JSON structure the user requested
-      const customEval = maybeEval;
+      const customEval = unwrappedEval;
       
       if (customEval) {
         try {
@@ -141,8 +144,8 @@ const AnalysisResults = () => {
     // Handle concept explanation evaluations (different structure)
     if (videoType === 'concept') {
       // For concept explanations, we have two evaluations: accuracy and abilityToExplain
-      const accuracyEval = maybeEval.accuracy;
-      const abilityEval = maybeEval.abilityToExplain;
+      const accuracyEval = unwrappedEval.accuracy;
+      const abilityEval = unwrappedEval.abilityToExplain;
       
       // Extract accuracy data
       let accuracyScore = '';
@@ -245,7 +248,7 @@ const AnalysisResults = () => {
 
     // Handle project explanation evaluations with new structured format
     // The evaluation data should contain the parameters array
-    const candidate = maybeEval?.parsed ?? maybeEval?.evaluation ?? maybeEval;
+    const candidate = unwrappedEval?.parsed ?? unwrappedEval?.evaluation ?? unwrappedEval;
 
     // Check if it's the new structured format with "parameters" array
     if (candidate && Array.isArray(candidate.parameters)) {
