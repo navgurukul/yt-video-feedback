@@ -136,30 +136,59 @@ ${customPrompt}
     console.log(`--- Calling Gemini API to evaluate video (${evaluationType} evaluation, streaming response) ---`);
 
     try {
-      // Call the streaming API using @google/genai SDK
+      // Record request timestamp and start latency measurement
+      const requestTimestamp = new Date();
+      const startTime = Date.now();
+      let usageMetadata = null;
+      let finishReason = null;
 
+      // Call the streaming API using @google/genai SDK
       const response = await ai.models.generateContentStream({
         model,
         config: apiConfig,
         contents,
       });
 
-      // Collect the streaming response chunks
+      // Collect the streaming response chunks and extract metadata
       let fullResponse = '';
       for await (const chunk of response) {
         if (chunk.text) {
           fullResponse += chunk.text;
         }
+        // Try to capture usage metadata from chunk
+        if (chunk.usageMetadata && !usageMetadata) {
+          usageMetadata = chunk.usageMetadata;
+        }
+        // Try to capture finish reason from chunk
+        if (chunk.finishReason && !finishReason) {
+          finishReason = chunk.finishReason;
+        }
       }
 
+      // Try to capture metadata from response object if not captured from chunks
+      if (response.usageMetadata && !usageMetadata) {
+        usageMetadata = response.usageMetadata;
+      }
+      if (response.finishReason && !finishReason) {
+        finishReason = response.finishReason;
+      }
+      
+      // Try to extract finish reason from nested candidates structure if still not found
+      if (!finishReason && response.candidates && Array.isArray(response.candidates) && response.candidates.length > 0) {
+        finishReason = response.candidates[0].finishReason;
+      }
+
+      // Calculate latency
+      const endTime = Date.now();
+      const apiLatencyMs = endTime - startTime;
+
       console.log('--- Stream finished ---');
-      //console.log('Full response received:', fullResponse);
+      console.log(`API Latency: ${apiLatencyMs}ms, Tokens: ${usageMetadata?.totalTokenCount || usageMetadata?.totalTokens || 'unknown'}, Finish Reason: ${finishReason || 'unknown'}`);
 
       // Parse the JSON response
       let parsed = null;
       try {
         parsed = JSON.parse(fullResponse);
-        //console.log('Parsed JSON:', JSON.stringify(parsed, null, 2));
       } catch (err) {
         console.warn('Failed to parse JSON from response:', err);
         // If parsing fails, try to extract JSON from the text
@@ -173,10 +202,26 @@ ${customPrompt}
         }
       }
 
+      // Build metrics object with proper field mapping for Gemini API response
+      // Gemini uses: totalTokenCount, promptTokenCount, candidatesTokenCount
+      const metrics = {
+        api_latency_ms: apiLatencyMs,
+        prompt_tokens: usageMetadata?.promptTokenCount || usageMetadata?.promptTokens || null,
+        completion_tokens: usageMetadata?.candidatesTokenCount || usageMetadata?.completionTokens || null,
+        total_tokens: usageMetadata?.totalTokenCount || usageMetadata?.totalTokens || null,
+        finish_reason: finishReason || 'UNKNOWN',
+        model_version: model,
+        timestamp: requestTimestamp.toISOString(),
+        raw_usage_metadata: usageMetadata || null,
+        http_status: 200
+      };
+
       return res.json({ 
         raw: fullResponse, 
         text: fullResponse, 
-        parsed 
+        parsed,
+        metrics,
+        error: null
       });
     } catch (error) {
       console.error('An error occurred during the API call:', error);
@@ -207,10 +252,30 @@ ${customPrompt}
         errorMessage = 'Unable to connect to AI service';
       }
       
+      // Build error metrics object
+      const errorMetrics = {
+        api_latency_ms: Date.now() - (startTime || Date.now()),
+        prompt_tokens: null,
+        completion_tokens: null,
+        total_tokens: null,
+        finish_reason: null,
+        model_version: model,
+        timestamp: (requestTimestamp || new Date()).toISOString(),
+        raw_usage_metadata: null,
+        http_status: statusCode,
+        error_message: errorMessage
+      };
+      
       return res.status(statusCode).json({ 
-        error: errorMessage, 
-        message: errorString,
-        details: error.code || 'Unknown error'
+        raw: null,
+        text: null,
+        parsed: null,
+        metrics: errorMetrics,
+        error: {
+          message: errorMessage, 
+          detail: errorString,
+          code: error.code || 'Unknown error'
+        }
       });
     }
   } catch (err) {
@@ -481,12 +546,69 @@ app.post('/store-evaluation', async (req, res) => {
       console.log('Executing concept evaluation database query with values:', values);
 
       const result = await pgPool.query(query, values);
+      const evaluationId = result.rows[0].id;
       
-      console.log('Successfully inserted concept evaluation with ID:', result.rows[0].id);
+      console.log('Successfully inserted concept evaluation with ID:', evaluationId);
+
+      // Insert API call metrics into tbl_llm_api_calls
+      if (evaluationData.api_calls && Array.isArray(evaluationData.api_calls)) {
+        const apiCallsInsertPromises = evaluationData.api_calls.map(apiCall => {
+          const metricsQuery = `
+            INSERT INTO tbl_llm_api_calls (
+              evaluation_id,
+              user_email,
+              evaluation_type,
+              video_type,
+              video_url,
+              api_call_number,
+              request_timestamp,
+              api_latency_ms,
+              prompt_tokens,
+              completion_tokens,
+              total_tokens,
+              finish_reason,
+              model_version,
+              http_status,
+              error_message,
+              raw_usage_metadata,
+              created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
+          `;
+          
+          const metricsValues = [
+            evaluationId,
+            userEmail,
+            apiCall.evaluation_type || 'concept',
+            videoType,
+            videoUrl,
+            apiCall.call_number,
+            apiCall.metrics?.timestamp || new Date().toISOString(),
+            apiCall.metrics?.api_latency_ms || null,
+            apiCall.metrics?.prompt_tokens || null,
+            apiCall.metrics?.completion_tokens || null,
+            apiCall.metrics?.total_tokens || null,
+            apiCall.metrics?.finish_reason || null,
+            apiCall.metrics?.model_version || null,
+            apiCall.metrics?.http_status || (apiCall.error ? 500 : 200),
+            apiCall.error?.message || apiCall.metrics?.error_message || null,
+            apiCall.metrics?.raw_usage_metadata ? JSON.stringify(apiCall.metrics.raw_usage_metadata) : null
+          ];
+          
+          return pgPool.query(metricsQuery, metricsValues);
+        });
+        
+        try {
+          await Promise.all(apiCallsInsertPromises);
+          console.log('Successfully inserted API call metrics');
+        } catch (metricsErr) {
+          console.error('Error inserting API call metrics:', metricsErr);
+          // Don't fail the entire request, just log the error
+        }
+      }
       
       res.json({ 
         success: true, 
-        id: result.rows[0].id,
+        id: evaluationId,
         message: 'Concept evaluation stored successfully' 
       });
     } else if (videoType === 'project') {
@@ -571,12 +693,69 @@ app.post('/store-evaluation', async (req, res) => {
       //console.log('Executing project evaluation database query with values:', values);
 
       const result = await pgPool.query(query, values);
+      const evaluationId = result.rows[0].id;
       
-      console.log('Successfully inserted project evaluation with ID:', result.rows[0].id);
+      console.log('Successfully inserted project evaluation with ID:', evaluationId);
+
+      // Insert API call metrics into tbl_llm_api_calls
+      if (evaluationData.api_calls && Array.isArray(evaluationData.api_calls)) {
+        const apiCallsInsertPromises = evaluationData.api_calls.map(apiCall => {
+          const metricsQuery = `
+            INSERT INTO tbl_llm_api_calls (
+              evaluation_id,
+              user_email,
+              evaluation_type,
+              video_type,
+              video_url,
+              api_call_number,
+              request_timestamp,
+              api_latency_ms,
+              prompt_tokens,
+              completion_tokens,
+              total_tokens,
+              finish_reason,
+              model_version,
+              http_status,
+              error_message,
+              raw_usage_metadata,
+              created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
+          `;
+          
+          const metricsValues = [
+            evaluationId,
+            userEmail,
+            apiCall.evaluation_type || 'project',
+            videoType,
+            videoUrl,
+            apiCall.call_number,
+            apiCall.metrics?.timestamp || new Date().toISOString(),
+            apiCall.metrics?.api_latency_ms || null,
+            apiCall.metrics?.prompt_tokens || null,
+            apiCall.metrics?.completion_tokens || null,
+            apiCall.metrics?.total_tokens || null,
+            apiCall.metrics?.finish_reason || null,
+            apiCall.metrics?.model_version || null,
+            apiCall.metrics?.http_status || (apiCall.error ? 500 : 200),
+            apiCall.error?.message || apiCall.metrics?.error_message || null,
+            apiCall.metrics?.raw_usage_metadata ? JSON.stringify(apiCall.metrics.raw_usage_metadata) : null
+          ];
+          
+          return pgPool.query(metricsQuery, metricsValues);
+        });
+        
+        try {
+          await Promise.all(apiCallsInsertPromises);
+          console.log('Successfully inserted API call metrics');
+        } catch (metricsErr) {
+          console.error('Error inserting API call metrics:', metricsErr);
+          // Don't fail the entire request, just log the error
+        }
+      }
       
       res.json({ 
         success: true, 
-        id: result.rows[0].id,
+        id: evaluationId,
         message: 'Project evaluation stored successfully' 
       });
     } else if (videoType === 'other') {
@@ -686,12 +865,69 @@ app.post('/store-evaluation', async (req, res) => {
       console.log('Executing custom evaluation database query');
 
       const result = await pgPool.query(query, values);
+      const evaluationId = result.rows[0].id;
       
-      console.log('Successfully inserted custom evaluation with ID:', result.rows[0].id);
+      console.log('Successfully inserted custom evaluation with ID:', evaluationId);
+
+      // Insert API call metrics into tbl_llm_api_calls
+      if (evaluationData.api_calls && Array.isArray(evaluationData.api_calls)) {
+        const apiCallsInsertPromises = evaluationData.api_calls.map(apiCall => {
+          const metricsQuery = `
+            INSERT INTO tbl_llm_api_calls (
+              evaluation_id,
+              user_email,
+              evaluation_type,
+              video_type,
+              video_url,
+              api_call_number,
+              request_timestamp,
+              api_latency_ms,
+              prompt_tokens,
+              completion_tokens,
+              total_tokens,
+              finish_reason,
+              model_version,
+              http_status,
+              error_message,
+              raw_usage_metadata,
+              created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
+          `;
+          
+          const metricsValues = [
+            evaluationId,
+            userEmail,
+            apiCall.evaluation_type || 'custom',
+            videoType,
+            videoUrl,
+            apiCall.call_number,
+            apiCall.metrics?.timestamp || new Date().toISOString(),
+            apiCall.metrics?.api_latency_ms || null,
+            apiCall.metrics?.prompt_tokens || null,
+            apiCall.metrics?.completion_tokens || null,
+            apiCall.metrics?.total_tokens || null,
+            apiCall.metrics?.finish_reason || null,
+            apiCall.metrics?.model_version || null,
+            apiCall.metrics?.http_status || (apiCall.error ? 500 : 200),
+            apiCall.error?.message || apiCall.metrics?.error_message || null,
+            apiCall.metrics?.raw_usage_metadata ? JSON.stringify(apiCall.metrics.raw_usage_metadata) : null
+          ];
+          
+          return pgPool.query(metricsQuery, metricsValues);
+        });
+        
+        try {
+          await Promise.all(apiCallsInsertPromises);
+          console.log('Successfully inserted API call metrics');
+        } catch (metricsErr) {
+          console.error('Error inserting API call metrics:', metricsErr);
+          // Don't fail the entire request, just log the error
+        }
+      }
       
       res.json({ 
         success: true, 
-        id: result.rows[0].id,
+        id: evaluationId,
         message: 'Custom evaluation stored successfully' 
       });
     } else {

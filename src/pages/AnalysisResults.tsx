@@ -801,7 +801,7 @@ const AnalysisResults = () => {
                 <Card className="p-8 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
                   <h3 className="text-2xl font-black uppercase mb-6 flex items-center gap-2">
                     <Star className="w-8 h-8" />
-                    Ability Feedback
+                    Ability to explain feedback
                   </h3>
                   <div className="space-y-4">
                     {evaluated.abilityFeedback?.["What you did well."] && (

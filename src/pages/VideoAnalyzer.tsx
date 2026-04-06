@@ -154,6 +154,9 @@ const VideoAnalyzer = () => {
           // 1. Accuracy evaluation based on getVideoDetails
           // 2. Ability to explain evaluation based on abilityToExplainRubric
           
+          // Array to store API call metrics
+          const apiCalls = [];
+          
           // First, get the accuracy evaluation
           const accuracyPayload = {  
           ...payload, 
@@ -163,24 +166,52 @@ const VideoAnalyzer = () => {
           apiKey: apiKey // Include user's API key
              };
 
-          const accuracyResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(accuracyPayload),
-          });
+          let accuracyError = null;
+          let accuracyResp;
+          let accuracyData;
+          
+          try {
+            accuracyResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(accuracyPayload),
+            });
 
-          const accuracyData = await accuracyResp.json();
-          const accuracyEvaluation = accuracyData.parsed ?? accuracyData;
+            accuracyData = await accuracyResp.json();
+            
+            // Capture API call metrics - 1st call
+            if (accuracyData.metrics) {
+              apiCalls.push({
+                call_number: 1,
+                evaluation_type: "accuracy",
+                metrics: accuracyData.metrics,
+                error: accuracyData.error || null
+              });
+            }
+          } catch (err) {
+            accuracyError = err;
+            apiCalls.push({
+              call_number: 1,
+              evaluation_type: "accuracy",
+              metrics: null,
+              error: {
+                message: String(err),
+                type: "network_error"
+              }
+            });
+          }
+
+          const accuracyEvaluation = accuracyData?.parsed ?? accuracyData;
           console.log('Evaluation Response:', JSON.stringify({ accuracy: accuracyEvaluation }, null, 2));
 
           // Check if accuracy evaluation failed
-          if (!accuracyResp.ok || accuracyEvaluation.error) {
+          if (accuracyError || !accuracyResp?.ok || accuracyEvaluation?.error) {
             console.error('Accuracy Evaluation API error', accuracyData);
             setShowCelebration(false);
             dismiss();
             
             let errorMessage = 'Accuracy evaluation failed.';
-            if (accuracyEvaluation.error && accuracyEvaluation.message) {
+            if (accuracyEvaluation?.error && accuracyEvaluation?.message) {
               // Parse nested error message for API key issues
               try {
                 const parsedMessage = JSON.parse(accuracyEvaluation.message);
@@ -190,7 +221,7 @@ const VideoAnalyzer = () => {
                   errorMessage = parsedMessage.error?.message || accuracyEvaluation.message;
                 }
               } catch {
-                errorMessage = accuracyEvaluation.message;
+                errorMessage = accuracyEvaluation?.message || errorMessage;
               }
             }
             
@@ -209,23 +240,51 @@ const VideoAnalyzer = () => {
             apiKey: apiKey // Include user's API key
                 };
 
-          const abilityResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(abilityPayload),
-          });
+          let abilityError = null;
+          let abilityResp;
+          let abilityData;
 
-          const abilityData = await abilityResp.json();
-          const abilityEvaluation = abilityData.parsed ?? abilityData;
+          try {
+            abilityResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(abilityPayload),
+            });
 
-          if (!abilityResp.ok) {
+            abilityData = await abilityResp.json();
+            
+            // Capture API call metrics - 2nd call
+            if (abilityData.metrics) {
+              apiCalls.push({
+                call_number: 2,
+                evaluation_type: "ability",
+                metrics: abilityData.metrics,
+                error: abilityData.error || null
+              });
+            }
+          } catch (err) {
+            abilityError = err;
+            apiCalls.push({
+              call_number: 2,
+              evaluation_type: "ability",
+              metrics: null,
+              error: {
+                message: String(err),
+                type: "network_error"
+              }
+            });
+          }
+
+          const abilityEvaluation = abilityData?.parsed ?? abilityData;
+
+          if (abilityError || !abilityResp?.ok) {
             console.error('Ability Evaluation API error', abilityData);
             setShowCelebration(false);
             dismiss(); // Dismiss the processing toast
             
             // Handle specific Gemini API errors
             let errorMessage = 'Ability evaluation failed. See console for details.';
-            if (abilityData.status && abilityData.message) {
+            if (abilityData?.status && abilityData?.message) {
               errorMessage = `Ability evaluation failed (${abilityData.status}: ${abilityData.statusText}). ${abilityData.message}`;
             }
             
@@ -234,13 +293,18 @@ const VideoAnalyzer = () => {
             return;
           }
 
-          // Combine both evaluations
+          // Combine both evaluations with API metrics
           evaluationPayload = {
-            accuracy: accuracyEvaluation,
-            abilityToExplain: abilityEvaluation
+            evaluation_result: {
+              accuracy: accuracyEvaluation,
+              abilityToExplain: abilityEvaluation
+            },
+            api_calls: apiCalls
           };
         } else if (videoType === "other") {
           // For Other type, use custom prompt evaluation
+          const apiCalls = [];
+          
           const customPayload = {
             ...payload,
             promptbegining: CustomPrompt,
@@ -251,16 +315,42 @@ const VideoAnalyzer = () => {
             apiKey: apiKey // Include user's API key
           };
 
-          const resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(customPayload),
-          });
+          let customError = null;
+          let resp;
+          let data;
 
-          const data = await resp.json();
-          evaluationPayload = data.parsed ?? data;
+          try {
+            resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(customPayload),
+            });
 
-          if (!resp.ok) {
+            data = await resp.json();
+            
+            // Capture API call metrics
+            if (data.metrics) {
+              apiCalls.push({
+                call_number: 1,
+                evaluation_type: "custom",
+                metrics: data.metrics,
+                error: data.error || null
+              });
+            }
+          } catch (err) {
+            customError = err;
+            apiCalls.push({
+              call_number: 1,
+              evaluation_type: "custom",
+              metrics: null,
+              error: {
+                message: String(err),
+                type: "network_error"
+              }
+            });
+          }
+
+          if (customError || !resp?.ok) {
             console.error('Custom Evaluation API error', data);
             setShowCelebration(false);
             dismiss(); // Dismiss the processing toast
@@ -268,13 +358,13 @@ const VideoAnalyzer = () => {
             // Handle specific API errors with user-friendly messages
             let errorMessage = 'Custom evaluation failed. See console for details.';
             
-            if (resp.status === 401) {
+            if (resp?.status === 401) {
               errorMessage = 'Invalid API key. Please check your Gemini API key in settings.';
-            } else if (resp.status === 429) {
+            } else if (resp?.status === 429) {
               errorMessage = 'API quota exceeded. Please try again later or check your API limits.';
-            } else if (resp.status === 400) {
+            } else if (resp?.status === 400) {
               errorMessage = 'Invalid request. Please check your prompt and try again.';
-            } else if (data.error && data.message) {
+            } else if (data?.error && data?.message) {
               // Try to extract a user-friendly message
               if (data.message.includes('API key not valid')) {
                 errorMessage = 'Invalid API key. Please check your Gemini API key in settings.';
@@ -289,8 +379,15 @@ const VideoAnalyzer = () => {
             setIsAnalyzing(false);
             return;
           }
+
+          const customEvaluation = data?.parsed ?? data;
+          evaluationPayload = {
+            evaluation_result: customEvaluation,
+            api_calls: apiCalls
+          };
         } else {
           // For Project Explanation, use the appropriate project rubric
+          const apiCalls = [];
 
           switch (selectedPhase) {
             case "Phase 1: Student Profile & Course Portal (HTML Only)":
@@ -324,23 +421,49 @@ const VideoAnalyzer = () => {
             apiKey: apiKey // Include user's API key
           };
 
-          const resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(projectPayload),
-          });
+          let projectError = null;
+          let resp;
+          let data;
 
-          const data = await resp.json();
-          evaluationPayload = data.parsed ?? data;
+          try {
+            resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(projectPayload),
+            });
 
-          if (!resp.ok) {
+            data = await resp.json();
+            
+            // Capture API call metrics
+            if (data.metrics) {
+              apiCalls.push({
+                call_number: 1,
+                evaluation_type: "project",
+                metrics: data.metrics,
+                error: data.error || null
+              });
+            }
+          } catch (err) {
+            projectError = err;
+            apiCalls.push({
+              call_number: 1,
+              evaluation_type: "project",
+              metrics: null,
+              error: {
+                message: String(err),
+                type: "network_error"
+              }
+            });
+          }
+
+          if (projectError || !resp?.ok) {
             console.error('Evaluation API error', data);
             setShowCelebration(false);
             dismiss(); // Dismiss the processing toast
             
             // Handle specific Gemini API errors
             let errorMessage = 'Evaluation API returned an error. See console for details.';
-            if (data.status && data.message) {
+            if (data?.status && data?.message) {
               errorMessage = `Evaluation failed (${data.status}: ${data.statusText}). ${data.message}`;
             }
             
@@ -348,6 +471,12 @@ const VideoAnalyzer = () => {
             setIsAnalyzing(false);
             return;
           }
+
+          const projectEvaluation = data?.parsed ?? data;
+          evaluationPayload = {
+            evaluation_result: projectEvaluation,
+            api_calls: apiCalls
+          };
         }
 
         // Save evaluation to PostgreSQL database
@@ -364,10 +493,7 @@ const VideoAnalyzer = () => {
               userId: user.id,
               userEmail: user.email,
               videoUrl,
-              evaluationData: {
-                evaluation_result: evaluationPayload ?? {},
-                video_type: videoType,
-              },
+              evaluationData: evaluationPayload,
               videoType,
               selectedPhase: videoType !== "other" ? selectedPhase : null,
               selectedVideoTitle: videoType === "concept" ? selectedVideoTitle : null,
