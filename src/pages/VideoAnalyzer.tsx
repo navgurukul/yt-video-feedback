@@ -85,6 +85,7 @@ const VideoAnalyzer = () => {
   useEffect(() => {
     setSelectedVideoTitle("");
     setError("");
+    setErrorInfo(null);
   }, [selectedPhase, videoType]);
 
   // Update video details when selections change
@@ -98,34 +99,101 @@ const VideoAnalyzer = () => {
     }
   }, [videoType, selectedPhase, selectedVideoTitle, customPrompt, customContext]);
 
+  // Helper function to create validation error objects
+  const createValidationError = (
+    title: string,
+    message: string,
+    suggestions: string[],
+    context: string
+  ): ErrorInfo => {
+    return {
+      code: `VALIDATION_${context}`,
+      title,
+      message,
+      severity: "warning",
+      suggestions,
+      retryable: false,
+      nextSteps: "Fill in the required field(s) and try again",
+    };
+  };
+
   const handleAnalyze = () => {
     setError("");
+    setErrorInfo(null);
     setIsAnalyzing(true);
     
     // Validate video URL
     if (!videoUrl || !videoUrl.includes("youtube.com") && !videoUrl.includes("youtu.be")) {
-      setError("Please enter a valid YouTube URL");
+      const validationError = createValidationError(
+        "Invalid YouTube URL",
+        "The video URL must be a valid YouTube link. Please check the URL and make sure it points to a YouTube video.",
+        [
+          "Ensure the URL contains 'youtube.com' or 'youtu.be'",
+          "Copy the full URL from the YouTube video page",
+          "Check for typos in the URL",
+          "Try using a different format (full URL vs shortened URL)"
+        ],
+        "URL"
+      );
+      setErrorInfo(validationError);
+      setError(validationError.message);
       setIsAnalyzing(false);
       return;
     }
 
     // Validate that a phase is selected (not required for other type)
     if (videoType !== "other" && (!selectedPhase || selectedPhase === "")) {
-      setError("Please select a Phase");
+      const validationError = createValidationError(
+        "Phase Not Selected",
+        "You must select a Phase to proceed with the evaluation. Each phase has different evaluation criteria and requirements.",
+        [
+          "Select a phase from the dropdown menu (Phase 1 through Phase 6)",
+          "Each phase builds on previous concepts with increasing complexity",
+          "Phase 1-2 focus on HTML and CSS fundamentals, Phase 3-6 cover advanced topics",
+          "Switch between phases if your project covers different curriculum stages"
+        ],
+        "PHASE"
+      );
+      setErrorInfo(validationError);
+      setError(validationError.message);
       setIsAnalyzing(false);
       return;
     }
 
     // Validate that a video title is selected when in concept explanation mode
     if (videoType === "concept" && (!selectedVideoTitle || selectedVideoTitle === "")) {
-      setError("Please select a Video Title for concept explanation evaluation");
+      const validationError = createValidationError(
+        "Video Title Not Selected",
+        "For concept explanation evaluation, you must select which specific topic or page your video covers. This helps us evaluate the accuracy and clarity of your explanation.",
+        [
+          "Select a topic from the 'Video Title' dropdown menu",
+          "Choose the specific concept your video explains",
+          "Make sure your video matches the selected concept",
+          "Ensure you selected a Phase first (from Phase 1 through Phase 6)"
+        ],
+        "VIDEO_TITLE"
+      );
+      setErrorInfo(validationError);
+      setError(validationError.message);
       setIsAnalyzing(false);
       return;
     }
 
     // Validate that a custom prompt is provided when in other mode
     if (videoType === "other" && (!customPrompt || customPrompt.trim() === "")) {
-      setError("Please enter a custom evaluation prompt for Other type evaluation");
+      const validationError = createValidationError(
+        "Custom Evaluation Prompt Missing",
+        "For custom evaluation type, you must provide evaluation criteria or a prompt that describes what you want the AI to evaluate in your video.",
+        [
+          "Enter specific evaluation criteria (e.g., 'Evaluate code quality and best practices')",
+          "Be clear about what aspects of the video to evaluate",
+          "Include any specific standards or rubrics to apply",
+          "Add context or additional instructions if needed"
+        ],
+        "CUSTOM_PROMPT"
+      );
+      setErrorInfo(validationError);
+      setError(validationError.message);
       setIsAnalyzing(false);
       return;
     }
@@ -631,6 +699,7 @@ const VideoAnalyzer = () => {
                   onClick={() => {
                     setVideoType("concept");
                     setError("");
+                    setErrorInfo(null);
                   }}
                   className="flex-1 w-full sm:w-auto"
                 >
@@ -642,6 +711,7 @@ const VideoAnalyzer = () => {
                   onClick={() => {
                     setVideoType("project");
                     setError("");
+                    setErrorInfo(null);
                   }}
                   className="flex-1 w-full sm:w-auto"
                 >
@@ -653,6 +723,7 @@ const VideoAnalyzer = () => {
                   onClick={() => {
                     setVideoType("other");
                     setError("");
+                    setErrorInfo(null);
                   }}
                   className="flex-1 w-full sm:w-auto"
                 >

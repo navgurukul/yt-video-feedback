@@ -18,16 +18,16 @@ export interface ErrorInfo {
 const ERROR_DEFINITIONS: Record<string | number, Omit<ErrorInfo, 'code'>> = {
   429: {
     title: "API Quota Exceeded",
-    message: "Your Gemini API free tier allows 20 evaluations per day. You've used all 20 requests available today.",
+    message: "You've reached your Gemini API daily request limit of 20 . Your quota resets every day at 12:30 PM India Standard Time (IST), which is midnight Pacific Time (PT).",
     severity: "error",
     suggestions: [
-      "Wait 24 hours for your daily quota to reset (resets at midnight UTC)",
-      "Upgrade to a paid Gemini API plan for unlimited requests",
-      "Check your API usage at console.cloud.google.com > Gemini API",
-      "Ask your instructor if they have a higher-tier API key to share"
+      "Wait until 12:30 PM IST tomorrow for your daily quota to automatically reset",
+      "Upgrade to a paid Gemini API plan for higher rate limits (Gemini Flash offers hundreds of free requests)",
+      "Check your API usage and limits at console.cloud.google.com > Gemini API > Quotas & System Limits",
+      "Ask your instructor if they have an API key from a different Google Cloud Project with available quota"
     ],
     retryable: false,
-    nextSteps: "Come back tomorrow when your quota resets, or upgrade your API plan",
+    nextSteps: "Come back after your quota resets at 12:30 PM IST, or upgrade your API plan for higher limits",
     icon: "⏰"
   },
 
