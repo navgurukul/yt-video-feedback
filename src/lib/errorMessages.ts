@@ -12,6 +12,8 @@ export interface ErrorInfo {
   retryable: boolean;
   nextSteps: string;
   icon?: string;
+  errorTrackingId?: string;
+  evaluationPhase?: "accuracy" | "ability" | "project" | "custom";
 }
 
 // Error definitions with messages and suggestions
@@ -89,6 +91,21 @@ const ERROR_DEFINITIONS: Record<string | number, Omit<ErrorInfo, 'code'>> = {
     retryable: true,
     nextSteps: "Wait a few moments and try again. The service should recover shortly.",
     icon: "⚠️"
+  },
+
+  502: {
+    title: "Bad Gateway / Backend Error",
+    message: "The backend server encountered an error while processing your request. This may indicate an issue with the evaluation service or API gateway.",
+    severity: "warning",
+    suggestions: [
+      "Wait a moment and try again - the service may be recovering",
+      "The backend service may be under high load or temporarily restarting",
+      "Check your internet connection is stable",
+      "If the problem persists, the underlying API service may be unavailable"
+    ],
+    retryable: true,
+    nextSteps: "Try again in a moment. If you continue getting this error, the backend service may be temporarily unavailable.",
+    icon: "🌉"
   },
 
   503: {
@@ -197,14 +214,21 @@ export function isRetryable(status: number | string): boolean {
 
 /**
  * Extract error code/status from various error response formats
+ * Prioritizes HTTP status codes from response object
  */
-export function extractErrorStatus(error: any): number | string {
+export function extractErrorStatus(error: any, httpStatus?: number): number | string {
+  // If HTTP status is provided (from response object), use it first
+  if (httpStatus && httpStatus >= 400) {
+    return httpStatus;
+  }
+
   // Check common error response formats
   if (error?.status) return error.status;
   if (error?.code) return error.code;
   if (error?.status_code) return error.status_code;
   if (error?.error?.code) return error.error.code;
   if (error?.error?.status) return error.error.status;
+  if (error?.error?.status_code) return error.error.status_code;
   
   // Check for text/message patterns
   if (typeof error?.message === 'string') {
@@ -212,6 +236,7 @@ export function extractErrorStatus(error: any): number | string {
     if (error.message.includes("401") || error.message.includes("Unauthorized")) return 401;
     if (error.message.includes("400") || error.message.includes("Invalid")) return 400;
     if (error.message.includes("403") || error.message.includes("Forbidden")) return 403;
+    if (error.message.includes("502") || error.message.includes("Bad Gateway")) return 502;
     if (error.message.includes("500")) return 500;
     if (error.message.includes("503") || error.message.includes("Unavailable")) return 503;
   }
@@ -221,16 +246,25 @@ export function extractErrorStatus(error: any): number | string {
 
 /**
  * Extract a meaningful message from nested error responses
+ * Handles deeply nested Gemini API error structures
  */
 export function extractErrorMessage(error: any): string {
   // Direct message field
-  if (typeof error?.message === 'string') {
+  if (typeof error?.message === 'string' && error.message.length > 0) {
     return error.message;
   }
 
-  // Nested error structure
-  if (error?.error?.message) {
-    return error.error.message;
+  // Traverse nested error structures (Gemini API can have multiple levels)
+  let current = error;
+  for (let i = 0; i < 5; i++) {
+    if (current?.error) {
+      current = current.error;
+      if (typeof current?.message === 'string' && current.message.length > 0) {
+        return current.message;
+      }
+    } else {
+      break;
+    }
   }
 
   // Error details
@@ -238,16 +272,45 @@ export function extractErrorMessage(error: any): string {
     return error.details;
   }
 
+  // Status message
+  if (error?.status_message) {
+    return error.status_message;
+  }
+
   return "An unexpected error occurred";
+}
+
+/**
+ * Generate a unique error tracking ID for debugging
+ */
+export function generateErrorTrackingId(): string {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 8);
+  return `ERR_${timestamp}_${random}`.toUpperCase();
 }
 
 /**
  * Format error info for display with proper messaging
  * This handles quota-specific messages with time remaining
+ * @param error - The error object from API response
+ * @param httpStatus - HTTP status code from response object (prioritized)
+ * @param evaluationPhase - Which phase of evaluation failed
  */
-export function formatErrorInfo(error: any): ErrorInfo {
-  const status = extractErrorStatus(error);
+export function formatErrorInfo(
+  error: any,
+  httpStatus?: number,
+  evaluationPhase?: "accuracy" | "ability" | "project" | "custom"
+): ErrorInfo {
+  const status = extractErrorStatus(error, httpStatus);
   const errorInfo = getErrorInfo(status, error);
+
+  // Add error tracking ID for debugging
+  errorInfo.errorTrackingId = generateErrorTrackingId();
+
+  // Add evaluation phase context
+  if (evaluationPhase) {
+    errorInfo.evaluationPhase = evaluationPhase;
+  }
 
   // For quota errors, try to extract retry timing
   if (status === 429 && error?.message) {

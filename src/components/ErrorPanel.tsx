@@ -52,9 +52,14 @@ export function ErrorPanel({
           <IconComponent className={`w-6 h-6 ${textColor} mt-1 flex-shrink-0`} />
           
           <div className="flex-1 min-w-0">
-            {/* Title */}
+            {/* Title with phase context */}
             <h3 className={`font-semibold ${textColor}`}>
               {error.icon} {error.title}
+              {error.evaluationPhase && (
+                <span className={`text-sm font-normal ${subtextColor} ml-2`}>
+                  ({error.evaluationPhase === 'accuracy' && 'Accuracy Evaluation Failed'}{error.evaluationPhase === 'ability' && 'Ability Evaluation Failed'}{error.evaluationPhase === 'project' && 'Project Evaluation Failed'}{error.evaluationPhase === 'custom' && 'Custom Evaluation Failed'})
+                </span>
+              )}
             </h3>
             
             {/* Main message */}
@@ -111,6 +116,18 @@ export function ErrorPanel({
                 <span>{error.nextSteps}</span>
               </p>
             </div>
+
+            {/* Error tracking ID for debugging */}
+            {error.errorTrackingId && (
+              <div className="mt-3 pt-3 border-t border-opacity-20" style={{ borderColor: error.severity === 'error' ? 'rgb(220, 38, 38)' : 'rgb(202, 138, 4)' }}>
+                <p className={`text-xs ${textColor} opacity-75`}>
+                  <span className="font-mono">Error Code: {error.errorTrackingId}</span>
+                  <span className={`${subtextColor} text-xs ml-2 block mt-1`}>
+                    Please include this code when reporting this issue
+                  </span>
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

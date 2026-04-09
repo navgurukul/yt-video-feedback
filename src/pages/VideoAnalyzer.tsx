@@ -298,9 +298,13 @@ const VideoAnalyzer = () => {
             setShowCelebration(false);
             dismiss();
             
-            // Extract and format error info
-            const status = accuracyData?.error?.status_code || accuracyData?.error?.code || 500;
-            const formattedError = formatErrorInfo(accuracyData?.error || {});
+            // Extract and format error info - prioritize HTTP status code from response
+            const httpStatus = accuracyResp?.status || 500;
+            const formattedError = formatErrorInfo(
+              accuracyData?.error || {},
+              !accuracyResp?.ok ? httpStatus : undefined,
+              "accuracy"
+            );
             
             setErrorInfo(formattedError);
             setError(formattedError.message);
@@ -361,8 +365,13 @@ const VideoAnalyzer = () => {
             dismiss(); // Dismiss the processing toast
             
             // Extract error info - this is a PARTIAL error since accuracy succeeded
-            const status = abilityData?.error?.status_code || abilityData?.error?.code || 500;
-            const formattedError = formatErrorInfo(abilityData?.error || {});
+            // Prioritize HTTP status code from response
+            const httpStatus = abilityResp?.status || 500;
+            const formattedError = formatErrorInfo(
+              abilityData?.error || {},
+              !abilityResp?.ok ? httpStatus : undefined,
+              "ability"
+            );
             
             // Store the error but continue with partial results (accuracy succeeded)
             // We'll pass both accuracy results and the ability error to AnalysisResults
@@ -455,9 +464,13 @@ const VideoAnalyzer = () => {
             setShowCelebration(false);
             dismiss(); // Dismiss the processing toast
             
-            // Extract and format error info
-            const status = data?.error?.status_code || data?.error?.code || resp?.status || 500;
-            const formattedError = formatErrorInfo(data?.error || {});
+            // Extract and format error info - prioritize HTTP status
+            const httpStatus = resp?.status || 500;
+            const formattedError = formatErrorInfo(
+              data?.error || {},
+              !resp?.ok ? httpStatus : undefined,
+              "custom"
+            );
             
             setErrorInfo(formattedError);
             setError(formattedError.message);
@@ -564,9 +577,13 @@ const VideoAnalyzer = () => {
             setShowCelebration(false);
             dismiss(); // Dismiss the processing toast
             
-            // Extract and format error info
-            const status = data?.error?.status_code || data?.error?.code || 500;
-            const formattedError = formatErrorInfo(data?.error || {});
+            // Extract and format error info - prioritize HTTP status
+            const httpStatus = resp?.status || 500;
+            const formattedError = formatErrorInfo(
+              data?.error || {},
+              !resp?.ok ? httpStatus : undefined,
+              "project"
+            );
             
             setErrorInfo(formattedError);
             setError(formattedError.message);
