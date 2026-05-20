@@ -167,3 +167,23 @@ export const Phase6Rubric = [
     "Expert (4)": "Demonstrates strong understanding of data lifecycle, request handling, query execution, and structured response formatting for frontend display."
   }
 ];
+
+// Phase 7 Rubric - CollabSphere Full-Stack Capstone Project Evaluation
+export const Phase7Rubric = [
+  {
+    "Parameter": "Understanding the Problem & System Architecture Awareness (e.g., Why is authentication required? Why use AI integration? How do frontend, backend, database, and AI interact together?)",
+    "Weightage (%)": 15,
+    "Beginner (1)": "Cannot clearly explain system architecture or purpose of AI integration; limited understanding of how different parts of the application communicate.",
+    "Intermediate (2)": "Understands frontend/backend/database basics but struggles to explain scalability, AI workflows, or authentication flow clearly.",
+    "Advanced (3)": "Clearly explains architecture, authentication flow, API structure, database usage, and why AI is integrated into the application.",
+    "Expert (4)": "Demonstrates strong architectural understanding, explaining scalable application flow, AI request lifecycle, modular backend design, and production-level system thinking."
+  },
+  {
+    "Parameter": "Solution Explanation (Project Flow & AI/Data Lifecycle Understanding) (e.g., What happens when a user logs in? How does AI generate responses? How does data move across the system?)",
+    "Weightage (%)": 15,
+    "Beginner (1)": "Cannot explain complete project flow or how requests move through the system.",
+    "Intermediate (2)": "Understands basic request-response cycle but struggles to explain AI flow or authentication lifecycle completely.",
+    "Advanced (3)": "Clearly explains frontend → backend → database → AI API → frontend lifecycle with proper request handling.",
+    "Expert (4)": "Demonstrates strong understanding of complete application lifecycle including authentication validation, middleware execution, database queries, AI request/response processing, and frontend rendering flow."
+  }
+];

@@ -125,6 +125,28 @@ export const projectVideoDataStructure: ProjectPhaseData[] = [
         "Express middleware for JSON parsing and database integration"
       ]
     }
+  },
+  {
+    phase: "Phase 7: Final Full-Stack Project with AI Integration",
+    projectVideo: {
+      title: "CollabSphere - Complete Full-Stack Project Walkthrough",
+      description: "A complete walkthrough of CollabSphere, an AI-powered full-stack developer collaboration platform integrating user authentication, project management, markdown notes, file uploads, Gemini AI features, and contribution analytics.",
+      whatToCover: "Walk through your complete CollabSphere application. Explain your full-stack architecture (frontend, backend, database), secure user authentication with JWT and bcrypt, project collaboration features, Gemini AI integration for code explanation and documentation generation, file upload and storage handling, markdown notes management, contribution analytics, and the complete data flow across all features.",
+      keyTopics: [
+        "Full-stack architecture: frontend, backend (Node.js/Express), MongoDB database, and AI integration",
+        "User authentication using JWT tokens and bcrypt password hashing",
+        "Project collaboration: creation, member management, and permission control",
+        "Markdown notes CRUD operations with rich text editing capabilities",
+        "Gemini API integration for code explanation and documentation features",
+        "Secure file upload, storage, and preview system",
+        "Contribution analytics and activity tracking",
+        "Public project sharing with unique shareable links",
+        "Environment variable management for secure API keys and credentials",
+        "Error handling and security best practices throughout the application",
+        "Database schema design for supporting complex relationships and queries",
+        "Frontend-backend-database-AI API data flow in a production-like application"
+      ]
+    }
   }
 ];
 

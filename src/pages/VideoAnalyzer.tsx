@@ -17,7 +17,7 @@ import { ErrorPanel } from "@/components/ErrorPanel";
 import { motion } from "framer-motion";
 import { getPhaseNames, getVideoTitlesForPhase, getVideoDetailsForTitle } from "@/data/videoData";
 import { getProjectVideoForPhase } from "@/data/phasevideodata";
-import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric,Phase5Rubric, Phase6Rubric } from "@/data/RubricData";
+import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric,Phase5Rubric, Phase6Rubric, Phase7Rubric } from "@/data/RubricData";
 import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig, CustomPrompt, CustomConfig} from '@/data/prompt'
 import { ApiKeyContext } from "@/App";
 import { getErrorInfo, formatErrorInfo, ErrorInfo, extractErrorStatus } from "@/lib/errorMessages";
@@ -147,7 +147,7 @@ const VideoAnalyzer = () => {
         "Phase Not Selected",
         "You must select a Phase to proceed with the evaluation. Each phase has different evaluation criteria and requirements.",
         [
-          "Select a phase from the dropdown menu (Phase 1 through Phase 6)",
+          "Select a phase from the dropdown menu (Phase 1 through Phase 7)",
           "Each phase builds on previous concepts with increasing complexity",
           "Phase 1-2 focus on HTML and CSS fundamentals, Phase 3-6 cover advanced topics",
           "Switch between phases if your project covers different curriculum stages"
@@ -169,7 +169,7 @@ const VideoAnalyzer = () => {
           "Select a topic from the 'Video Title' dropdown menu",
           "Choose the specific concept your video explains",
           "Make sure your video matches the selected concept",
-          "Ensure you selected a Phase first (from Phase 1 through Phase 6)"
+            "Ensure you selected a Phase first (from Phase 1 through Phase 7)"
         ],
         "VIDEO_TITLE"
       );
@@ -508,6 +508,9 @@ const VideoAnalyzer = () => {
             case "Phase 6: Your First Database with MongoDB & Mongoose":
               projectRubric = Phase6Rubric;
               break;
+            case "Phase 7: Final Full-Stack Project with AI Integration":
+              projectRubric = Phase7Rubric;
+              break;
             default:
               projectRubric = Phase1Rubric; // Default to Phase1 rubric
           }
@@ -840,7 +843,7 @@ const VideoAnalyzer = () => {
             <div className="space-y-3">
               <Label className="text-xl font-black uppercase flex items-center gap-2">
                 <Youtube className="w-6 h-6" />
-                Video URL (≤ 10 min video)
+                YouTube Video URL (≤ 10 min video)
               </Label>
               <Input
                 type="url"

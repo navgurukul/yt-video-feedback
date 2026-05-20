@@ -638,6 +638,125 @@ export const videoDataStructure: PhaseData[] = [
         ]
       }
     ]
+  },
+  {
+    phase: "Phase 7: Final Full-Stack Project with AI Integration",
+    videos: [
+      {
+        title: "User Authentication & Login with JWT & bcrypt",
+        whatToCover: "Walk through your user authentication system. Explain how user registration works, how passwords are hashed with bcrypt, how JWT tokens are generated upon login, and how protected routes are secured with authentication middleware.",
+        questionsToAnswer: [
+          "Why is it critical to hash passwords with bcrypt instead of storing them in plain text?",
+          "How does JWT work in protecting your API routes and managing user sessions?",
+          "Can you explain the complete flow: user registration → password hashing → database storage?",
+          "How does a user's JWT token prove they are authenticated when accessing protected routes?",
+          "What happens when a token expires and how would you handle token refresh?"
+        ]
+      },
+      {
+        title: "Project Creation & Team Member Collaboration",
+        whatToCover: "Demonstrate how users create new projects and invite team members. Explain the project data model, how member relationships are managed, and how permissions work when accessing shared projects.",
+        questionsToAnswer: [
+          "How is project ownership determined and why is it important for authorization?",
+          "How do you structure the database to store project members and their roles?",
+          "Can you explain the process of inviting a user to a project and how they gain access?",
+          "How do you ensure that only authorized members can view or edit a project?",
+          "What database relationships (one-to-many, many-to-many) did you use and why?"
+        ]
+      },
+      {
+        title: "Markdown Notes - Complete CRUD Operations",
+        whatToCover: "Show how users create, read, update, and delete markdown notes within projects. Explain the note data model, how notes are linked to projects, and how the markdown editor integrates with your backend.",
+        questionsToAnswer: [
+          "How are markdown notes stored in your database and linked to specific projects?",
+          "Can you walk through the complete create flow: user writes note → sends to backend → saves to database?",
+          "How do you implement the read operation to fetch notes for a specific project?",
+          "How do update and delete operations work, and how do you maintain data consistency?",
+          "How do you validate markdown content before storing it in the database?"
+        ]
+      },
+      {
+        title: "Gemini AI Integration for Notes - Explain & Suggest Features",
+        whatToCover: "Explain how you integrated Gemini API to provide 'Explain this note' and 'Suggest improvements' features. Show the prompts, how requests are sent securely from the backend, and how responses are displayed to users.",
+        questionsToAnswer: [
+          "How do you structure prompts to send note content to Gemini for explanation or suggestions?",
+          "Why is it important to call the Gemini API from the backend instead of the frontend?",
+          "How do you handle Gemini API errors gracefully and provide fallback messages to users?",
+          "How does your system manage rate limits and API quotas when users request AI features?",
+          "Can you explain the entire flow: user clicks 'Explain' → backend calls Gemini → response displayed?"
+        ]
+      },
+      {
+        title: "File Upload & Preview System",
+        whatToCover: "Demonstrate the file upload feature where users can upload code files and design assets to projects. Explain how files are stored (server or cloud storage), how you validate file types and sizes, and how different file types are previewed.",
+        questionsToAnswer: [
+          "What security measures do you implement to prevent malicious file uploads?",
+          "How do you validate file types and sizes on both the frontend and backend?",
+          "Where are uploaded files stored, and how do you manage storage efficiently?",
+          "How do you generate previews for different file types (images, code files, documents)?",
+          "How are uploaded files linked to projects and maintained in your database?"
+        ]
+      },
+      {
+        title: "Gemini-Powered Code Explanation Feature",
+        whatToCover: "Show how users can upload code files and request Gemini to explain the code. Explain how you read uploaded code files, send them to Gemini with appropriate context, and display the explanation to users.",
+        questionsToAnswer: [
+          "How do you read and parse uploaded code files before sending them to Gemini?",
+          "What prompts do you use to ask Gemini to explain code effectively?",
+          "How do you handle large code files that might exceed API limits?",
+          "How does your system prevent sending sensitive information (API keys, passwords) to Gemini?",
+          "Can you explain the complete flow: user uploads code → Gemini analyzes → explanation displayed?"
+        ]
+      },
+      {
+        title: "Contribution Analytics & Public Project Sharing",
+        whatToCover: "Demonstrate the contribution analytics feature showing basic activity metrics (notes created, files uploaded by each member). Also explain how users can make projects publicly shareable via unique links and how public projects are accessed.",
+        questionsToAnswer: [
+          "How do you track and store contribution data (who created/modified what and when)?",
+          "How do you query the database to generate analytics summaries for project dashboards?",
+          "How do you generate secure, unique public links for sharing projects?",
+          "How do you ensure public projects are read-only and prevent unauthorized modifications?",
+          "How do you handle analytics queries efficiently when dealing with large projects?"
+        ]
+      },
+      {
+        title: "Mini Project 1: User Authentication System - Standalone Implementation",
+        whatToCover: "Walk through your standalone user authentication system with Node.js and Express. Explain how you built user registration with email/password, implemented password hashing with bcrypt, created JWT-based login authentication, generated and managed JWT tokens, and secured routes with authentication middleware.",
+        questionsToAnswer: [
+          "Can you explain the complete user registration flow: form submission → password hashing → database storage?",
+          "How did you implement bcrypt password hashing and why is it more secure than storing plain text passwords?",
+          "How does JWT token generation work upon successful login and what information does the token contain?",
+          "Can you demonstrate how a protected route uses authentication middleware to verify the JWT token?",
+          "What happens when a user tries to access a protected route without a valid token?",
+          "How would you implement token expiration and refresh mechanisms in a real application?"
+        ]
+      },
+      {
+        title: "Mini Project 2: Collaborative Markdown Note App - Real-time Collaboration",
+        whatToCover: "Demonstrate your collaborative markdown note-taking application. Explain how you integrated a markdown editor (like SimpleMDE), implemented save and retrieve functionality with MongoDB, allowed multiple users to view notes, and optionally implemented basic collaboration features like polling or real-time refresh.",
+        questionsToAnswer: [
+          "How did you integrate SimpleMDE or another markdown editor into your application?",
+          "Can you walk through the complete flow: user writes markdown → saves to database → fetches for display?",
+          "How are notes stored in MongoDB and what data structure did you use?",
+          "How do you retrieve and display notes for multiple users accessing the same note?",
+          "If you implemented collaboration features, how do you handle simultaneous edits or conflicts?",
+          "How would you implement real-time updates when multiple users edit the same note?"
+        ]
+      },
+      {
+        title: "Mini Project 3: Gemini-powered README Generator - AI Content Creation",
+        whatToCover: "Showcase your AI-powered README generator that takes project details and uses Gemini API to generate professional README files. Explain how you collected user input (project name, description, features), structured prompts for Gemini, called the API from the backend, processed the generated content, and displayed it to users.",
+        questionsToAnswer: [
+          "How did you structure your HTML form to collect project details from the user?",
+          "Can you explain how you created an effective prompt to send to Gemini for README generation?",
+          "Why is it important to call the Gemini API from the backend instead of directly from the frontend?",
+          "How do you handle the asynchronous nature of the API call using async/await?",
+          "How do you parse and process the Gemini API response to display the generated README?",
+          "What error handling did you implement if the Gemini API call fails or returns unexpected results?",
+          "How would you allow users to regenerate or refine the README with different inputs?"
+        ]
+      }
+    ]
   }
 ];
 
