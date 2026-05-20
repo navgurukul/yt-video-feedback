@@ -26,6 +26,7 @@ const VideoAnalyzer = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState("Mission Started 🚀");
   const { apiKey } = useContext(ApiKeyContext);
   
   const [videoUrl, setVideoUrl] = useState("");
@@ -199,6 +200,7 @@ const VideoAnalyzer = () => {
     }
 
     // Start evaluation (call backend evaluate endpoint)
+    setCelebrationMessage("Mission Started 🚀");
     setShowCelebration(true);
 
     // Show persistent toast that will stay until dismissed
@@ -645,6 +647,7 @@ const VideoAnalyzer = () => {
         }
 
         setTimeout(() => {
+          setCelebrationMessage("Mission Completed 🚀");
           setShowCelebration(false);
           setIsAnalyzing(false);
           dismiss(); // Dismiss the processing toast before navigation
@@ -678,7 +681,7 @@ const VideoAnalyzer = () => {
       <CelebrationEffect 
         show={showCelebration} 
         onComplete={() => setShowCelebration(false)}
-        message="Mission Complete 🚀"
+        message={celebrationMessage}
       />
       
       <Header />
