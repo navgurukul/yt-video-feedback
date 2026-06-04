@@ -24,10 +24,11 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, on
       return;
     }
 
-    if (!apiKey.startsWith("AIza")) {
-      setError("Invalid API key format. Gemini API keys start with 'AIza'");
-      return;
-    }
+    // Basic format validation: Gemini API keys typically start with "AIza"
+    if (!apiKey.startsWith("AIza") && !apiKey.startsWith("AQ.")) {
+  setError("Invalid API key format. Gemini API keys must start with 'AIza' or 'AQ.'");
+  return;
+}
 
     onSubmit(apiKey.trim());
     setError("");
