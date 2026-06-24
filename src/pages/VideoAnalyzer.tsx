@@ -33,7 +33,7 @@ const VideoAnalyzer = () => {
   const [videoDetailsText, setVideoDetailsText] = useState("");
   const [customPrompt, setCustomPrompt] = useState("");
   const [customContext, setCustomContext] = useState("");
-  const [modelProvider, setModelProvider] = useState<"gemini" | "huggingface">("gemini");
+  const [modelProvider, setModelProvider] = useState<"gemini" | "huggingface" | "qwen" | "llama">("gemini");
   const [error, setError] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
@@ -477,7 +477,35 @@ const VideoAnalyzer = () => {
                   }}
                   className="flex-1 w-full sm:w-auto"
                 >
-                  Gemini API
+                  <span className="flex items-center gap-2">
+                    🚀 Gemini Flash 2.5
+                  </span>
+                </Button>
+                <Button
+                  variant={modelProvider === "qwen" ? "default" : "outline"}
+                  size="lg"
+                  onClick={() => {
+                    setModelProvider("qwen");
+                    setError("");
+                  }}
+                  className="flex-1 w-full sm:w-auto"
+                >
+                  <span className="flex items-center gap-2">
+                    🤖 Qwen2.5-7B
+                  </span>
+                </Button>
+                <Button
+                  variant={modelProvider === "llama" ? "default" : "outline"}
+                  size="lg"
+                  onClick={() => {
+                    setModelProvider("llama");
+                    setError("");
+                  }}
+                  className="flex-1 w-full sm:w-auto"
+                >
+                  <span className="flex items-center gap-2">
+                    🔮 Mistral 7B
+                  </span>
                 </Button>
                 <Button
                   variant={modelProvider === "huggingface" ? "default" : "outline"}
@@ -488,9 +516,32 @@ const VideoAnalyzer = () => {
                   }}
                   className="flex-1 w-full sm:w-auto"
                 >
-                  Hugging Face (Gemma 3)
+                  <span className="flex items-center gap-2">
+                    🤗 Gemma
+                  </span>
                 </Button>
               </div>
+              {/* Model descriptions */}
+              {modelProvider === "gemini" && (
+                <p className="text-sm text-gray-600 mt-2">
+                  ✅ Best quality - Native video analysis with structured output
+                </p>
+              )}
+              {modelProvider === "qwen" && (
+                <p className="text-sm text-gray-600 mt-2">
+                  � Compact 7B model - Fast and efficient
+                </p>
+              )}
+              {modelProvider === "llama" && (
+                <p className="text-sm text-gray-600 mt-2">
+                  🔮 Compact 7B model - Fast and reliable reasoning
+                </p>
+              )}
+              {modelProvider === "huggingface" && (
+                <p className="text-sm text-orange-600 mt-2">
+                  ⚠️ Text-only analysis (no actual video processing)
+                </p>
+              )}
             </div>
 
             {/* Video Type Selection */}

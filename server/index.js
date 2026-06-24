@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import pkg from 'pg';
 const { Client } = pkg;
 import { GoogleGenAI, Type } from '@google/genai';
+import { analyzeVideo, checkServiceHealth } from './services/qwen2vl-service.js';
 
 // Load environment variables from .env when running via node
 const __filename_env = fileURLToPath(import.meta.url);
@@ -86,11 +87,26 @@ app.post('/evaluate', async (req, res) => {
     // Determine which model provider to use (default to gemini for backward compatibility)
     const provider = modelProvider || 'gemini';
     
+    console.log('\n=== NEW EVALUATION REQUEST ===');
+    console.log('📹 Video URL:', videoUrl);
+    console.log('🤖 Model Provider:', provider);
+    console.log('📋 Evaluation Type:', evaluationType);
+    
     if (provider === 'huggingface') {
-      // Use Hugging Face API with Gemma model
+      // Use Hugging Face API with Gemma model (text-only)
+      console.log('🔄 Routing to Hugging Face Gemma (text-only analysis)...');
       return await evaluateWithHuggingFace(req, res, { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext });
+    } else if (provider === 'qwen') {
+      // Use Qwen2.5-7B model (Direct Inference API - broader model support)
+      console.log('🔄 Routing to Qwen2.5-7B (Direct Inference API)...');
+      return await evaluateWithQwen(req, res, { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext });
+    } else if (provider === 'llama') {
+      // Use Meta Llama 3.1 70B model (text-only via Hugging Face)
+      console.log('🔄 Routing to Mistral 7B (compact and efficient)...');
+      return await evaluateWithLlama(req, res, { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext });
     } else {
       // Use existing Gemini API (default)
+      console.log('🔄 Routing to Gemini Flash 2.5 (native video analysis)...');
       return await evaluateWithGemini(req, res, { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext });
     }
   } catch (err) {
@@ -251,6 +267,339 @@ NOTE: This is a YouTube video. Please analyze the video content and provide a de
     console.error('Hugging Face evaluation error:', error);
     return res.status(502).json({ 
       error: 'Hugging Face API error', 
+      message: error.message,
+      details: error.code || 'Unknown error'
+    });
+  }
+}
+
+// Qwen evaluation function - Using Direct Inference API
+async function evaluateWithQwen(req, res, { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext }) {
+  try {
+    // For Qwen, use the Hugging Face API key from environment
+    const effectiveApiKey = HUGGINGFACE_API_KEY;
+    
+    if (!effectiveApiKey) {
+      return res.status(500).json({ error: 'HUGGINGFACE_API_KEY not configured in server environment. Add it to server/.env' });
+    }
+
+    // Build the rubric content
+    const rubricContent = (rubric && Object.keys(rubric).length > 0) 
+      ? `RUBRIC:\n${JSON.stringify(rubric)}`
+      : '';
+
+    // Build custom prompt section if provided
+    const customPromptContent = customPrompt 
+      ? `CUSTOM_PROMPT:
+${customPrompt}
+
+`
+      : '';
+
+    const promptText = promptbegining + `
+${customPromptContent}VIDEO DETAILS:
+${videoDetails}
+
+${rubricContent}
+
+YouTube Video URL: ${videoUrl}
+
+IMPORTANT: Return ONLY a valid JSON object matching the rubric structure. Do not include any markdown formatting, code blocks, or explanatory text before or after the JSON.`;
+
+    console.log(`--- Calling Hugging Face Direct Inference API with Qwen2.5-7B model ---`);
+    console.log('🤖 Qwen2.5-7B-Instruct: Using Direct Inference API (broader model support)');
+
+    // Trim whitespace from key
+    const cleanApiKey = effectiveApiKey.trim();
+
+    // Use Direct Inference API endpoint (not router)
+    // This endpoint supports many more models including Qwen
+    const modelName = 'Qwen/Qwen2.5-7B-Instruct';
+    
+    const qwenResponse = await fetch(
+      `https://api-inference.huggingface.co/models/${modelName}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${cleanApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: promptText,
+          parameters: {
+            max_new_tokens: 2000,
+            temperature: 0.7,
+            top_p: 0.95,
+            return_full_text: false,
+            do_sample: true
+          },
+          options: {
+            wait_for_model: true,  // Wait if model is loading
+            use_cache: false       // Get fresh results
+          }
+        }),
+      }
+    );
+
+    if (!qwenResponse.ok) {
+      const errorText = await qwenResponse.text();
+      console.error('Qwen API error:', errorText);
+      
+      let statusCode = qwenResponse.status;
+      let errorMessage = 'Qwen API error';
+      let details = errorText;
+      
+      try {
+        const errorJson = JSON.parse(errorText);
+        details = errorJson.error || errorText;
+      } catch (e) {
+        // Keep original text
+      }
+      
+      if (statusCode === 401) {
+        errorMessage = 'Invalid Hugging Face API key';
+      } else if (statusCode === 429) {
+        errorMessage = 'Hugging Face API quota exceeded';
+      } else if (statusCode === 503) {
+        errorMessage = 'Qwen model is loading. Please wait 30-60 seconds and try again.';
+      } else if (statusCode === 400) {
+        errorMessage = 'Invalid request format for Qwen';
+      } else if (statusCode === 500) {
+        errorMessage = 'Hugging Face server error';
+      }
+      
+      return res.status(statusCode).json({ 
+        error: errorMessage, 
+        message: details,
+        details: 'Qwen Direct Inference API error',
+        model: modelName
+      });
+    }
+
+    const qwenData = await qwenResponse.json();
+    console.log('📦 Response structure:', typeof qwenData, Array.isArray(qwenData));
+    
+    let fullResponse = '';
+    
+    // Handle Direct Inference API response format
+    if (Array.isArray(qwenData) && qwenData.length > 0) {
+      // Standard format: [{ generated_text: "..." }]
+      fullResponse = qwenData[0].generated_text || qwenData[0].text || '';
+    } else if (qwenData.generated_text) {
+      // Alternative format: { generated_text: "..." }
+      fullResponse = qwenData.generated_text;
+    } else if (typeof qwenData === 'string') {
+      // Direct string response
+      fullResponse = qwenData;
+    } else {
+      // Fallback: stringify the response
+      fullResponse = JSON.stringify(qwenData);
+    }
+
+    console.log('✅ Qwen2.5-7B response received');
+    console.log('📝 Response length:', fullResponse.length, 'characters');
+    console.log('📝 Response preview:', fullResponse.substring(0, 200) + '...');
+
+    // Enhanced JSON extraction for Qwen
+    let parsed = null;
+    try {
+      // Try direct parse first
+      parsed = JSON.parse(fullResponse);
+      console.log('✅ Direct JSON parse successful');
+    } catch (err) {
+      console.warn('⚠️ Direct JSON parse failed, attempting extraction...');
+      
+      // Remove markdown code blocks
+      let cleaned = fullResponse.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+      
+      // Extract first complete JSON object with nested brace handling
+      const jsonMatch = cleaned.match(/\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}/);
+      
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+          console.log('✅ JSON extracted successfully from response');
+        } catch (extractError) {
+          console.error('❌ JSON extraction failed:', extractError.message);
+          parsed = {
+            note: "Unable to parse structured response from Qwen",
+            raw_response: fullResponse.substring(0, 500),
+            error: extractError.message
+          };
+        }
+      } else {
+        console.error('❌ No valid JSON found in response');
+        parsed = {
+          note: "No valid JSON found in Qwen response",
+          raw_response: fullResponse.substring(0, 500)
+        };
+      }
+    }
+
+    return res.json({ 
+      raw: fullResponse, 
+      text: fullResponse, 
+      parsed 
+    });
+  } catch (error) {
+    console.error('Qwen evaluation error:', error);
+    return res.status(502).json({ 
+      error: 'Qwen API error', 
+      message: error.message,
+      details: error.code || 'Unknown error',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+}
+
+// Meta Llama evaluation function
+async function evaluateWithLlama(req, res, { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext }) {
+  try {
+    // For Llama, use the Hugging Face API key from environment
+    const effectiveApiKey = HUGGINGFACE_API_KEY;
+    
+    if (!effectiveApiKey) {
+      return res.status(500).json({ error: 'HUGGINGFACE_API_KEY not configured in server environment. Add it to server/.env' });
+    }
+
+    // Build the rubric content
+    const rubricContent = (rubric && Object.keys(rubric).length > 0) 
+      ? `RUBRIC:\n${JSON.stringify(rubric)}`
+      : '';
+
+    // Build custom prompt section if provided
+    const customPromptContent = customPrompt 
+      ? `CUSTOM_PROMPT:
+${customPrompt}
+
+`
+      : '';
+
+    const promptText = promptbegining + `
+${customPromptContent}VIDEO DETAILS:
+${videoDetails}
+
+${rubricContent}
+
+IMPORTANT: Return ONLY a valid JSON object matching the rubric structure. Do not include any markdown formatting, code blocks, or explanatory text before or after the JSON.`;
+
+    console.log(`--- Calling Hugging Face API with Mistral 7B model to evaluate video (${evaluationType} evaluation) ---`);
+    console.log('🔮 Mistral 7B Instruct: Fast and efficient reasoning');
+
+    // Trim whitespace from key
+    const cleanApiKey = effectiveApiKey.trim();
+
+    // Use the same router endpoint (chat completions format)
+    const llamaResponse = await fetch(
+      'https://router.huggingface.co/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${cleanApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'mistralai/Mistral-7B-Instruct-v0.3',
+          messages: [
+            {
+              role: 'user',
+              content: `${promptText}\n\nYouTube Video URL: ${videoUrl}\n\nNote: Analyze based on the video URL and context provided. Return a structured JSON response matching the evaluation criteria.`
+            }
+          ],
+          max_tokens: 2000,
+          temperature: 0.7,
+          top_p: 0.95,
+          stream: false
+        }),
+      }
+    );
+
+    if (!llamaResponse.ok) {
+      const errorText = await llamaResponse.text();
+      console.error('Llama API error:', errorText);
+      
+      let statusCode = llamaResponse.status;
+      let errorMessage = 'Llama API error';
+      
+      if (statusCode === 401) {
+        errorMessage = 'Invalid Hugging Face API key';
+      } else if (statusCode === 429) {
+        errorMessage = 'Hugging Face API quota exceeded';
+      } else if (statusCode === 503) {
+        errorMessage = 'Llama model is loading. Please try again in 30-60 seconds.';
+      } else if (statusCode === 400) {
+        errorMessage = 'Invalid request format for Llama';
+      }
+      
+      return res.status(statusCode).json({ 
+        error: errorMessage, 
+        message: errorText,
+        details: 'Mistral API error'
+      });
+    }
+
+    const llamaData = await llamaResponse.json();
+    let fullResponse = '';
+    
+    // Handle chat completions format
+    if (llamaData.choices && Array.isArray(llamaData.choices) && llamaData.choices.length > 0) {
+      fullResponse = llamaData.choices[0].message?.content || '';
+    } else if (Array.isArray(llamaData) && llamaData.length > 0) {
+      fullResponse = llamaData[0].generated_text || llamaData[0].text || '';
+    } else if (llamaData.generated_text) {
+      fullResponse = llamaData.generated_text;
+    } else if (llamaData.text) {
+      fullResponse = llamaData.text;
+    } else {
+      fullResponse = JSON.stringify(llamaData);
+    }
+
+    console.log('--- Mistral 7B response received ---');
+    console.log('📝 Response preview:', fullResponse.substring(0, 200) + '...');
+
+    // Enhanced JSON extraction
+    let parsed = null;
+    try {
+      parsed = JSON.parse(fullResponse);
+      console.log('✅ Direct JSON parse successful');
+    } catch (err) {
+      console.warn('⚠️ Direct JSON parse failed, attempting extraction...');
+      
+      // Remove markdown code blocks
+      let cleaned = fullResponse.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+      
+      // Extract first complete JSON object
+      const jsonMatch = cleaned.match(/\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}/);
+      
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+          console.log('✅ JSON extracted successfully from response');
+        } catch (extractError) {
+          console.error('❌ JSON extraction failed:', extractError.message);
+          parsed = {
+            note: "Unable to parse structured response from Mistral",
+            raw_response: fullResponse.substring(0, 500)
+          };
+        }
+      } else {
+        console.error('❌ No valid JSON found in response');
+        parsed = {
+          note: "No valid JSON found in Mistral response",
+          raw_response: fullResponse.substring(0, 500)
+        };
+      }
+    }
+
+    return res.json({ 
+      raw: fullResponse, 
+      text: fullResponse, 
+      parsed 
+    });
+  } catch (error) {
+    console.error('Mistral evaluation error:', error);
+    return res.status(502).json({ 
+      error: 'Mistral API error', 
       message: error.message,
       details: error.code || 'Unknown error'
     });
@@ -1856,6 +2205,189 @@ function generateRecommendations(analysis, evaluationType) {
 
   return recommendations;
 }
+
+/**
+ * POST /analyze-video
+ * 
+ * Multimodal video analysis using Qwen2-VL-7B-Instruct
+ * Processes video frames and transcript to provide comprehensive evaluation
+ * 
+ * Request Body:
+ * {
+ *   "frames": ["https://...", "data:image/jpeg;base64,..."],  // Array of image URLs or base64
+ *   "transcript": "Video transcript text...",                  // Required transcript
+ *   "customPrompt": "Optional custom evaluation prompt",       // Optional
+ *   "timeout": 60000,                                          // Optional, default 60s
+ *   "maxRetries": 2                                            // Optional, default 2
+ * }
+ * 
+ * Response:
+ * {
+ *   "success": true,
+ *   "raw": "Full model response text",
+ *   "parsed": {
+ *     "summary": "...",
+ *     "key_learning_points": [...],
+ *     "content_quality_score": 8,
+ *     "quality_analysis": {...},
+ *     "suggestions_for_improvement": [...],
+ *     "target_audience": "...",
+ *     "estimated_comprehension_level": "..."
+ *   },
+ *   "metadata": {
+ *     "model": "Qwen/Qwen2-VL-7B-Instruct",
+ *     "frames_analyzed": 5,
+ *     "transcript_length": 1234,
+ *     "attempt": 1,
+ *     "timestamp": "2026-02-16T..."
+ *   }
+ * }
+ */
+app.post('/analyze-video', async (req, res) => {
+  try {
+    console.log('\n=== QWEN2-VL VIDEO ANALYSIS REQUEST ===');
+    console.log('Timestamp:', new Date().toISOString());
+    
+    const { frames, transcript, customPrompt, timeout, maxRetries } = req.body;
+    
+    // Input validation
+    if (!frames || !Array.isArray(frames) || frames.length === 0) {
+      console.error('❌ Validation failed: Missing or invalid frames array');
+      return res.status(400).json({ 
+        error: 'Missing or invalid frames array',
+        details: 'Request must include "frames" array with at least one image URL or base64 string'
+      });
+    }
+    
+    if (!transcript || typeof transcript !== 'string' || transcript.trim() === '') {
+      console.error('❌ Validation failed: Missing or invalid transcript');
+      return res.status(400).json({ 
+        error: 'Missing or invalid transcript',
+        details: 'Request must include "transcript" as a non-empty string'
+      });
+    }
+    
+    // Log request details
+    console.log(`📊 Frames: ${frames.length}`);
+    console.log(`📝 Transcript length: ${transcript.length} characters`);
+    if (customPrompt) {
+      console.log('✏️ Custom prompt provided');
+    }
+    if (timeout) {
+      console.log(`⏱️ Custom timeout: ${timeout}ms`);
+    }
+    if (maxRetries) {
+      console.log(`🔄 Max retries: ${maxRetries}`);
+    }
+    
+    // Validate frame format (basic check for URLs or base64)
+    const invalidFrames = frames.filter(frame => {
+      if (typeof frame !== 'string') return true;
+      
+      // Check if it's a valid URL
+      try {
+        new URL(frame);
+        return false;
+      } catch {
+        // Check if it's base64
+        return !frame.startsWith('data:image/');
+      }
+    });
+    
+    if (invalidFrames.length > 0) {
+      console.error('❌ Validation failed: Invalid frame format detected');
+      return res.status(400).json({ 
+        error: 'Invalid frame format',
+        details: 'Each frame must be a valid image URL or base64-encoded data URI (data:image/...)',
+        invalid_count: invalidFrames.length
+      });
+    }
+    
+    // Call analysis service
+    console.log('🚀 Calling Qwen2-VL analysis service...');
+    const result = await analyzeVideo({
+      frames,
+      transcript,
+      customPrompt,
+      timeout,
+      maxRetries
+    });
+    
+    console.log('✅ Analysis completed successfully');
+    console.log(`📈 Quality Score: ${result.parsed?.content_quality_score || 'N/A'}/10`);
+    
+    return res.json(result);
+    
+  } catch (error) {
+    console.error('❌ Analysis error:', error);
+    
+    // Handle specific error types
+    if (error.message.includes('HF_TOKEN')) {
+      return res.status(500).json({ 
+        error: 'Configuration error',
+        details: 'Hugging Face API token not configured. Set HF_TOKEN environment variable.',
+        message: error.message
+      });
+    }
+    
+    if (error.message.includes('timeout')) {
+      return res.status(504).json({ 
+        error: 'Request timeout',
+        details: 'Analysis took too long to complete. Try reducing frame count or extending timeout.',
+        message: error.message
+      });
+    }
+    
+    if (error.message.includes('retry') || error.message.includes('attempts')) {
+      return res.status(502).json({ 
+        error: 'Service temporarily unavailable',
+        details: 'Analysis failed after multiple retry attempts. Please try again later.',
+        message: error.message
+      });
+    }
+    
+    // Generic error response
+    return res.status(500).json({ 
+      error: 'Analysis failed',
+      message: error.message,
+      details: 'An unexpected error occurred during video analysis'
+    });
+  }
+});
+
+/**
+ * GET /qwen2vl-health
+ * 
+ * Health check endpoint for Qwen2-VL service
+ * Verifies API token configuration and model availability
+ * 
+ * Response:
+ * {
+ *   "status": "healthy" | "unhealthy",
+ *   "model": "Qwen/Qwen2-VL-7B-Instruct",
+ *   "token_configured": true,
+ *   "timestamp": "2026-02-16T..."
+ * }
+ */
+app.get('/qwen2vl-health', async (req, res) => {
+  try {
+    console.log('🏥 Qwen2-VL health check requested');
+    const health = await checkServiceHealth();
+    
+    const statusCode = health.status === 'healthy' ? 200 : 503;
+    console.log(`${health.status === 'healthy' ? '✅' : '❌'} Health status: ${health.status}`);
+    
+    return res.status(statusCode).json(health);
+  } catch (error) {
+    console.error('❌ Health check error:', error);
+    return res.status(503).json({
+      status: 'unhealthy',
+      error: error.message,
+      token_configured: !!process.env.HF_TOKEN,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Evaluation API listening on http://localhost:${PORT}`);

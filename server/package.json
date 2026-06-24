@@ -8,11 +8,18 @@
     "start": "node index.js",
     "dev": "node --watch index.js"
   },
-  "keywords": ["youtube", "feedback", "gemini", "ai", "education"],
+  "keywords": [
+    "youtube",
+    "feedback",
+    "gemini",
+    "ai",
+    "education"
+  ],
   "author": "Navgurukul",
   "license": "MIT",
   "dependencies": {
     "@google/genai": "^1.33.0",
+    "@huggingface/inference": "^2.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",

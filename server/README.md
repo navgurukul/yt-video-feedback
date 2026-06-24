@@ -1,21 +1,28 @@
 # YouTube Video Feedback - Backend API
 
-Backend API server for the YouTube Video Feedback application. Handles video evaluations using Google Gemini AI and stores results in PostgreSQL.
+Backend API server for the YouTube Video Feedback application. Handles video evaluations using multiple AI models and stores results in PostgreSQL.
 
 ## 🚀 Features
 
-- Video evaluation using Google Gemini AI (2.5 Flash model)
+- **Multiple AI Models**:
+  - Google Gemini AI (2.5 Flash) - Native video analysis
+  - Qwen2-VL-7B-Instruct - Multimodal vision-language model
+  - Qwen2.5-7B-Instruct - Compact text model
+  - Mistral-7B-Instruct - Fast reasoning model
+  - Gemma-3-27B - Text-only analysis
 - Dual evaluation system for concept videos (accuracy + ability-to-explain)
 - Rubric-based evaluation for project videos
 - PostgreSQL database integration
 - User-provided API key support
 - CORS enabled for frontend integration
+- Production-ready error handling and retry logic
 
 ## 📋 Prerequisites
 
 - Node.js 18+ installed
 - PostgreSQL database access
 - Google Gemini API key (optional - users can provide via frontend)
+- Hugging Face API token (for Qwen2-VL, Qwen, Mistral, Gemma models)
 
 ## 🛠️ Installation
 
@@ -172,7 +179,23 @@ Ensure these are set in your deployment platform:
 - `PG_SSL`
 - `PORT` (usually set automatically)
 
-## 🔒 Security Notes
+## � Documentation
+
+### AI Model Integrations
+
+- **[Qwen2-VL Integration Guide](./QWEN2VL_INTEGRATION.md)** - Complete documentation for multimodal video analysis
+- **[Qwen2-VL Quick Start](./QWEN2VL_QUICKSTART.md)** - 2-minute setup guide
+- **[Qwen2-VL Usage Examples](./examples/qwen2vl-usage.js)** - Code examples
+- **[AI Model Providers Comparison](../AI_MODEL_PROVIDERS.md)** - All available models
+
+### Testing
+
+Run the Qwen2-VL test suite:
+```bash
+node test-qwen2vl.js
+```
+
+## �🔒 Security Notes
 
 - API keys from frontend are prioritized over environment variable
 - Database uses SSL connections
