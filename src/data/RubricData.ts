@@ -32,11 +32,10 @@ export const Phase1Rubric = [
   {
     "Parameter": "Visual Appeal (Structure-only readability) (e.g., “Is content organized even without CSS?” “Are headings, lists, and paragraphs easy to read?”)",
     "Weightage (%)": 20,
-    "Beginner (1)": "",
-    "Intermediate (2)": "Layout confusing or cluttered; headings, lists, or paragraphs hard to follow. Example: All text appears in one block; lists mixed with paragraphs; hard to read.",
-    "Advanced (3)": "Basic layout readable; some headings or lists misaligned; content visually uneven. Example: Courses listed in one paragraph instead of a or ; headings inconsistent.",
-    "Expert (4)": "Layout clear and organized; headings, lists, and paragraphs structured for easy reading; consistent across pages. Example: Home page introduces portal with and ; Courses page lists subjects using cleanly.",
-    "": "Layout highly readable and intuitive; semantic tags improve flow; content balanced even without styling. Example: Feedback form sections separated clearly with ; Grades table easy to read; headings guide user naturally through all pages."
+    "Beginner (1)": "Layout confusing or cluttered; headings, lists, or paragraphs hard to follow. Example: All text appears in one block; lists mixed with paragraphs; hard to read.",
+    "Intermediate (2)": "Basic layout readable; some headings or lists misaligned; content visually uneven. Example: Courses listed in one paragraph instead of a or ; headings inconsistent.",
+    "Advanced (3)": "Layout clear and organized; headings, lists, and paragraphs structured for easy reading; consistent across pages. Example: Home page introduces portal with and ; Courses page lists subjects using cleanly.",
+    "Expert (4)": "Layout highly readable and intuitive; semantic tags improve flow; content balanced even without styling. Example: Feedback form sections separated clearly with ; Grades table easy to read; headings guide user naturally through all pages."
   },
   {
     "Parameter": "Solution Explanation / Communication Skills (e.g., “Can you explain why you used ?” “Why for inputs?” “How would you describe your site to another student?”)",

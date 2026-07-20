@@ -331,11 +331,36 @@ const ManualEvaluation = () => {
                       };
                       return (
                         <div key={parameter} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <h2 className="text-lg font-semibold">{parameter}</h2>
-                              {item["Weightage (%)"] ? <p className="text-sm text-slate-500">Weightage: {item["Weightage (%)"]}%</p> : null}
-                            </div>
+                          <div className="mb-4 flex flex-col gap-2">
+                            <h2 className="text-lg font-semibold">{parameter}</h2>
+                            {item["Beginner (1)"] || item["Intermediate (2)"] || item["Advanced (3)"] || item["Expert (4)"] ? (
+                              <div className="space-y-2 border-t border-slate-200 pt-3">
+                                {item["Beginner (1)"] && (
+                                  <div className="text-sm">
+                                    <span className="font-medium text-slate-700">Beginner:</span>
+                                    <p className="text-slate-600 mt-1">{item["Beginner (1)"]}</p>
+                                  </div>
+                                )}
+                                {item["Intermediate (2)"] && (
+                                  <div className="text-sm">
+                                    <span className="font-medium text-slate-700">Intermediate:</span>
+                                    <p className="text-slate-600 mt-1">{item["Intermediate (2)"]}</p>
+                                  </div>
+                                )}
+                                {item["Advanced (3)"] && (
+                                  <div className="text-sm">
+                                    <span className="font-medium text-slate-700">Advanced:</span>
+                                    <p className="text-slate-600 mt-1">{item["Advanced (3)"]}</p>
+                                  </div>
+                                )}
+                                {item["Expert (4)"] && (
+                                  <div className="text-sm">
+                                    <span className="font-medium text-slate-700">Expert:</span>
+                                    <p className="text-slate-600 mt-1">{item["Expert (4)"]}</p>
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                           <div className="grid gap-2 sm:grid-cols-2">
                             <div className="space-y-1">
