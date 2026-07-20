@@ -1382,6 +1382,90 @@ app.delete('/custom-evaluation/:id', async (req, res) => {
   }
 });
 
+// Manual evaluation video list
+app.get('/api/manual-eval-videos', async (req, res) => {
+  try {
+    const query = `
+      SELECT
+        pe.id,
+        pe.email,
+        pe.project_name,
+        pe.video_url,
+        EXISTS(
+          SELECT 1 FROM tbl_manual_video_evaluations me
+          WHERE me.project_evaluation_id = pe.id
+        ) AS manual_evaluated
+      FROM tbl_ailabs_ytfeedback_project_evaluation pe
+      WHERE pe.project_name IS NOT NULL
+        AND pe.email NOT IN (
+          'sachin.i@navgurukul.org',
+          'rishav@navgurukul.org'
+        )
+      ORDER BY pe.project_name;
+    `;
+
+    const result = await pgPool.query(query);
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Error fetching manual evaluation videos:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// Save manual evaluation
+app.post('/api/manual-evaluation', async (req, res) => {
+  try {
+    const {
+      projectEvaluationId,
+      evaluatorEmail,
+      evaluatedVideoUrl,
+      projectName,
+      phase,
+      evaluationJson,
+      overallRating,
+      overallComments
+    } = req.body;
+
+    if (!projectEvaluationId || !evaluatorEmail || !evaluationJson) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const query = `
+      INSERT INTO tbl_manual_video_evaluations (
+        project_evaluation_id,
+        evaluator_email,
+        evaluated_video_url,
+        project_name,
+        phase,
+        evaluation_json,
+        overall_rating,
+        overall_comments,
+        evaluation_date,
+        created_at,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), NOW())
+      RETURNING id;
+    `;
+
+    const values = [
+      projectEvaluationId,
+      evaluatorEmail,
+      evaluatedVideoUrl,
+      projectName,
+      phase,
+      evaluationJson,
+      overallRating || null,
+      overallComments || null
+    ];
+
+    const result = await pgPool.query(query, values);
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Error saving manual evaluation:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // Health endpoint for readiness checks
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });

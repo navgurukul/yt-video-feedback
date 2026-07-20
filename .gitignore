@@ -14,3 +14,7 @@ yarn-error.log*
 /.cache/
 /.next/
 /out/
+docs/dashboard/dashboard-data-flow.md
+docs/dashboard/dashboard-erd.md
+.gitignore
+docs/dashboard/dashboard-summary.md

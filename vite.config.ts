@@ -67,6 +67,16 @@ export default defineConfig(({ mode }) => {
           target: apiUrl,
           changeOrigin: true,
           secure: false
+        },
+        '/api/manual-eval-videos': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false
+        },
+        '/api/manual-evaluation': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false
         }
       } : undefined
     },
