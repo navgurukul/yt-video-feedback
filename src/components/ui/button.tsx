@@ -9,11 +9,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-brutal hover:translate-x-2 hover:translate-y-2 hover:shadow-brutal-sm hover:[box-shadow:6px_6px_0px_0px_rgba(13,13,13,1),0_0_40px_hsl(var(--primary)/0.9)] hover:bg-primary/90 active:translate-x-3 active:translate-y-3 active:shadow-none",
-        secondary: "bg-secondary text-secondary-foreground shadow-brutal hover:translate-x-2 hover:translate-y-2 hover:shadow-brutal-sm hover:[box-shadow:6px_6px_0px_0px_rgba(13,13,13,1),0_0_40px_hsl(var(--secondary)/0.9)] hover:bg-secondary/90 active:translate-x-3 active:translate-y-3 active:shadow-none",
-        outline: "bg-card text-foreground shadow-brutal hover:translate-x-2 hover:translate-y-2 hover:shadow-brutal-sm hover:[box-shadow:6px_6px_0px_0px_rgba(13,13,13,1),0_0_25px_rgba(13,13,13,0.4)] hover:bg-muted/50 active:translate-x-3 active:translate-y-3 active:shadow-none",
-        ghost: "border-0 shadow-none hover:bg-muted hover:scale-105",
-        destructive: "bg-destructive text-destructive-foreground shadow-brutal hover:translate-x-2 hover:translate-y-2 hover:shadow-brutal-sm hover:[box-shadow:6px_6px_0px_0px_rgba(13,13,13,1),0_0_30px_hsl(var(--destructive)/0.7)]",
+        default: "bg-primary text-primary-foreground shadow-brutal hover:translate-x-1 hover:translate-y-1 hover:shadow-brutal-sm hover:[box-shadow:6px_6px_0px_0px_rgba(13,13,13,1),0_0_40px_hsl(var(--primary)/0.9)] hover:bg-primary/90 active:translate-x-2 active:translate-y-2 active:shadow-none",
+        secondary: "bg-secondary text-secondary-foreground shadow-brutal hover:translate-x-1 hover:translate-y-1 hover:shadow-brutal-sm hover:[box-shadow:6px_6px_0px_0px_rgba(13,13,13,1),0_0_40px_hsl(var(--secondary)/0.9)] hover:bg-secondary/90 active:translate-x-2 active:translate-y-2 active:shadow-none",
+        outline: "bg-card text-foreground shadow-brutal hover:translate-x-1 hover:translate-y-1 hover:shadow-brutal-sm hover:[box-shadow:6px_6px_0px_0px_rgba(13,13,13,1),0_0_25px_rgba(13,13,13,0.4)] hover:bg-muted/50 active:translate-x-2 active:translate-y-2 active:shadow-none",
+        ghost: "border-0 shadow-none hover:bg-muted hover:scale-103",
+        destructive: "bg-destructive text-destructive-foreground shadow-brutal hover:translate-x-1 hover:translate-y-1 hover:shadow-brutal-sm hover:[box-shadow:6px_6px_0px_0px_rgba(13,13,13,1),0_0_30px_hsl(var(--destructive)/0.7)]",
       },
       size: {
         default: "h-12 px-6 py-3 text-sm",

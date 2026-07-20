@@ -1385,7 +1385,12 @@ app.delete('/custom-evaluation/:id', async (req, res) => {
 // Manual evaluation video list
 app.get('/api/manual-eval-videos', async (req, res) => {
   try {
-    const query = `
+    const evaluationId = req.query.id ? parseInt(req.query.id, 10) : null;
+    if (req.query.id && (Number.isNaN(evaluationId) || evaluationId <= 0)) {
+      return res.status(400).json({ error: 'Invalid evaluation id' });
+    }
+
+    let query = `
       SELECT
         pe.id,
         pe.email,
@@ -1401,10 +1406,17 @@ app.get('/api/manual-eval-videos', async (req, res) => {
           'sachin.i@navgurukul.org',
           'rishav@navgurukul.org'
         )
-      ORDER BY pe.project_name;
     `;
 
-    const result = await pgPool.query(query);
+    const values = [];
+    if (evaluationId) {
+      query += ` AND pe.id = $1`;
+      values.push(evaluationId);
+    }
+
+    query += ` ORDER BY pe.project_name;`;
+
+    const result = await pgPool.query(query, values);
     res.json({ success: true, data: result.rows });
   } catch (err) {
     console.error('Error fetching manual evaluation videos:', err);

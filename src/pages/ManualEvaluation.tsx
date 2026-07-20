@@ -54,6 +54,8 @@ const ManualEvaluation = () => {
   const [overallRating, setOverallRating] = useState("");
   const [overallComments, setOverallComments] = useState("");
   const [feedbackByParameter, setFeedbackByParameter] = useState<Record<string, ParameterFeedback>>({});
+  const [searchId, setSearchId] = useState("");
+  const [searchError, setSearchError] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -66,11 +68,13 @@ const ManualEvaluation = () => {
     init();
   }, []);
 
-  const fetchVideos = async () => {
+  const fetchVideos = async (evaluationId?: string) => {
     try {
       setLoading(true);
+      setSearchError(null);
       const API_URL = import.meta.env.PROD ? import.meta.env.VITE_API_URL || "http://localhost:3001" : "";
-      const response = await fetch(`${API_URL}/api/manual-eval-videos`);
+      const query = evaluationId ? `?id=${encodeURIComponent(evaluationId)}` : "";
+      const response = await fetch(`${API_URL}/api/manual-eval-videos${query}`);
       if (!response.ok) throw new Error("Failed to fetch videos");
       const data = await response.json();
       setVideos(data.data || []);
@@ -85,6 +89,21 @@ const ManualEvaluation = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearchById = async () => {
+    const trimmed = searchId.trim();
+    if (!trimmed) {
+      await fetchVideos();
+      return;
+    }
+
+    if (!/^\d+$/.test(trimmed)) {
+      setSearchError("Evaluation ID must be a numeric value.");
+      return;
+    }
+
+    await fetchVideos(trimmed);
   };
 
   const rubric = useMemo(() => getRubricForProject(selectedVideo?.project_name || ""), [selectedVideo]);
@@ -180,11 +199,33 @@ const ManualEvaluation = () => {
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
-          <Card className="h-fit">
+          <Card className="h-fit hover:translate-x-0 hover:translate-y-0 hover:rotate-0 hover:shadow-brutal">
             <CardHeader>
               <CardTitle>Video Review Queue</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700">Search by evaluation ID</label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    type="text"
+                    value={searchId}
+                    onChange={(event) => setSearchId(event.target.value)}
+                    placeholder="Enter evaluation ID"
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                  />
+                  <Button className="hover:translate-x-0 hover:translate-y-0 active:translate-x-0 active:translate-y-0" onClick={handleSearchById} disabled={loading}>Search</Button>
+                  <Button
+                    variant="secondary"
+                    className="hover:translate-x-0 hover:translate-y-0 active:translate-x-0 active:translate-y-0"
+                    onClick={() => { setSearchId(""); setSearchError(null); fetchVideos(); }}
+                    disabled={loading}
+                  >
+                    Clear
+                  </Button>
+                </div>
+                {searchError ? <p className="text-sm text-red-600">{searchError}</p> : null}
+              </div>
               {loading ? (
                 <div>Loading videos…</div>
               ) : videos.length === 0 ? (
@@ -201,6 +242,7 @@ const ManualEvaluation = () => {
                       <div>
                         <p className="font-semibold">{video.project_name}</p>
                         <p className="text-sm text-slate-600">{video.email}</p>
+                        <p className="text-xs text-slate-500">Evaluation ID: {video.id}</p>
                       </div>
                       {video.manual_evaluated ? (
                         <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-800">Evaluated</span>
