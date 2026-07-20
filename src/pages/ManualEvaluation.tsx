@@ -141,6 +141,31 @@ const ManualEvaluation = () => {
       toast({ title: "Not signed in", description: "Please sign in to submit evaluations.", variant: "destructive" });
       return;
     }
+
+    // Validate that all parameters have a level selected
+    const missingLevels = Object.entries(feedbackByParameter)
+      .filter(([, feedback]) => !feedback.level)
+      .map(([name]) => name);
+
+    if (missingLevels.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: `Please select a level for: ${missingLevels.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate that overall comments are provided
+    if (!overallComments.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Overall comments are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const allFeedback = Object.entries(feedbackByParameter).map(([name, feedback]) => ({
       name,
       level: feedback.level,
@@ -188,7 +213,7 @@ const ManualEvaluation = () => {
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Manual Video Evaluation</h1>
+            <h1 className="text-3xl font-bold">Manual YT Project Video Evaluation</h1>
             <p className="mt-1 text-sm text-slate-600">
               Select a project video from the list to review, watch it in the player, and score against the phase rubric.
             </p>
@@ -314,7 +339,7 @@ const ManualEvaluation = () => {
                           </div>
                           <div className="grid gap-2 sm:grid-cols-2">
                             <div className="space-y-1">
-                              <label className="text-sm font-medium">Level</label>
+                              <label className="text-sm font-medium">Level <span className="text-red-600">*</span></label>
                               <select
                                 className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
                                 value={feedback.level}
@@ -365,38 +390,23 @@ const ManualEvaluation = () => {
                     })}
 
                     <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <div>
-                          <label className="text-sm font-medium">Overall Rating</label>
-                          <select
-                            className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                            value={overallRating}
-                            onChange={(e) => setOverallRating(e.target.value)}
-                          >
-                            <option value="">Select overall rating</option>
-                            <option value="Beginner">Beginner</option>
-                            <option value="Intermediate">Intermediate</option>
-                            <option value="Advanced">Advanced</option>
-                            <option value="Expert">Expert</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">Evaluator</label>
-                          <input
-                            type="text"
-                            value={userEmail || ""}
-                            disabled
-                            className="mt-1 w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700"
-                          />
-                        </div>
+                      <div>
+                        <label className="text-sm font-medium">Evaluator</label>
+                        <input
+                          type="text"
+                          value={userEmail || ""}
+                          disabled
+                          className="mt-1 w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700"
+                        />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-sm font-medium">Overall comments</label>
+                        <label className="text-sm font-medium">Overall comments <span className="text-red-600">*</span></label>
                         <textarea
                           rows={4}
                           className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
                           value={overallComments}
                           onChange={(e) => setOverallComments(e.target.value)}
+                          placeholder="Provide overall feedback about the evaluation"
                         />
                       </div>
                       <Button onClick={handleSubmit} disabled={saving}>
