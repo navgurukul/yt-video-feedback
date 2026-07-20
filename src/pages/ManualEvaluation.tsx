@@ -72,9 +72,9 @@ const ManualEvaluation = () => {
     try {
       setLoading(true);
       setSearchError(null);
-      const API_URL = import.meta.env.PROD ? import.meta.env.VITE_API_URL || "http://localhost:3001" : "";
+      const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_EVAL_API_URL || (import.meta.env.DEV ? "" : window.location.origin);
       const query = evaluationId ? `?id=${encodeURIComponent(evaluationId)}` : "";
-      const response = await fetch(`${API_URL}/api/manual-eval-videos${query}`);
+      const response = await fetch(`${API_URL}/manual-eval-videos${query}`);
       if (!response.ok) throw new Error("Failed to fetch videos");
       const data = await response.json();
       setVideos(data.data || []);
@@ -176,8 +176,8 @@ const ManualEvaluation = () => {
 
     try {
       setSaving(true);
-      const API_URL = import.meta.env.PROD ? import.meta.env.VITE_API_URL || "http://localhost:3001" : "";
-      const response = await fetch(`${API_URL}/api/manual-evaluation`, {
+      const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_EVAL_API_URL || (import.meta.env.DEV ? "" : window.location.origin);
+      const response = await fetch(`${API_URL}/manual-evaluation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

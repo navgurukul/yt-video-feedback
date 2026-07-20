@@ -1383,7 +1383,7 @@ app.delete('/custom-evaluation/:id', async (req, res) => {
 });
 
 // Manual evaluation video list
-app.get('/api/manual-eval-videos', async (req, res) => {
+const fetchManualEvalVideos = async (req, res) => {
   try {
     const evaluationId = req.query.id ? parseInt(req.query.id, 10) : null;
     if (req.query.id && (Number.isNaN(evaluationId) || evaluationId <= 0)) {
@@ -1422,10 +1422,13 @@ app.get('/api/manual-eval-videos', async (req, res) => {
     console.error('Error fetching manual evaluation videos:', err);
     res.status(500).json({ error: String(err) });
   }
-});
+};
+
+app.get('/manual-eval-videos', fetchManualEvalVideos);
+app.get('/api/manual-eval-videos', fetchManualEvalVideos);
 
 // Save manual evaluation
-app.post('/api/manual-evaluation', async (req, res) => {
+const saveManualEvaluation = async (req, res) => {
   try {
     const {
       projectEvaluationId,
@@ -1476,7 +1479,10 @@ app.post('/api/manual-evaluation', async (req, res) => {
     console.error('Error saving manual evaluation:', err);
     res.status(500).json({ error: String(err) });
   }
-});
+};
+
+app.post('/manual-evaluation', saveManualEvaluation);
+app.post('/api/manual-evaluation', saveManualEvaluation);
 
 // Health endpoint for readiness checks
 app.get('/health', (req, res) => {
