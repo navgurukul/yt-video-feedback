@@ -218,9 +218,6 @@ const ManualEvaluation = () => {
               Select a project video from the list to review, watch it in the player, and score against the phase rubric.
             </p>
           </div>
-          <Button variant="secondary" onClick={() => navigate(-1)}>
-            Back
-          </Button>
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
