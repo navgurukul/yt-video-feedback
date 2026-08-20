@@ -569,8 +569,9 @@ app.post('/store-evaluation', async (req, res) => {
           concept_explanation_feedback,
           ability_to_explain_evaluation,
           ability_to_explain_feedback,
+          actual_model_used,
           created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         RETURNING id
       `;
       const values = [
@@ -581,7 +582,8 @@ app.post('/store-evaluation', async (req, res) => {
         accuracyScore,
         accuracyFeedback,
         abilityEvaluationText,
-        abilityFeedback
+        abilityFeedback,
+        evaluationData.actual_model_used || null
       ];
 
       console.log('Final concept evaluation values to be stored:', {
@@ -761,8 +763,9 @@ app.post('/store-evaluation', async (req, res) => {
           project_explanation_evaluation,
           project_explanation_feedback,
           project_explanation_evaluationjson,
+          actual_model_used,
           created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
         RETURNING id
       `;
       const values = [
@@ -771,7 +774,8 @@ app.post('/store-evaluation', async (req, res) => {
         videoUrl,
         evaluationText,
         feedbackText,
-        evaluationJson
+        evaluationJson,
+        evaluationData.actual_model_used || null
       ];
 
       //console.log('Executing project evaluation database query with values:', values);
@@ -968,8 +972,9 @@ app.post('/store-evaluation', async (req, res) => {
           criteria_analysis,
           custom_feedback,
           evaluation_json,
+          actual_model_used,
           created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         RETURNING id
       `;
       const values = [
@@ -980,7 +985,8 @@ app.post('/store-evaluation', async (req, res) => {
         overallAssessment,
         criteriaAnalysis,
         feedbackText,
-        evaluationJson
+        evaluationJson,
+        evaluationData.actual_model_used || null
       ];
 
       console.log('Executing custom evaluation database query');

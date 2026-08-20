@@ -46,7 +46,7 @@ const evaluateWithModelFallback = async (
 
     if (response.ok || data?.error?.type !== 'model_unavailable') {
       if (response.ok) onStatus(`Using ${model}`);
-      return { response, data };
+      return { response, data, actualModelUsed: response.ok ? model : null };
     }
 
     failedModels.push(model);
@@ -55,7 +55,7 @@ const evaluateWithModelFallback = async (
       onStatus(`${model} failed. Trying ${nextModel}...`);
     } else {
       onStatus(`${failedModels.join(', ')} failed. Please try again later.`);
-      return { response, data };
+      return { response, data, actualModelUsed: null };
     }
   }
 };
@@ -283,11 +283,13 @@ const VideoAnalyzer = () => {
           let accuracyError = null;
           let accuracyResp;
           let accuracyData;
+          let accuracyModel = null;
           
           try {
             const accuracyResult = await evaluateWithModelFallback(accuracyPayload, setAnalysisStatus);
             accuracyResp = accuracyResult.response;
             accuracyData = accuracyResult.data;
+            accuracyModel = accuracyResult.actualModelUsed;
             
             // Capture API call metrics - 1st call
             if (accuracyData.metrics) {
@@ -363,11 +365,13 @@ const VideoAnalyzer = () => {
           let abilityError = null;
           let abilityResp;
           let abilityData;
+          let abilityModel = null;
 
           try {
             const abilityResult = await evaluateWithModelFallback(abilityPayload, setAnalysisStatus);
             abilityResp = abilityResult.response;
             abilityData = abilityResult.data;
+            abilityModel = abilityResult.actualModelUsed;
             
             // Capture API call metrics - 2nd call
             if (abilityData.metrics) {
@@ -425,7 +429,8 @@ const VideoAnalyzer = () => {
               abilityToExplain: abilityEvaluation
             },
             api_calls: apiCalls,
-            issues: issues
+            issues: issues,
+            actual_model_used: `accuracy: ${accuracyModel}; ability: ${abilityModel}`
           };
         } else if (videoType === "other") {
           // For Other type, use custom prompt evaluation
@@ -445,11 +450,13 @@ const VideoAnalyzer = () => {
           let customError = null;
           let resp;
           let data;
+          let actualModelUsed = null;
 
           try {
             const customResult = await evaluateWithModelFallback(customPayload, setAnalysisStatus);
             resp = customResult.response;
             data = customResult.data;
+            actualModelUsed = customResult.actualModelUsed;
             
             // Capture API call metrics
             if (data.metrics) {
@@ -512,7 +519,8 @@ const VideoAnalyzer = () => {
           evaluationPayload = {
             evaluation_result: customEvaluation,
             api_calls: apiCalls,
-            issues: issues
+            issues: issues,
+            actual_model_used: actualModelUsed
           };
         } else {
           // For Project Explanation, use the appropriate project rubric
@@ -557,11 +565,13 @@ const VideoAnalyzer = () => {
           let projectError = null;
           let resp;
           let data;
+          let actualModelUsed = null;
 
           try {
             const projectResult = await evaluateWithModelFallback(projectPayload, setAnalysisStatus);
             resp = projectResult.response;
             data = projectResult.data;
+            actualModelUsed = projectResult.actualModelUsed;
             
             // Capture API call metrics
             if (data.metrics) {
@@ -624,7 +634,8 @@ const VideoAnalyzer = () => {
           evaluationPayload = {
             evaluation_result: projectEvaluation,
             api_calls: apiCalls,
-            issues: issues
+            issues: issues,
+            actual_model_used: actualModelUsed
           };
         }
 
