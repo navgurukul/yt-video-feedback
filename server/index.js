@@ -25,6 +25,12 @@ app.use(express.json({ limit: '5mb' }));
 
 const PORT = process.env.PORT || 3001;
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+const GEMINI_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-3.5-flash',
+  'gemini-3.6-flash',
+  'gemini-3.7-flash'
+];
 
 // PostgreSQL connection configuration
 const pgConfig = {
@@ -72,9 +78,21 @@ if (GEMINI_KEY) {
 
 app.post('/evaluate', async (req, res) => {
   try {
-    const { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext } = req.body;
+    const { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext, model: requestedModel } = req.body;
+    const model = requestedModel || GEMINI_MODELS[0];
 
     if (!videoUrl) return res.status(400).json({ error: 'Missing videoUrl' });
+
+    if (!GEMINI_MODELS.includes(model)) {
+      return res.status(400).json({
+        error: {
+          type: 'invalid_model',
+          message: `Unsupported Gemini model: ${model}`,
+          status_code: 400,
+          error_code: 'INVALID_MODEL'
+        }
+      });
+    }
     
     // Use API key from request body if provided, otherwise fall back to environment variable
     const effectiveApiKey = apiKey || GEMINI_KEY;
@@ -83,7 +101,7 @@ app.post('/evaluate', async (req, res) => {
 
     // Initialize Google GenAI client with the effective API key
     const ai = new GoogleGenAI({ apiKey: effectiveApiKey });
-    const model = 'gemini-2.5-flash';
+
     let contents;
     let config;
       // Build the prompt for accuracy evaluation
@@ -235,9 +253,35 @@ ${customPrompt}
       let errorCode = error.code || 'UNKNOWN';
       
       const errorString = error.message || String(error);
+      const isAuthenticationError =
+        errorString.includes('API key not valid') ||
+        errorString.includes('API_KEY_INVALID') ||
+        errorString.includes('PERMISSION_DENIED') ||
+        errorString.includes('permission denied');
+      const hasModelErrorHint =
+        /model.*(not found|unavailable|unsupported|quota|capacity)|(?:not found|unavailable|unsupported).*model/i.test(errorString);
+      const isInvalidRequest =
+        errorString.includes('INVALID_ARGUMENT') ||
+        (error.status === 400 && !hasModelErrorHint);
+      const isModelUnavailable =
+        !isAuthenticationError &&
+        !isInvalidRequest &&
+        (error.status === 404 ||
+          error.status === 408 ||
+          error.status === 429 ||
+          error.status >= 500 ||
+          error.code === 404 ||
+          /RESOURCE_EXHAUSTED|quota exceeded|temporarily unavailable|service unavailable|high demand|overloaded/i.test(errorString) ||
+          /(?:code|status)["']?\s*[:=]\s*50[023]/i.test(errorString) ||
+          hasModelErrorHint);
       
       // Categorize error type for better user messaging
-      if (errorString.includes('API key not valid') || errorString.includes('API_KEY_INVALID')) {
+      if (isModelUnavailable) {
+        statusCode = error.status || 503;
+        errorMessage = `Gemini model ${model} is unavailable or temporarily unavailable`;
+        errorType = 'model_unavailable';
+        errorCode = 'MODEL_RETRYABLE_ERROR';
+      } else if (errorString.includes('API key not valid') || errorString.includes('API_KEY_INVALID')) {
         statusCode = 401;
         errorMessage = 'API key configuration error';
         errorType = 'invalid_api_key';
@@ -542,8 +586,9 @@ app.post('/store-evaluation', async (req, res) => {
           concept_explanation_feedback,
           ability_to_explain_evaluation,
           ability_to_explain_feedback,
+          actual_model_used,
           created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         RETURNING id
       `;
       const values = [
@@ -554,7 +599,8 @@ app.post('/store-evaluation', async (req, res) => {
         accuracyScore,
         accuracyFeedback,
         abilityEvaluationText,
-        abilityFeedback
+        abilityFeedback,
+        evaluationData.actual_model_used || null
       ];
 
       console.log('Final concept evaluation values to be stored:', {
@@ -734,8 +780,9 @@ app.post('/store-evaluation', async (req, res) => {
           project_explanation_evaluation,
           project_explanation_feedback,
           project_explanation_evaluationjson,
+          actual_model_used,
           created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
         RETURNING id
       `;
       const values = [
@@ -744,7 +791,8 @@ app.post('/store-evaluation', async (req, res) => {
         videoUrl,
         evaluationText,
         feedbackText,
-        evaluationJson
+        evaluationJson,
+        evaluationData.actual_model_used || null
       ];
 
       //console.log('Executing project evaluation database query with values:', values);
@@ -941,8 +989,9 @@ app.post('/store-evaluation', async (req, res) => {
           criteria_analysis,
           custom_feedback,
           evaluation_json,
+          actual_model_used,
           created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         RETURNING id
       `;
       const values = [
@@ -953,7 +1002,8 @@ app.post('/store-evaluation', async (req, res) => {
         overallAssessment,
         criteriaAnalysis,
         feedbackText,
-        evaluationJson
+        evaluationJson,
+        evaluationData.actual_model_used || null
       ];
 
       console.log('Executing custom evaluation database query');

@@ -22,6 +22,55 @@ import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainCo
 import { ApiKeyContext } from "@/App";
 import { getErrorInfo, formatErrorInfo, ErrorInfo, extractErrorStatus } from "@/lib/errorMessages";
 
+const GEMINI_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
+  "gemini-3.7-flash",
+] as const;
+
+const evaluateWithModelFallback = async (
+  payload: Record<string, unknown>,
+  onStatus: (status: string) => void,
+) => {
+  const failedModels: string[] = [];
+
+  for (const model of GEMINI_MODELS) {
+    onStatus(`Trying ${model}...`);
+    const response = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, model }),
+    });
+    const data = await response.json();
+    const errorType = data?.error?.type;
+    const errorCode = data?.error?.error_code;
+    const errorDetails = `${data?.error?.message || ""} ${data?.error?.details || ""}`;
+    const isFallbackEligible =
+      errorType === "model_unavailable" ||
+      errorCode === "MODEL_RETRYABLE_ERROR" ||
+      response.status === 404 ||
+      response.status === 408 ||
+      response.status === 429 ||
+      response.status >= 500 ||
+      /service unavailable|high demand|overloaded|temporarily unavailable/i.test(errorDetails);
+
+    if (response.ok || !isFallbackEligible) {
+      if (response.ok) onStatus(`Using ${model}`);
+      return { response, data, actualModelUsed: response.ok ? model : null };
+    }
+
+    failedModels.push(model);
+    const nextModel = GEMINI_MODELS[GEMINI_MODELS.indexOf(model) + 1];
+    if (nextModel) {
+      onStatus(`${model} failed. Trying ${nextModel}...`);
+    } else {
+      onStatus(`${failedModels.join(', ')} failed. Please try again later.`);
+      return { response, data, actualModelUsed: null };
+    }
+  }
+};
+
 const VideoAnalyzer = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -40,6 +89,7 @@ const VideoAnalyzer = () => {
   const [error, setError] = useState("");
   const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState("");
   
   const phaseNames = getPhaseNames();
   const availableVideoTitles = selectedPhase ? getVideoTitlesForPhase(selectedPhase) : [];
@@ -121,6 +171,7 @@ const VideoAnalyzer = () => {
   const handleAnalyze = () => {
     setError("");
     setErrorInfo(null);
+    setAnalysisStatus("Preparing Gemini evaluation...");
     setIsAnalyzing(true);
     
     // Validate video URL
@@ -243,15 +294,13 @@ const VideoAnalyzer = () => {
           let accuracyError = null;
           let accuracyResp;
           let accuracyData;
+          let accuracyModel = null;
           
           try {
-            accuracyResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(accuracyPayload),
-            });
-
-            accuracyData = await accuracyResp.json();
+            const accuracyResult = await evaluateWithModelFallback(accuracyPayload, setAnalysisStatus);
+            accuracyResp = accuracyResult.response;
+            accuracyData = accuracyResult.data;
+            accuracyModel = accuracyResult.actualModelUsed;
             
             // Capture API call metrics - 1st call
             if (accuracyData.metrics) {
@@ -327,15 +376,13 @@ const VideoAnalyzer = () => {
           let abilityError = null;
           let abilityResp;
           let abilityData;
+          let abilityModel = null;
 
           try {
-            abilityResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(abilityPayload),
-            });
-
-            abilityData = await abilityResp.json();
+            const abilityResult = await evaluateWithModelFallback(abilityPayload, setAnalysisStatus);
+            abilityResp = abilityResult.response;
+            abilityData = abilityResult.data;
+            abilityModel = abilityResult.actualModelUsed;
             
             // Capture API call metrics - 2nd call
             if (abilityData.metrics) {
@@ -393,7 +440,8 @@ const VideoAnalyzer = () => {
               abilityToExplain: abilityEvaluation
             },
             api_calls: apiCalls,
-            issues: issues
+            issues: issues,
+            actual_model_used: `accuracy: ${accuracyModel}; ability: ${abilityModel}`
           };
         } else if (videoType === "other") {
           // For Other type, use custom prompt evaluation
@@ -413,15 +461,13 @@ const VideoAnalyzer = () => {
           let customError = null;
           let resp;
           let data;
+          let actualModelUsed = null;
 
           try {
-            resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(customPayload),
-            });
-
-            data = await resp.json();
+            const customResult = await evaluateWithModelFallback(customPayload, setAnalysisStatus);
+            resp = customResult.response;
+            data = customResult.data;
+            actualModelUsed = customResult.actualModelUsed;
             
             // Capture API call metrics
             if (data.metrics) {
@@ -484,7 +530,8 @@ const VideoAnalyzer = () => {
           evaluationPayload = {
             evaluation_result: customEvaluation,
             api_calls: apiCalls,
-            issues: issues
+            issues: issues,
+            actual_model_used: actualModelUsed
           };
         } else {
           // For Project Explanation, use the appropriate project rubric
@@ -529,15 +576,13 @@ const VideoAnalyzer = () => {
           let projectError = null;
           let resp;
           let data;
+          let actualModelUsed = null;
 
           try {
-            resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(projectPayload),
-            });
-
-            data = await resp.json();
+            const projectResult = await evaluateWithModelFallback(projectPayload, setAnalysisStatus);
+            resp = projectResult.response;
+            data = projectResult.data;
+            actualModelUsed = projectResult.actualModelUsed;
             
             // Capture API call metrics
             if (data.metrics) {
@@ -600,7 +645,8 @@ const VideoAnalyzer = () => {
           evaluationPayload = {
             evaluation_result: projectEvaluation,
             api_calls: apiCalls,
-            issues: issues
+            issues: issues,
+            actual_model_used: actualModelUsed
           };
         }
 
@@ -893,6 +939,11 @@ const VideoAnalyzer = () => {
                 {isAnalyzing ? "🔄 ANALYZING..." : "🎯 ANALYZE VIDEO"}
               </Button>
             </motion.div>
+            {analysisStatus && (
+              <p className="text-center text-sm font-medium text-muted-foreground" role="status">
+                {analysisStatus}
+              </p>
+            )}
           </div>
         </Card>
         </MotionWrapper>
