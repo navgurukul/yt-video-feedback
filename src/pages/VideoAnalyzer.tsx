@@ -43,8 +43,19 @@ const evaluateWithModelFallback = async (
       body: JSON.stringify({ ...payload, model }),
     });
     const data = await response.json();
+    const errorType = data?.error?.type;
+    const errorCode = data?.error?.error_code;
+    const errorDetails = `${data?.error?.message || ""} ${data?.error?.details || ""}`;
+    const isFallbackEligible =
+      errorType === "model_unavailable" ||
+      errorCode === "MODEL_RETRYABLE_ERROR" ||
+      response.status === 404 ||
+      response.status === 408 ||
+      response.status === 429 ||
+      response.status >= 500 ||
+      /service unavailable|high demand|overloaded|temporarily unavailable/i.test(errorDetails);
 
-    if (response.ok || data?.error?.type !== 'model_unavailable') {
+    if (response.ok || !isFallbackEligible) {
       if (response.ok) onStatus(`Using ${model}`);
       return { response, data, actualModelUsed: response.ok ? model : null };
     }

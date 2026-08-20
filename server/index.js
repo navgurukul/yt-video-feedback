@@ -253,17 +253,34 @@ ${customPrompt}
       let errorCode = error.code || 'UNKNOWN';
       
       const errorString = error.message || String(error);
+      const isAuthenticationError =
+        errorString.includes('API key not valid') ||
+        errorString.includes('API_KEY_INVALID') ||
+        errorString.includes('PERMISSION_DENIED') ||
+        errorString.includes('permission denied');
+      const hasModelErrorHint =
+        /model.*(not found|unavailable|unsupported|quota|capacity)|(?:not found|unavailable|unsupported).*model/i.test(errorString);
+      const isInvalidRequest =
+        errorString.includes('INVALID_ARGUMENT') ||
+        (error.status === 400 && !hasModelErrorHint);
       const isModelUnavailable =
-        error.status === 404 ||
-        error.code === 404 ||
-        /model.*(not found|unavailable|unsupported)|(?:not found|unavailable|unsupported).*model/i.test(errorString);
+        !isAuthenticationError &&
+        !isInvalidRequest &&
+        (error.status === 404 ||
+          error.status === 408 ||
+          error.status === 429 ||
+          error.status >= 500 ||
+          error.code === 404 ||
+          /RESOURCE_EXHAUSTED|quota exceeded|temporarily unavailable|service unavailable|high demand|overloaded/i.test(errorString) ||
+          /(?:code|status)["']?\s*[:=]\s*50[023]/i.test(errorString) ||
+          hasModelErrorHint);
       
       // Categorize error type for better user messaging
       if (isModelUnavailable) {
-        statusCode = 404;
-        errorMessage = `Gemini model ${model} is unavailable`;
+        statusCode = error.status || 503;
+        errorMessage = `Gemini model ${model} is unavailable or temporarily unavailable`;
         errorType = 'model_unavailable';
-        errorCode = 'MODEL_UNAVAILABLE';
+        errorCode = 'MODEL_RETRYABLE_ERROR';
       } else if (errorString.includes('API key not valid') || errorString.includes('API_KEY_INVALID')) {
         statusCode = 401;
         errorMessage = 'API key configuration error';
