@@ -18,3 +18,7 @@ docs/dashboard/dashboard-data-flow.md
 docs/dashboard/dashboard-erd.md
 .gitignore
 docs/dashboard/dashboard-summary.md
+docs/report_doc.xml
+.gitignore
+docs/YT_Manual_vs_Tool_Evaluation_Comparison_Report.xlsx
+docs/YT_Manual_vs_Tool_Evaluation_Comparison_Report.docx

@@ -22,6 +22,44 @@ import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainCo
 import { ApiKeyContext } from "@/App";
 import { getErrorInfo, formatErrorInfo, ErrorInfo, extractErrorStatus } from "@/lib/errorMessages";
 
+const GEMINI_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
+  "gemini-3.7-flash",
+] as const;
+
+const evaluateWithModelFallback = async (
+  payload: Record<string, unknown>,
+  onStatus: (status: string) => void,
+) => {
+  const failedModels: string[] = [];
+
+  for (const model of GEMINI_MODELS) {
+    onStatus(`Trying ${model}...`);
+    const response = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, model }),
+    });
+    const data = await response.json();
+
+    if (response.ok || data?.error?.type !== 'model_unavailable') {
+      if (response.ok) onStatus(`Using ${model}`);
+      return { response, data };
+    }
+
+    failedModels.push(model);
+    const nextModel = GEMINI_MODELS[GEMINI_MODELS.indexOf(model) + 1];
+    if (nextModel) {
+      onStatus(`${model} failed. Trying ${nextModel}...`);
+    } else {
+      onStatus(`${failedModels.join(', ')} failed. Please try again later.`);
+      return { response, data };
+    }
+  }
+};
+
 const VideoAnalyzer = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -40,6 +78,7 @@ const VideoAnalyzer = () => {
   const [error, setError] = useState("");
   const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState("");
   
   const phaseNames = getPhaseNames();
   const availableVideoTitles = selectedPhase ? getVideoTitlesForPhase(selectedPhase) : [];
@@ -121,6 +160,7 @@ const VideoAnalyzer = () => {
   const handleAnalyze = () => {
     setError("");
     setErrorInfo(null);
+    setAnalysisStatus("Preparing Gemini evaluation...");
     setIsAnalyzing(true);
     
     // Validate video URL
@@ -245,13 +285,9 @@ const VideoAnalyzer = () => {
           let accuracyData;
           
           try {
-            accuracyResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(accuracyPayload),
-            });
-
-            accuracyData = await accuracyResp.json();
+            const accuracyResult = await evaluateWithModelFallback(accuracyPayload, setAnalysisStatus);
+            accuracyResp = accuracyResult.response;
+            accuracyData = accuracyResult.data;
             
             // Capture API call metrics - 1st call
             if (accuracyData.metrics) {
@@ -329,13 +365,9 @@ const VideoAnalyzer = () => {
           let abilityData;
 
           try {
-            abilityResp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(abilityPayload),
-            });
-
-            abilityData = await abilityResp.json();
+            const abilityResult = await evaluateWithModelFallback(abilityPayload, setAnalysisStatus);
+            abilityResp = abilityResult.response;
+            abilityData = abilityResult.data;
             
             // Capture API call metrics - 2nd call
             if (abilityData.metrics) {
@@ -415,13 +447,9 @@ const VideoAnalyzer = () => {
           let data;
 
           try {
-            resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(customPayload),
-            });
-
-            data = await resp.json();
+            const customResult = await evaluateWithModelFallback(customPayload, setAnalysisStatus);
+            resp = customResult.response;
+            data = customResult.data;
             
             // Capture API call metrics
             if (data.metrics) {
@@ -531,13 +559,9 @@ const VideoAnalyzer = () => {
           let data;
 
           try {
-            resp = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(projectPayload),
-            });
-
-            data = await resp.json();
+            const projectResult = await evaluateWithModelFallback(projectPayload, setAnalysisStatus);
+            resp = projectResult.response;
+            data = projectResult.data;
             
             // Capture API call metrics
             if (data.metrics) {
@@ -893,6 +917,11 @@ const VideoAnalyzer = () => {
                 {isAnalyzing ? "🔄 ANALYZING..." : "🎯 ANALYZE VIDEO"}
               </Button>
             </motion.div>
+            {analysisStatus && (
+              <p className="text-center text-sm font-medium text-muted-foreground" role="status">
+                {analysisStatus}
+              </p>
+            )}
           </div>
         </Card>
         </MotionWrapper>
