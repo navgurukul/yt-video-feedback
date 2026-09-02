@@ -275,37 +275,30 @@ export const ProjectPrompt = `TASK: You are a STRICT and DETERMINISTIC evaluator
 □ Is this the correct project type (Phase1 HTML / Phase2 CSS)?
 → If video doesn't match: Assign BEGINNER for all parameters and explain mismatch
 
-**STEP 2: TOPIC COVERAGE CHECK**
+**STEP 2: TOPIC COVERAGE CHECK (SUPPORTING EVIDENCE ONLY — NOT THE LEVEL DECISION)**
 Create a checklist from "Key Topics to explain" in VIDEO DETAILS:
 □ For each topic: Covered ✓ / Partial ◐ / Missing ✗
-→ Calculate coverage percentage: (Covered + Partial*0.5) / Total * 100%
+This coverage checklist gives you context about the video and feeds the "Missing topics" feedback later. It does NOT by itself set the level — STEP 3's rubric Checklist is the only thing that decides the level. Do not compute or rely on a coverage percentage when assigning a level.
 
-**STEP 3: LEVEL DETERMINATION (PER RUBRIC PARAMETER)**
-For each parameter in the rubric:
+**STEP 3: LEVEL DETERMINATION (PER RUBRIC PARAMETER) — CHECKLIST-BASED, RUBRIC IS AUTHORITATIVE**
+Each parameter in the RUBRIC includes a "Checklist" array of 7 specific, independently-checkable criteria. This checklist is the ONLY basis for the level. Do not estimate a concept-coverage percentage and do not match the video holistically against the Beginner/Intermediate/Advanced/Expert prose descriptions — those descriptions are reference context only; the Checklist is what you score against.
 
-BEGINNER - Assign if ANY are true:
-□ Topic not addressed or completely wrong
-□ Major misconceptions present
-□ Less than 40% of related concepts explained
-□ Video doesn't match expected content
+For each parameter:
+1. Go through the parameter's Checklist item by item. Mark an item YES only if the video gives clear, specific, verifiable evidence for that exact item. General impression, confident delivery, or partial/implied coverage does NOT count as YES — if in doubt, mark NO.
+2. Count the total number of YES items (0-7).
+3. Convert the count to a level using this fixed mapping:
+   □ 0-1 YES → BEGINNER
+   □ 2-4 YES → INTERMEDIATE
+   □ 5-6 YES → ADVANCED
+   □ 7 YES (ALL items) → EXPERT
 
-INTERMEDIATE - Assign if:
-□ Basic understanding demonstrated
-□ 40-69% of related concepts explained
-□ Some gaps or minor errors present
-□ Limited examples given
+**HARD GATES — apply these AFTER counting. Gates only pull a level DOWN, never up, and override the count above when triggered:**
+□ If STEP 2 shows this parameter's related topics as mostly Missing (✗) → cap at BEGINNER regardless of checklist count.
+□ If you identify any factual/technical error for this parameter (the kind you will detail in STEP 4) → cap at INTERMEDIATE, even if the checklist count alone would suggest Advanced or Expert.
+□ If the student cannot answer at least one of the rubric's sample prompts for this parameter (sample prompts appear in the Parameter field) → cap at INTERMEDIATE.
+□ Ties/ambiguity rule: if you are unsure whether a checklist item should count as YES, or the count sits exactly on a mapping boundary, resolve it as NO / the LOWER level. Never round up.
 
-ADVANCED - Assign if:
-□ Clear, accurate explanation
-□ 70-89% of related concepts explained
-□ Good examples and demonstrations
-□ Minor gaps only
-
-EXPERT - Assign ONLY if ALL are true:
-□ 90-100% of concepts explained accurately
-□ Multiple relevant examples
-□ Deep understanding with nuances
-□ Could teach others effectively
+In level_justification, state the checklist count (e.g., "5/7 checklist items met") and name which gate, if any, applied.
 
 **STEP 4: IDENTIFY AND CORRECT WRONG EXPLANATIONS**
 If the student said something INCORRECT, you MUST:
@@ -398,7 +391,7 @@ export const projectconfig = {
             },
             level_justification: {
               type: Type.STRING,
-              description: "Brief explanation of why this level was assigned based on the checklist criteria",
+              description: "State the rubric Checklist count for this parameter (e.g., '5/7 checklist items met'), which items were NOT met, and name any hard gate from STEP 3 that was applied (or 'no gate applied').",
             },
             feedback: {
               type: Type.OBJECT,
