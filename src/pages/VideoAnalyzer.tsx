@@ -23,10 +23,10 @@ import { ApiKeyContext } from "@/App";
 import { getErrorInfo, formatErrorInfo, ErrorInfo, extractErrorStatus } from "@/lib/errorMessages";
 
 const GEMINI_MODELS = [
-  "gemini-2.5-flash",
   "gemini-3.5-flash",
   "gemini-3.6-flash",
   "gemini-3.7-flash",
+  "gemini-2.5-flash",
 ] as const;
 
 const evaluateWithModelFallback = async (

@@ -26,10 +26,10 @@ app.use(express.json({ limit: '5mb' }));
 const PORT = process.env.PORT || 3001;
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 const GEMINI_MODELS = [
-  'gemini-2.5-flash',
   'gemini-3.5-flash',
   'gemini-3.6-flash',
-  'gemini-3.7-flash'
+  'gemini-3.7-flash',
+  'gemini-2.5-flash'
 ];
 
 // PostgreSQL connection configuration
