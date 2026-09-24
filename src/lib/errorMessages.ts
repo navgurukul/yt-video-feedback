@@ -78,6 +78,21 @@ const ERROR_DEFINITIONS: Record<string | number, Omit<ErrorInfo, 'code'>> = {
     icon: "🚫"
   },
 
+  409: {
+    title: "Irrelevant Video",
+    message: "Video is irrelevant. Please select the correct phase or video and submit again.",
+    severity: "warning",
+    suggestions: [
+      "Choose the phase that matches the submitted video",
+      "Select the correct topic or video title before submitting again",
+      "Verify the video content actually covers the expected lesson or project",
+      "Resubmit the same URL only after matching the correct phase/topic"
+    ],
+    retryable: true,
+    nextSteps: "Select the correct phase/video and try again",
+    icon: "🎯"
+  },
+
   500: {
     title: "Server Error",
     message: "The Gemini API service encountered an unexpected error. This is a temporary service issue.",

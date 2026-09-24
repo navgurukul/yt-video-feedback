@@ -32,6 +32,347 @@ const GEMINI_MODELS = [
   'gemini-3.7-flash'
 ];
 
+const IRRELEVANT_VIDEO_MESSAGE = 'Video is irrelevant. Please select the correct phase or video and submit again.';
+
+function decodeHtmlEntities(text = '') {
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function truncateText(text = '', maxLength = 6000) {
+  if (typeof text !== 'string' || text.length <= maxLength) {
+    return text || '';
+  }
+
+  return `${text.slice(0, maxLength)}...`;
+}
+
+function extractYouTubeVideoId(videoUrl) {
+  try {
+    const url = new URL(videoUrl);
+    const hostname = url.hostname.replace(/^www\./, '');
+
+    if (hostname === 'youtu.be') {
+      return url.pathname.split('/').filter(Boolean)[0] || null;
+    }
+
+    if (hostname.endsWith('youtube.com')) {
+      const videoId = url.searchParams.get('v');
+      if (videoId) {
+        return videoId;
+      }
+
+      if (url.pathname.startsWith('/shorts/')) {
+        return url.pathname.split('/')[2] || null;
+      }
+
+      if (url.pathname.startsWith('/embed/')) {
+        return url.pathname.split('/')[2] || null;
+      }
+    }
+  } catch (error) {
+    return null;
+  }
+
+  return null;
+}
+
+function extractAssignedJsonBlock(source, assignmentKey) {
+  const keyIndex = source.indexOf(assignmentKey);
+  if (keyIndex === -1) {
+    return null;
+  }
+
+  const startIndex = source.indexOf('{', keyIndex);
+  if (startIndex === -1) {
+    return null;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = startIndex; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) {
+      continue;
+    }
+
+    if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(startIndex, index + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function parseTranscriptText(transcriptText) {
+  if (!transcriptText) {
+    return '';
+  }
+
+  const trimmedText = transcriptText.trim();
+  if (!trimmedText) {
+    return '';
+  }
+
+  try {
+    const parsedJson = JSON.parse(trimmedText);
+
+    const transcriptEvents = parsedJson?.transcriptEvents || parsedJson?.events;
+
+    if (Array.isArray(transcriptEvents)) {
+      return transcriptEvents
+        .map((event) => {
+          if (typeof event?.segs === 'string') {
+            return event.segs;
+          }
+
+          if (Array.isArray(event?.segs)) {
+            return event.segs
+              .map((segment) => segment?.utf8 || '')
+              .join('');
+          }
+
+          return event?.utf8 || '';
+        })
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+  } catch (error) {
+    // Fall back to XML parsing below.
+  }
+
+  const textMatches = [...trimmedText.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)];
+  if (textMatches.length > 0) {
+    return textMatches
+      .map((match) => decodeHtmlEntities(match[1]).replace(/<[^>]+>/g, ' '))
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  return decodeHtmlEntities(trimmedText)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function fetchYouTubeVideoMetadata(videoUrl) {
+  const videoId = extractYouTubeVideoId(videoUrl);
+  let title = '';
+  let transcript = '';
+
+  if (!videoId) {
+    return { title, transcript };
+  }
+
+  try {
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(videoUrl)}&format=json`;
+    const oembedResponse = await fetch(oembedUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0'
+      }
+    });
+
+    if (oembedResponse.ok) {
+      const oembedData = await oembedResponse.json();
+      title = oembedData?.title || '';
+    }
+  } catch (error) {
+    console.warn('Failed to fetch YouTube oEmbed metadata:', error.message || error);
+  }
+
+  try {
+    const watchResponse = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0'
+      }
+    });
+
+    if (!watchResponse.ok) {
+      return { title, transcript };
+    }
+
+    const watchHtml = await watchResponse.text();
+
+    if (!title) {
+      const ogTitleMatch = watchHtml.match(/<meta property="og:title" content="([^"]+)"/i);
+      if (ogTitleMatch?.[1]) {
+        title = decodeHtmlEntities(ogTitleMatch[1].replace(/\s*-\s*YouTube$/i, '').trim());
+      }
+    }
+
+    const playerResponseJson = extractAssignedJsonBlock(watchHtml, 'ytInitialPlayerResponse');
+    if (!playerResponseJson) {
+      return { title, transcript };
+    }
+
+    const playerResponse = JSON.parse(playerResponseJson);
+    const captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+
+    if (!captionTracks.length) {
+      return { title, transcript };
+    }
+
+    const preferredTrack = captionTracks.find((track) => {
+      const languageCode = String(track?.languageCode || '').toLowerCase();
+      const trackName = String(track?.name?.simpleText || '').toLowerCase();
+      return languageCode.startsWith('en') || trackName.includes('english');
+    }) || captionTracks[0];
+
+    if (!preferredTrack?.baseUrl) {
+      return { title, transcript };
+    }
+
+    const transcriptResponse = await fetch(preferredTrack.baseUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0'
+      }
+    });
+
+    if (!transcriptResponse.ok) {
+      return { title, transcript };
+    }
+
+    const transcriptText = await transcriptResponse.text();
+    transcript = truncateText(parseTranscriptText(transcriptText), 6000);
+  } catch (error) {
+    console.warn('Failed to fetch YouTube transcript metadata:', error.message || error);
+  }
+
+  return { title, transcript };
+}
+
+async function runVideoRelevanceCheck({ ai, model, videoUrl, selectedPhase, selectedVideoTitle, videoDetails, evaluationType }) {
+  if (evaluationType === 'other') {
+    return { isRelevant: true };
+  }
+
+  if (!selectedPhase && !selectedVideoTitle) {
+    return { isRelevant: true };
+  }
+
+  const { title, transcript } = await fetchYouTubeVideoMetadata(videoUrl);
+  const relevancePrompt = `You are checking whether a submitted YouTube video matches the user's selected phase and topic.
+
+Return only valid JSON in this exact shape:
+{"is_relevant": true}
+or
+{"is_relevant": false}
+
+Do not provide scoring, levels, feedback, or explanations.
+
+Selected phase:
+${selectedPhase || 'Not provided'}
+
+Selected video/topic:
+${selectedVideoTitle || 'Not provided'}
+
+Expected video details:
+${videoDetails || 'Not provided'}
+
+Submitted YouTube title:
+${title || 'Unavailable'}
+
+Submitted YouTube transcript:
+${transcript || 'Transcript unavailable'}
+
+Return true only when the submitted video clearly matches the selected phase and topic and covers the expected content. Return false when the video is off-topic, unrelated, or about a different lesson or project.`;
+
+  const relevanceResponse = await ai.models.generateContentStream({
+    model,
+    config: {
+      responseMimeType: 'application/json'
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: relevancePrompt
+          }
+        ]
+      }
+    ]
+  });
+
+  let fullResponse = '';
+  let usageMetadata = null;
+  let finishReason = null;
+
+  for await (const chunk of relevanceResponse) {
+    if (chunk.text) {
+      fullResponse += chunk.text;
+    }
+
+    if (chunk.usageMetadata && !usageMetadata) {
+      usageMetadata = chunk.usageMetadata;
+    }
+
+    if (chunk.finishReason && !finishReason) {
+      finishReason = chunk.finishReason;
+    }
+  }
+
+  if (relevanceResponse.usageMetadata && !usageMetadata) {
+    usageMetadata = relevanceResponse.usageMetadata;
+  }
+
+  if (relevanceResponse.finishReason && !finishReason) {
+    finishReason = relevanceResponse.finishReason;
+  }
+
+  let parsed = null;
+
+  try {
+    parsed = JSON.parse(fullResponse);
+  } catch (error) {
+    const jsonMatch = fullResponse.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      parsed = JSON.parse(jsonMatch[0]);
+    }
+  }
+
+  const isRelevant = parsed?.is_relevant === true;
+
+  return {
+    isRelevant,
+    rawResponse: fullResponse,
+    parsed,
+    usageMetadata,
+    finishReason,
+    title,
+    transcript
+  };
+}
+
 // PostgreSQL connection configuration
 const pgConfig = {
   host: process.env.PG_HOST,
@@ -78,7 +419,7 @@ if (GEMINI_KEY) {
 
 app.post('/evaluate', async (req, res) => {
   try {
-    const { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext, model: requestedModel } = req.body;
+    const { videoUrl, videoDetails, selectedPhase, selectedVideoTitle, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext, model: requestedModel } = req.body;
     const model = requestedModel || GEMINI_MODELS[0];
 
     if (!videoUrl) return res.status(400).json({ error: 'Missing videoUrl' });
@@ -101,6 +442,57 @@ app.post('/evaluate', async (req, res) => {
 
     // Initialize Google GenAI client with the effective API key
     const ai = new GoogleGenAI({ apiKey: effectiveApiKey });
+
+    if (evaluationType !== 'other' && (selectedPhase || selectedVideoTitle)) {
+      const relevanceRequestTimestamp = new Date();
+      const relevanceStartTime = Date.now();
+
+      console.log(`--- Running relevance check before ${evaluationType} evaluation ---`);
+
+      const relevanceResult = await runVideoRelevanceCheck({
+        ai,
+        model,
+        videoUrl,
+        selectedPhase,
+        selectedVideoTitle,
+        videoDetails,
+        evaluationType
+      });
+
+      if (!relevanceResult.isRelevant) {
+        const relevanceMetrics = {
+          api_latency_ms: Date.now() - relevanceStartTime,
+          prompt_tokens: relevanceResult.usageMetadata?.promptTokenCount || null,
+          completion_tokens: relevanceResult.usageMetadata?.candidatesTokenCount || null,
+          total_tokens: relevanceResult.usageMetadata?.totalTokenCount || null,
+          finish_reason: relevanceResult.finishReason || 'UNKNOWN',
+          model_version: model,
+          timestamp: relevanceRequestTimestamp.toISOString(),
+          raw_usage_metadata: relevanceResult.usageMetadata || null,
+          http_status: 409,
+          stage: 'relevance_check'
+        };
+
+        return res.status(409).json({
+          raw: relevanceResult.rawResponse,
+          text: relevanceResult.rawResponse,
+          parsed: {
+            is_relevant: false,
+            message: IRRELEVANT_VIDEO_MESSAGE
+          },
+          metrics: relevanceMetrics,
+          error: {
+            type: 'irrelevant_video',
+            message: IRRELEVANT_VIDEO_MESSAGE,
+            details: 'Submitted video does not match the selected phase or topic.',
+            status_code: 409,
+            error_code: 'VIDEO_IRRELEVANT'
+          }
+        });
+      }
+
+      console.log('--- Relevance check passed ---');
+    }
 
     let contents;
     let config;
