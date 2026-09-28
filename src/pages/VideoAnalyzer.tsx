@@ -270,6 +270,8 @@ const VideoAnalyzer = () => {
         const payload = {
           videoUrl,
           videoDetails: videoDetailsText,
+          selectedPhase: videoType !== "other" ? selectedPhase : null,
+          selectedVideoTitle: videoType === "concept" ? selectedVideoTitle : null,
         };
         
         // Determine which rubric to use based on video type
