@@ -32,6 +32,11 @@ const GEMINI_MODELS = [
   'gemini-2.5-flash'
 ];
 
+const isGeminiModelAvailabilityError = (errorString = '') =>
+  /model.*(not found|unavailable|unsupported|quota|capacity)|(?:not found|unavailable|unsupported).*model/i.test(errorString) ||
+  /not available to new users|going obsolete|no longer available|has been (retired|deprecated)/i.test(errorString) ||
+  (/gemini-2\.5-flash/i.test(errorString) && /not (found|available)|unavailable|NOT_FOUND|obsolete/i.test(errorString));
+
 // PostgreSQL connection configuration
 const pgConfig = {
   host: process.env.PG_HOST,
@@ -253,13 +258,13 @@ ${customPrompt}
       let errorCode = error.code || 'UNKNOWN';
       
       const errorString = error.message || String(error);
+      errorMessage = errorString;
       const isAuthenticationError =
         errorString.includes('API key not valid') ||
         errorString.includes('API_KEY_INVALID') ||
         errorString.includes('PERMISSION_DENIED') ||
         errorString.includes('permission denied');
-      const hasModelErrorHint =
-        /model.*(not found|unavailable|unsupported|quota|capacity)|(?:not found|unavailable|unsupported).*model/i.test(errorString);
+      const hasModelErrorHint = isGeminiModelAvailabilityError(errorString);
       const isInvalidRequest =
         errorString.includes('INVALID_ARGUMENT') ||
         (error.status === 400 && !hasModelErrorHint);
@@ -275,40 +280,33 @@ ${customPrompt}
           /(?:code|status)["']?\s*[:=]\s*50[023]/i.test(errorString) ||
           hasModelErrorHint);
       
-      // Categorize error type for better user messaging
+      // Categorize error type; keep Gemini's original message for the UI
       if (isModelUnavailable) {
         statusCode = error.status || 503;
-        errorMessage = `Gemini model ${model} is unavailable or temporarily unavailable`;
         errorType = 'model_unavailable';
         errorCode = 'MODEL_RETRYABLE_ERROR';
       } else if (errorString.includes('API key not valid') || errorString.includes('API_KEY_INVALID')) {
         statusCode = 401;
-        errorMessage = 'API key configuration error';
         errorType = 'invalid_api_key';
         errorCode = 'API_KEY_INVALID';
       } else if (errorString.includes('quota') || errorString.includes('QUOTA_EXCEEDED')) {
         statusCode = 429;
-        errorMessage = 'API quota exceeded';
         errorType = 'quota_exceeded';
         errorCode = 'QUOTA_EXCEEDED';
       } else if (errorString.includes('INVALID_ARGUMENT') || error.status === 400) {
         statusCode = 400;
-        errorMessage = 'Invalid video or request format';
         errorType = 'invalid_argument';
         errorCode = 'INVALID_ARGUMENT';
       } else if (errorString.includes('fetch failed') || errorString.includes('ECONNREFUSED') || errorString.includes('ETIMEDOUT')) {
         statusCode = 503;
-        errorMessage = 'Unable to connect to AI service';
         errorType = 'network_error';
         errorCode = 'NETWORK_ERROR';
       } else if (errorString.includes('PERMISSION_DENIED') || errorString.includes('permission denied')) {
         statusCode = 403;
-        errorMessage = 'Permission denied by API';
         errorType = 'permission_denied';
         errorCode = 'PERMISSION_DENIED';
       } else if (errorString.includes('UNAVAILABLE') || errorString.includes('unavailable')) {
         statusCode = 503;
-        errorMessage = 'Service temporarily unavailable';
         errorType = 'service_unavailable';
         errorCode = 'SERVICE_UNAVAILABLE';
       }
@@ -338,6 +336,7 @@ ${customPrompt}
           details: errorString,
           status_code: statusCode,
           error_code: errorCode,
+          model,
           stacktrace: error.stack || 'No stack trace available'
         }
       });

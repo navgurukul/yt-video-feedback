@@ -62,10 +62,20 @@ export function ErrorPanel({
               )}
             </h3>
             
-            {/* Main message */}
-            <p className={`${subtextColor} mt-1 text-sm leading-relaxed`}>
+            {/* Main message: actual Gemini/API error */}
+            <p className={`${subtextColor} mt-1 text-sm leading-relaxed whitespace-pre-wrap break-words`}>
               {error.message}
             </p>
+            {error.model && (
+              <p className={`text-xs ${subtextColor} mt-1 opacity-80`}>
+                Model: {error.model}
+              </p>
+            )}
+            {error.actualError && error.actualError !== error.message && (
+              <pre className={`mt-2 p-2 text-xs font-mono whitespace-pre-wrap break-words bg-white/70 rounded ${subtextColor}`}>
+                {error.actualError}
+              </pre>
+            )}
 
             {/* Partial results section if available */}
             {hasPartialResults && evaluationType === 'concept-ability' && (

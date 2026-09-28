@@ -14,6 +14,8 @@ export interface ErrorInfo {
   icon?: string;
   errorTrackingId?: string;
   evaluationPhase?: "accuracy" | "ability" | "project" | "custom";
+  actualError?: string;
+  model?: string;
 }
 
 // Error definitions with messages and suggestions
@@ -244,6 +246,31 @@ export function extractErrorStatus(error: any, httpStatus?: number): number | st
   return "UNKNOWN_ERROR";
 }
 
+const GEMINI_RETRY_LATER_PATTERN =
+  /not available to new users|going obsolete|no longer available|has been (retired|deprecated)|model[s]?\/[^\s]+ is not found|unsupported model|MODEL_RETRYABLE_ERROR|model_unavailable/i;
+
+export function isGeminiRetryLaterError(error: any, actualError = ""): boolean {
+  const type = error?.type || error?.error?.type;
+  const code = error?.error_code || error?.error?.error_code;
+  const haystack = `${actualError} ${error?.message || ""} ${error?.details || ""}`;
+
+  return (
+    type === "model_unavailable" ||
+    code === "MODEL_RETRYABLE_ERROR" ||
+    GEMINI_RETRY_LATER_PATTERN.test(haystack)
+  );
+}
+
+/**
+ * Prefer the raw Gemini API error (usually in `details`) over generic mapped copy.
+ */
+export function extractActualGeminiError(error: any): string {
+  if (typeof error?.details === "string" && error.details.trim()) {
+    return error.details.trim();
+  }
+  return extractErrorMessage(error);
+}
+
 /**
  * Extract a meaningful message from nested error responses
  * Handles deeply nested Gemini API error structures
@@ -302,7 +329,64 @@ export function formatErrorInfo(
   evaluationPhase?: "accuracy" | "ability" | "project" | "custom"
 ): ErrorInfo {
   const status = extractErrorStatus(error, httpStatus);
+  const actualError = extractActualGeminiError(error);
+  const model = error?.model || error?.error?.model;
+  const isQuotaError =
+    status === 429 ||
+    error?.type === "quota_exceeded" ||
+    error?.error_code === "QUOTA_EXCEEDED" ||
+    /quota|RESOURCE_EXHAUSTED/i.test(actualError);
+
+  if (isGeminiRetryLaterError(error, actualError) && !isQuotaError) {
+    const involvesObsoleteFlash =
+      model === "gemini-2.5-flash" || /gemini-2\.5-flash|not available to new users|going obsolete/i.test(actualError);
+
+    const suggestions = [
+      "Try evaluating this YouTube video again in a few minutes.",
+      "The next attempt should complete with Gemini 3.5 Flash, Gemini 3.6 Flash, or Gemini 3.7 Flash.",
+    ];
+    if (involvesObsoleteFlash) {
+      suggestions.push(
+        "Gemini 2.5 Flash is being retired in October 2026 and is not available to new users, so that last fallback can fail even when a newer model would succeed after a short wait.",
+      );
+    }
+
+    const errorInfo: ErrorInfo = {
+      code: status,
+      title: "Gemini evaluation failed",
+      message: actualError,
+      severity: "warning",
+      suggestions,
+      retryable: true,
+      nextSteps:
+        "Please try again shortly so the evaluation can complete successfully with Gemini 3.5, 3.6, or 3.7 Flash.",
+      icon: "⚠️",
+      actualError,
+      model,
+    };
+
+    errorInfo.errorTrackingId = generateErrorTrackingId();
+    if (evaluationPhase) {
+      errorInfo.evaluationPhase = evaluationPhase;
+    }
+    return errorInfo;
+  }
+
   const errorInfo = getErrorInfo(status, error);
+
+  // Show the actual Gemini/API error instead of only a generic mapped title.
+  if (actualError && actualError !== "An unexpected error occurred") {
+    errorInfo.message = actualError;
+  }
+  errorInfo.actualError = actualError;
+  errorInfo.model = model;
+
+  if (errorInfo.retryable) {
+    const retryHint = "Try the evaluation again. A retry often completes successfully.";
+    if (!errorInfo.suggestions.some((item) => /try (the evaluation )?again/i.test(item))) {
+      errorInfo.suggestions = [retryHint, ...errorInfo.suggestions];
+    }
+  }
 
   // Add error tracking ID for debugging
   errorInfo.errorTrackingId = generateErrorTrackingId();
@@ -313,12 +397,12 @@ export function formatErrorInfo(
   }
 
   // For quota errors, try to extract retry timing
-  if (status === 429 && error?.message) {
-    const match = error.message.match(/Retry in (\d+\.\d+)ms/);
+  if (status === 429) {
+    const match = `${actualError} ${error?.message || ""}`.match(/Retry in (\d+\.\d+)ms/);
     if (match) {
       const ms = parseFloat(match[1]);
       const seconds = Math.ceil(ms / 1000);
-      errorInfo.nextSteps = `Please wait ${seconds} seconds before retrying.`;
+      errorInfo.nextSteps = `Please wait ${seconds} seconds and try again for a successful evaluation.`;
     }
   }
 

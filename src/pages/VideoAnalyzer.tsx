@@ -20,7 +20,7 @@ import { getProjectVideoForPhase } from "@/data/phasevideodata";
 import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric,Phase5Rubric, Phase6Rubric, Phase7Rubric } from "@/data/RubricData";
 import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig, CustomPrompt, CustomConfig} from '@/data/prompt'
 import { ApiKeyContext } from "@/App";
-import { getErrorInfo, formatErrorInfo, ErrorInfo, extractErrorStatus } from "@/lib/errorMessages";
+import { formatErrorInfo, ErrorInfo, isGeminiRetryLaterError } from "@/lib/errorMessages";
 
 const GEMINI_MODELS = [
   "gemini-3.5-flash",
@@ -49,11 +49,12 @@ const evaluateWithModelFallback = async (
     const isFallbackEligible =
       errorType === "model_unavailable" ||
       errorCode === "MODEL_RETRYABLE_ERROR" ||
+      isGeminiRetryLaterError(data?.error, errorDetails) ||
       response.status === 404 ||
       response.status === 408 ||
       response.status === 429 ||
       response.status >= 500 ||
-      /service unavailable|high demand|overloaded|temporarily unavailable/i.test(errorDetails);
+      /service unavailable|high demand|overloaded|temporarily unavailable|not available to new users/i.test(errorDetails);
 
     if (response.ok || !isFallbackEligible) {
       if (response.ok) onStatus(`Using ${model}`);
@@ -65,7 +66,7 @@ const evaluateWithModelFallback = async (
     if (nextModel) {
       onStatus(`${model} failed. Trying ${nextModel}...`);
     } else {
-      onStatus(`${failedModels.join(', ')} failed. Please try again later.`);
+      onStatus(`${failedModels.join(', ')} failed. Try again shortly so Gemini 3.5, 3.6, or 3.7 Flash can complete the evaluation.`);
       return { response, data, actualModelUsed: null };
     }
   }
