@@ -24,9 +24,10 @@ import { formatErrorInfo, ErrorInfo, isGeminiRetryLaterError } from "@/lib/error
 
 const GEMINI_MODELS = [
   "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
   "gemini-3.6-flash",
   "gemini-3.7-flash",
-  "gemini-2.5-flash",
+  "gemini-3.8-flash",
 ] as const;
 
 const evaluateWithModelFallback = async (
@@ -66,7 +67,7 @@ const evaluateWithModelFallback = async (
     if (nextModel) {
       onStatus(`${model} failed. Trying ${nextModel}...`);
     } else {
-      onStatus(`${failedModels.join(', ')} failed. Try again shortly so Gemini 3.5, 3.6, or 3.7 Flash can complete the evaluation.`);
+      onStatus(`${failedModels.join(', ')} failed. Try again shortly so Gemini can complete the evaluation.`);
       return { response, data, actualModelUsed: null };
     }
   }

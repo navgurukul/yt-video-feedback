@@ -27,15 +27,16 @@ const PORT = process.env.PORT || 3001;
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 const GEMINI_MODELS = [
   'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
   'gemini-3.6-flash',
   'gemini-3.7-flash',
-  'gemini-2.5-flash'
+  'gemini-3.8-flash'
 ];
 
 const isGeminiModelAvailabilityError = (errorString = '') =>
   /model.*(not found|unavailable|unsupported|quota|capacity)|(?:not found|unavailable|unsupported).*model/i.test(errorString) ||
   /not available to new users|going obsolete|no longer available|has been (retired|deprecated)/i.test(errorString) ||
-  (/gemini-2\.5-flash/i.test(errorString) && /not (found|available)|unavailable|NOT_FOUND|obsolete/i.test(errorString));
+  /not (found|available)|unavailable|NOT_FOUND|obsolete/i.test(errorString);
 
 // PostgreSQL connection configuration
 const pgConfig = {
