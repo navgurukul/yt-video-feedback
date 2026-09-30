@@ -30,6 +30,8 @@ const GEMINI_MODELS = [
 ] as const;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const MAX_MODEL_PASSES = 3;
+const PASS_BACKOFF_MS = [2000, 4000];
 
 const evaluateWithModelFallback = async (
   payload: Record<string, unknown>,
@@ -39,68 +41,79 @@ const evaluateWithModelFallback = async (
   let lastResponse: Response | null = null;
   let lastData: any = null;
 
-  for (const [modelIndex, model] of GEMINI_MODELS.entries()) {
-    onStatus(`Trying ${model}...`);
-    let response: Response;
-    let data: any;
+  for (let passIndex = 0; passIndex < MAX_MODEL_PASSES; passIndex += 1) {
+    const passNumber = passIndex + 1;
+    const passFailedModels: string[] = [];
 
-    try {
-      response = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, model }),
-      });
-      data = await response.json();
-      lastResponse = response;
-      lastData = data;
-    } catch (requestError) {
-      lastResponse = new Response(null, { status: 503, statusText: 'Service Unavailable' });
-      lastData = {
-        error: {
-          type: 'network_error',
-          message: requestError instanceof Error ? requestError.message : 'Evaluation request failed',
-          details: String(requestError),
-        },
-      };
+    for (const [modelIndex, model] of GEMINI_MODELS.entries()) {
+      onStatus(`Pass ${passNumber}/${MAX_MODEL_PASSES}: trying ${model}...`);
+      let response: Response;
+      let data: any;
 
-      const nextModel = GEMINI_MODELS[modelIndex + 1];
-      if (!nextModel) break;
+      try {
+        response = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...payload, model }),
+        });
+        data = await response.json();
+        lastResponse = response;
+        lastData = data;
+      } catch (requestError) {
+        lastResponse = new Response(null, { status: 503, statusText: 'Service Unavailable' });
+        lastData = {
+          error: {
+            type: 'network_error',
+            message: requestError instanceof Error ? requestError.message : 'Evaluation request failed',
+            details: String(requestError),
+          },
+        };
+
+        failedModels.push(model);
+        passFailedModels.push(model);
+        const nextModel = GEMINI_MODELS[modelIndex + 1];
+        if (nextModel) {
+          onStatus(`${model} failed. Trying ${nextModel}...`);
+        }
+        continue;
+      }
+
+      const errorType = data?.error?.type;
+      const errorCode = data?.error?.error_code;
+      const errorDetails = `${data?.error?.message || ""} ${data?.error?.details || ""}`;
+      const isModelAvailabilityError =
+        isGeminiRetryLaterError(data?.error, errorDetails) ||
+        /model.*(not found|unavailable|unsupported|retired|deprecated)|(?:not found|unavailable|unsupported).*model/i.test(errorDetails);
+      const isTransientError =
+        errorType === "network_error" ||
+        errorCode === "NETWORK_ERROR" ||
+        response.status === 408 ||
+        response.status === 429 ||
+        response.status >= 500 ||
+        /service unavailable|high demand|overloaded|temporarily unavailable|capacity|quota exceeded/i.test(errorDetails);
+      const isFallbackEligible = isModelAvailabilityError || isTransientError;
+
+      if (response.ok || !isFallbackEligible) {
+        if (response.ok) onStatus(`Using ${model} on pass ${passNumber}`);
+        return { response, data, actualModelUsed: response.ok ? model : null };
+      }
+
       failedModels.push(model);
-      onStatus(`${model} failed. Trying ${nextModel}...`);
-      await delay(1000 * (modelIndex + 1));
-      continue;
+      passFailedModels.push(model);
+      const nextModel = GEMINI_MODELS[modelIndex + 1];
+      if (nextModel) {
+        onStatus(`${model} failed. Trying ${nextModel}...`);
+      }
     }
 
-    const errorType = data?.error?.type;
-    const errorCode = data?.error?.error_code;
-    const errorDetails = `${data?.error?.message || ""} ${data?.error?.details || ""}`;
-    const isModelAvailabilityError =
-      isGeminiRetryLaterError(data?.error, errorDetails) ||
-      /model.*(not found|unavailable|unsupported|retired|deprecated)|(?:not found|unavailable|unsupported).*model/i.test(errorDetails);
-    const isTransientError =
-      errorType === "network_error" ||
-      errorCode === "NETWORK_ERROR" ||
-      response.status === 408 ||
-      response.status === 429 ||
-      response.status >= 500 ||
-      /service unavailable|high demand|overloaded|temporarily unavailable|capacity|quota exceeded/i.test(errorDetails);
-    const isFallbackEligible = isModelAvailabilityError || isTransientError;
-
-    if (response.ok || !isFallbackEligible) {
-      if (response.ok) onStatus(`Using ${model}`);
-      return { response, data, actualModelUsed: response.ok ? model : null };
-    }
-
-    failedModels.push(model);
-    const nextModel = GEMINI_MODELS[modelIndex + 1];
-    if (nextModel) {
-      onStatus(`${model} failed. Trying ${nextModel}...`);
-      if (isTransientError) await delay(1000 * (modelIndex + 1));
-    } else {
-      onStatus(`${failedModels.join(', ')} failed. Try again shortly so Gemini can complete the evaluation.`);
+    if (passIndex < MAX_MODEL_PASSES - 1) {
+      const backoffMs = PASS_BACKOFF_MS[passIndex];
+      onStatus(`Pass ${passNumber} failed (${passFailedModels.join(', ')}). Retrying all models in ${backoffMs / 1000}s...`);
+      await delay(backoffMs);
     }
   }
 
+  onStatus(`${failedModels.join(', ')} failed across ${MAX_MODEL_PASSES} passes. Try again shortly so Gemini can complete the evaluation.`);
   return { response: lastResponse, data: lastData, actualModelUsed: null };
 };
 
