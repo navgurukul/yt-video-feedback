@@ -29,32 +29,62 @@ const GEMINI_MODELS = [
   "gemini-3.8-flash",
 ] as const;
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const evaluateWithModelFallback = async (
   payload: Record<string, unknown>,
   onStatus: (status: string) => void,
 ) => {
   const failedModels: string[] = [];
+  let lastResponse: Response | null = null;
+  let lastData: any = null;
 
-  for (const model of GEMINI_MODELS) {
+  for (const [modelIndex, model] of GEMINI_MODELS.entries()) {
     onStatus(`Trying ${model}...`);
-    const response = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...payload, model }),
-    });
-    const data = await response.json();
+    let response: Response;
+    let data: any;
+
+    try {
+      response = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, model }),
+      });
+      data = await response.json();
+      lastResponse = response;
+      lastData = data;
+    } catch (requestError) {
+      lastResponse = new Response(null, { status: 503, statusText: 'Service Unavailable' });
+      lastData = {
+        error: {
+          type: 'network_error',
+          message: requestError instanceof Error ? requestError.message : 'Evaluation request failed',
+          details: String(requestError),
+        },
+      };
+
+      const nextModel = GEMINI_MODELS[modelIndex + 1];
+      if (!nextModel) break;
+      failedModels.push(model);
+      onStatus(`${model} failed. Trying ${nextModel}...`);
+      await delay(1000 * (modelIndex + 1));
+      continue;
+    }
+
     const errorType = data?.error?.type;
     const errorCode = data?.error?.error_code;
     const errorDetails = `${data?.error?.message || ""} ${data?.error?.details || ""}`;
-    const isFallbackEligible =
-      errorType === "model_unavailable" ||
-      errorCode === "MODEL_RETRYABLE_ERROR" ||
+    const isModelAvailabilityError =
       isGeminiRetryLaterError(data?.error, errorDetails) ||
-      response.status === 404 ||
+      /model.*(not found|unavailable|unsupported|retired|deprecated)|(?:not found|unavailable|unsupported).*model/i.test(errorDetails);
+    const isTransientError =
+      errorType === "network_error" ||
+      errorCode === "NETWORK_ERROR" ||
       response.status === 408 ||
       response.status === 429 ||
       response.status >= 500 ||
-      /service unavailable|high demand|overloaded|temporarily unavailable|not available to new users/i.test(errorDetails);
+      /service unavailable|high demand|overloaded|temporarily unavailable|capacity|quota exceeded/i.test(errorDetails);
+    const isFallbackEligible = isModelAvailabilityError || isTransientError;
 
     if (response.ok || !isFallbackEligible) {
       if (response.ok) onStatus(`Using ${model}`);
@@ -62,14 +92,16 @@ const evaluateWithModelFallback = async (
     }
 
     failedModels.push(model);
-    const nextModel = GEMINI_MODELS[GEMINI_MODELS.indexOf(model) + 1];
+    const nextModel = GEMINI_MODELS[modelIndex + 1];
     if (nextModel) {
       onStatus(`${model} failed. Trying ${nextModel}...`);
+      if (isTransientError) await delay(1000 * (modelIndex + 1));
     } else {
       onStatus(`${failedModels.join(', ')} failed. Try again shortly so Gemini can complete the evaluation.`);
-      return { response, data, actualModelUsed: null };
     }
   }
+
+  return { response: lastResponse, data: lastData, actualModelUsed: null };
 };
 
 const VideoAnalyzer = () => {
