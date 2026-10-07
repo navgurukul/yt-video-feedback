@@ -29,6 +29,8 @@ const GEMINI_MODELS = [
   "gemini-3.8-flash",
 ] as const;
 
+const API_BASE_URL = import.meta.env.VITE_EVAL_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const MAX_MODEL_PASSES = 3;
 const PASS_BACKOFF_MS = [2000, 4000];
@@ -51,7 +53,7 @@ const evaluateWithModelFallback = async (
       let data: any;
 
       try {
-        response = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+        response = await fetch(`${API_BASE_URL}/evaluate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...payload, model }),
@@ -214,6 +216,63 @@ const VideoAnalyzer = () => {
     };
   };
 
+  const saveFailedRequest = async (
+    failedPayload: Record<string, unknown>,
+    errorType: string,
+    errorMessage: string,
+  ) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+
+      let activeUser: any = null;
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (!sessionError && sessionData?.session?.user) {
+        activeUser = sessionData.session.user;
+      }
+
+      if (!activeUser) {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (!userError) activeUser = userData?.user ?? null;
+      }
+
+      if (!activeUser || !activeUser.email) {
+        console.warn('Failed request not saved because no active authenticated user was found.');
+        return false;
+      }
+
+      const requestBody = {
+        userId: activeUser.id,
+        userEmail: activeUser.email,
+        ...failedPayload,
+        errorType,
+        errorMessage,
+        request_payload: {
+          ...failedPayload,
+          userId: activeUser.id,
+          userEmail: activeUser.email,
+        }
+      };
+
+      const response = await fetch(`${API_BASE_URL}/failed-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Failed request save API rejected the payload:', result);
+        return false;
+      }
+
+      console.log('Failed request saved for retry:', result);
+      return true;
+    } catch (saveError) {
+      console.warn('Failed to save evaluation request for retry:', saveError);
+      return false;
+    }
+  };
+
   const handleAnalyze = () => {
     setError("");
     setErrorInfo(null);
@@ -307,10 +366,12 @@ const VideoAnalyzer = () => {
       duration: Infinity // Keep toast visible until manually dismissed
     });
 
+    
     (async () => {
+      let projectRubric: any = null;
       try {
         let evaluationPayload = {};
-        let projectRubric = null;
+        // let projectRubric: any = null;
         
         // Create payload with common fields
         const payload = {
@@ -395,13 +456,25 @@ const VideoAnalyzer = () => {
             setShowCelebration(false);
             dismiss();
             
-            // Extract and format error info - prioritize HTTP status code from response
             const httpStatus = accuracyResp?.status || 500;
             const formattedError = formatErrorInfo(
               accuracyData?.error || {},
               !accuracyResp?.ok ? httpStatus : undefined,
               "accuracy"
             );
+
+            await saveFailedRequest({
+              videoUrl,
+              videoType,
+              selectedPhase,
+              selectedVideoTitle,
+              videoDetails: videoDetailsText,
+              promptbegining: AccuracyPrompt,
+              rubric: {},
+              structuredreturnedconfig: AccuracyConfig,
+              customPrompt: null,
+              customContext: null,
+            }, accuracyData?.error?.type || 'GEMINI_ERROR', formattedError.message);
             
             setErrorInfo(formattedError);
             setError(formattedError.message);
@@ -473,6 +546,19 @@ const VideoAnalyzer = () => {
             // This will be handled in AnalysisResults to show accuracy + error banner
             
             // For now, treat as critical error on ability alone but preserve accuracy
+            await saveFailedRequest({
+              videoUrl,
+              videoType,
+              selectedPhase,
+              selectedVideoTitle,
+              videoDetails: videoDetailsText,
+              promptbegining: AbilityToExplainPrompt,
+              rubric: abilityToExplainRubric,
+              structuredreturnedconfig: AbilityToExplainConfig,
+              customPrompt: null,
+              customContext: null,
+            }, abilityData?.error?.type || 'GEMINI_ERROR', formattedError.message);
+
             setErrorInfo(formattedError);
             setError(formattedError.message);
             setIsAnalyzing(false);
@@ -566,6 +652,19 @@ const VideoAnalyzer = () => {
               "custom"
             );
             
+            await saveFailedRequest({
+              videoUrl,
+              videoType,
+              selectedPhase: null,
+              selectedVideoTitle: null,
+              videoDetails: videoDetailsText,
+              promptbegining: CustomPrompt,
+              rubric: {},
+              structuredreturnedconfig: CustomConfig,
+              customPrompt,
+              customContext,
+            }, data?.error?.type || 'GEMINI_ERROR', formattedError.message);
+
             setErrorInfo(formattedError);
             setError(formattedError.message);
             setIsAnalyzing(false);
@@ -681,6 +780,19 @@ const VideoAnalyzer = () => {
               "project"
             );
             
+            await saveFailedRequest({
+              videoUrl,
+              videoType,
+              selectedPhase,
+              selectedVideoTitle: null,
+              videoDetails: videoDetailsText,
+              promptbegining: ProjectPrompt,
+              rubric: projectRubric || {},
+              structuredreturnedconfig: projectconfig,
+              customPrompt: null,
+              customContext: null,
+            }, data?.error?.type || 'GEMINI_ERROR', formattedError.message);
+
             setErrorInfo(formattedError);
             setError(formattedError.message);
             setIsAnalyzing(false);
@@ -759,6 +871,19 @@ const VideoAnalyzer = () => {
         }, 800);
       } catch (err: any) {
         console.error('Evaluation error', err);
+        await saveFailedRequest({
+          videoUrl,
+          videoType,
+          selectedPhase: videoType !== 'other' ? selectedPhase : null,
+          selectedVideoTitle: videoType === 'concept' ? selectedVideoTitle : null,
+          videoDetails: videoDetailsText,
+          promptbegining: videoType === 'concept' ? AccuracyPrompt : videoType === 'project' ? ProjectPrompt : CustomPrompt,
+          rubric: videoType === 'project' ? projectRubric ?? {} : {},
+          structuredreturnedconfig: videoType === 'concept' ? AccuracyConfig : videoType === 'project' ? projectconfig : CustomConfig,
+          customPrompt: videoType === 'other' ? customPrompt : null,
+          customContext: videoType === 'other' ? customContext : null,
+        }, 'GENERIC_EVALUATION_ERROR', err?.message || 'Evaluation failed unexpectedly');
+
         setShowCelebration(false);
         dismiss(); // Dismiss the processing toast on error
         setError('Evaluation failed. See console for details.');

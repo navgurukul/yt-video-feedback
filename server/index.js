@@ -1533,6 +1533,455 @@ const saveManualEvaluation = async (req, res) => {
 app.post('/manual-evaluation', saveManualEvaluation);
 app.post('/api/manual-evaluation', saveManualEvaluation);
 
+async function ensureFailedRequestsTable() {
+  try {
+    await pgPool.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto;`);
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS public.tbl_failed_requests (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id TEXT NOT NULL,
+        user_email TEXT NOT NULL,
+        video_url TEXT NOT NULL,
+        video_type TEXT NOT NULL,
+        selected_phase TEXT,
+        selected_video_title TEXT,
+        video_details TEXT,
+        promptbegining TEXT,
+        rubric JSONB,
+        structuredreturnedconfig JSONB,
+        custom_prompt TEXT,
+        custom_context TEXT,
+        request_payload JSONB,
+        error_type TEXT,
+        error_message TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await pgPool.query(`
+      CREATE INDEX IF NOT EXISTS idx_failed_requests_user_email
+      ON public.tbl_failed_requests (user_email, created_at DESC);
+    `);
+
+    await pgPool.query(`
+      CREATE INDEX IF NOT EXISTS idx_failed_requests_user_id
+      ON public.tbl_failed_requests (user_id);
+    `);
+
+    console.log('failed_requests table ready');
+  } catch (error) {
+    console.error('Error ensuring failed_requests table exists:', error);
+  }
+}
+
+ensureFailedRequestsTable();
+
+function normalizeFailedRequestData(body = {}) {
+  const payload = body.request_payload && typeof body.request_payload === 'object' ? body.request_payload : {};
+
+  return {
+    userId: body.userId || body.user_id || payload.userId || payload.user_id || '',
+    userEmail: body.userEmail || body.user_email || payload.userEmail || payload.user_email || '',
+    videoUrl: body.videoUrl || body.video_url || payload.videoUrl || payload.video_url || '',
+    videoType: body.videoType || body.video_type || payload.videoType || payload.video_type || 'project',
+    selectedPhase: body.selectedPhase ?? body.selected_phase ?? payload.selectedPhase ?? payload.selected_phase ?? null,
+    selectedVideoTitle: body.selectedVideoTitle ?? body.selected_video_title ?? payload.selectedVideoTitle ?? payload.selected_video_title ?? null,
+    videoDetails: body.videoDetails ?? body.video_details ?? payload.videoDetails ?? payload.video_details ?? null,
+    promptbegining: body.promptbegining ?? payload.promptbegining ?? null,
+    rubric: body.rubric ?? payload.rubric ?? null,
+    structuredreturnedconfig: body.structuredreturnedconfig ?? payload.structuredreturnedconfig ?? null,
+    customPrompt: body.customPrompt ?? body.custom_prompt ?? payload.customPrompt ?? payload.custom_prompt ?? null,
+    customContext: body.customContext ?? body.custom_context ?? payload.customContext ?? payload.custom_context ?? null,
+    errorType: body.errorType || body.error_type || 'UNKNOWN_ERROR',
+    errorMessage: body.errorMessage || body.error_message || 'Evaluation failed',
+    requestPayload: body.request_payload || payload
+  };
+}
+
+const sanitizeRequestPayload = (payload = {}) => {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null;
+  }
+
+  const sanitized = { ...payload };
+  delete sanitized.apiKey;
+  delete sanitized.api_key;
+  delete sanitized.geminiApiKey;
+  delete sanitized.gemini_api_key;
+
+  return Object.keys(sanitized).length ? sanitized : null;
+};
+
+const toJson = (v) =>
+  v === undefined || v === null || v === '' ? null : JSON.stringify(v);
+
+const toText = (v) =>
+  v === undefined || v === null ? null : (typeof v === 'string' ? v : JSON.stringify(v));
+
+app.post('/failed-requests', async (req, res) => {
+  try {
+    const normalized = normalizeFailedRequestData(req.body);
+    const { userId, userEmail, videoUrl, videoType, selectedPhase, selectedVideoTitle, videoDetails, promptbegining, rubric, structuredreturnedconfig, customPrompt, customContext, errorType, errorMessage, requestPayload } = normalized;
+
+    if (!userId || !userEmail || !videoUrl) {
+      return res.status(400).json({ error: 'Missing required fields: userId, userEmail, videoUrl' });
+    }
+
+    const sanitizedRequestPayload = sanitizeRequestPayload(requestPayload);
+
+    const insertQuery = `
+      INSERT INTO public.tbl_failed_requests (
+        user_id,
+        user_email,
+        video_url,
+        video_type,
+        selected_phase,
+        selected_video_title,
+        video_details,
+        promptbegining,
+        rubric,
+        structuredreturnedconfig,
+        custom_prompt,
+        custom_context,
+        request_payload,
+        error_type,
+        error_message,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12, $13::jsonb, $14, $15, NOW())
+      RETURNING *;
+    `;
+
+    const values = [
+      String(userId),
+      String(userEmail).trim().toLowerCase(),
+      videoUrl,
+      videoType,
+      selectedPhase ?? null,
+      selectedVideoTitle ?? null,
+      toText(videoDetails),
+      toText(promptbegining),
+      toJson(rubric),
+      toJson(structuredreturnedconfig),
+      toText(customPrompt),
+      toText(customContext),
+      sanitizedRequestPayload ? toJson(sanitizedRequestPayload) : null,
+      toText(errorType) || 'UNKNOWN_ERROR',
+      toText(errorMessage) || 'Evaluation failed'
+    ];
+
+    const result = await pgPool.query(insertQuery, values);
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating failed request:', error);
+    res.status(500).json({
+      error: error.message || 'Failed to save failed request',
+      code: error.code || 'FAILED_REQUEST_INSERT_FAILED'
+    });
+  }
+});
+
+app.get('/failed-requests', async (req, res) => {
+  try {
+    const userEmail = req.query.email || req.query.userEmail;
+    if (!userEmail) {
+      return res.status(400).json({ error: 'Email parameter is required' });
+    }
+
+    const query = `
+      SELECT *
+      FROM public.tbl_failed_requests
+      WHERE user_email = $1
+      ORDER BY created_at DESC
+    `;
+
+    const result = await pgPool.query(query, [String(userEmail)]);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching failed requests:', error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+
+app.get('/failed-requests/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userEmail = req.query.email || req.query.userEmail;
+
+    const query = `
+      SELECT *
+      FROM public.tbl_failed_requests
+      WHERE id = $1
+      ${userEmail ? 'AND user_email = $2' : ''}
+    `;
+    const values = userEmail ? [id, String(userEmail)] : [id];
+
+    const result = await pgPool.query(query, values);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Failed request not found' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error fetching failed request:', error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+
+app.delete('/failed-requests/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userEmail = req.query.email || req.query.userEmail;
+
+    if (!userEmail) {
+      return res.status(400).json({ error: 'Email parameter is required' });
+    }
+
+    const query = `
+      DELETE FROM public.tbl_failed_requests
+      WHERE id = $1 AND user_email = $2
+      RETURNING id
+    `;
+
+    const result = await pgPool.query(query, [id, String(userEmail)]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Failed request not found or not owned by user' });
+    }
+
+    res.json({ success: true, message: 'Failed request deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting failed request:', error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+
+app.post('/failed-requests/:id/retry', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userEmail, userId, apiKey: clientApiKey } = req.body || {};
+
+    const rowQuery = `
+      SELECT *
+      FROM public.tbl_failed_requests
+      WHERE id = $1
+      ${userEmail ? 'AND user_email = $2' : ''}
+      ${!userEmail && userId ? 'AND user_id = $2' : ''}
+    `;
+
+    const rowValues = userEmail ? [id, String(userEmail)] : userId ? [id, String(userId)] : [id];
+    const rowResult = await pgPool.query(rowQuery, rowValues);
+
+    if (rowResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Failed request not found' });
+    }
+
+    const failedRequest = rowResult.rows[0];
+    const requestPayload = failedRequest.request_payload && typeof failedRequest.request_payload === 'object'
+      ? { ...failedRequest.request_payload }
+      : {
+          videoUrl: failedRequest.video_url,
+          videoType: failedRequest.video_type,
+          selectedPhase: failedRequest.selected_phase,
+          selectedVideoTitle: failedRequest.selected_video_title,
+          videoDetails: failedRequest.video_details,
+          promptbegining: failedRequest.promptbegining,
+          rubric: failedRequest.rubric || {},
+          structuredreturnedconfig: failedRequest.structuredreturnedconfig || {},
+          customPrompt: failedRequest.custom_prompt,
+          customContext: failedRequest.custom_context,
+          userId: failedRequest.user_id,
+          userEmail: failedRequest.user_email,
+          apiKey: null
+        };
+
+    const apiKey = clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        error: { type: 'missing_api_key', message: 'GEMINI_API_KEY not configured' },
+        status: 'failed'
+      });
+    }
+
+    const videoType = (requestPayload.videoType || failedRequest.video_type || 'project').toLowerCase();
+    if (videoType === 'concept') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          type: 'concept_retry_unsupported',
+          message: 'Concept retry is not supported yet. Please re-run the concept evaluation manually.'
+        },
+        status: 'failed'
+      });
+    }
+
+    const evaluationType = requestPayload.evaluationType || (videoType === 'other' ? 'custom' : 'project');
+    const apiBaseUrl = process.env.VITE_EVAL_API_URL || process.env.API_BASE_URL || 'http://localhost:3001';
+    const maxPasses = 3;
+    const retryableStatuses = new Set([408, 429, 500, 502, 503, 504]);
+    let lastError = { type: 'GEMINI_ERROR', message: 'Retry failed' };
+    let lastStatus = 503;
+    let usedModel = null;
+
+    for (let pass = 0; pass < maxPasses; pass += 1) {
+      for (const model of GEMINI_MODELS) {
+        try {
+          const evaluateBody = {
+            ...requestPayload,
+            apiKey,
+            model,
+            evaluationType
+          };
+
+          const response = await fetch(`${apiBaseUrl}/evaluate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(evaluateBody)
+          });
+
+          let data;
+          const rawText = await response.text();
+          try {
+            data = rawText ? JSON.parse(rawText) : {};
+          } catch (parseError) {
+            data = { error: { type: 'INVALID_RESPONSE', message: rawText || 'Gemini returned an invalid response' } };
+          }
+
+          if (response.ok && !data.error) {
+            if (!data.parsed) {
+              return res.status(502).json({
+                success: false,
+                error: { type: 'EMPTY_RESULT', message: 'Gemini returned empty result' },
+                status: 'failed'
+              });
+            }
+
+            usedModel = model;
+
+            const storeBody = {
+              userId: failedRequest.user_id || requestPayload.userId || requestPayload.user_id || userId || null,
+              userEmail: failedRequest.user_email || requestPayload.userEmail || requestPayload.user_email || userEmail || null,
+              videoUrl: failedRequest.video_url || requestPayload.videoUrl || requestPayload.video_url || null,
+              videoType,
+              evaluationData: {
+                evaluation_result: data.parsed,
+                actual_model_used: usedModel,
+                api_calls: [{
+                  call_number: 1,
+                  evaluation_type: evaluationType,
+                  metrics: data.metrics || { model_version: usedModel, http_status: 200 }
+                }],
+                issues: []
+              },
+              selectedPhase: failedRequest.selected_phase ?? requestPayload.selectedPhase ?? requestPayload.selected_phase ?? null,
+              selectedVideoTitle: failedRequest.selected_video_title ?? requestPayload.selectedVideoTitle ?? requestPayload.selected_video_title ?? null,
+              customPrompt: failedRequest.custom_prompt ?? requestPayload.customPrompt ?? requestPayload.custom_prompt ?? null,
+              customContext: failedRequest.custom_context ?? requestPayload.customContext ?? requestPayload.custom_context ?? null,
+              videoDetails: failedRequest.video_details ?? requestPayload.videoDetails ?? requestPayload.video_details ?? null
+            };
+
+            const storeResponse = await fetch(`${apiBaseUrl}/store-evaluation`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(storeBody)
+            });
+
+            const storeData = await storeResponse.json().catch(() => ({ success: true }));
+
+            if (!storeResponse.ok) {
+              return res.status(storeResponse.status || 500).json({
+                success: false,
+                error: storeData?.error || { type: 'STORE_FAILED', message: 'Failed to save retry result' },
+                status: 'failed'
+              });
+            }
+
+            await pgPool.query(`DELETE FROM public.tbl_failed_requests WHERE id = $1`, [id]);
+            return res.json({
+              success: true,
+              status: 'success',
+              model: usedModel,
+              data: storeData
+            });
+          }
+
+          const errorPayload = data?.error || { type: 'GEMINI_ERROR', message: rawText || 'Retry failed' };
+          lastStatus = response.status || 500;
+          lastError = errorPayload;
+
+          const isRetryable = retryableStatuses.has(lastStatus) || /model_unavailable|temporarily unavailable|quota|overloaded|service unavailable|rate limit|busy/i.test((errorPayload.message || '').toLowerCase());
+          if (!isRetryable || pass === maxPasses - 1 && model === GEMINI_MODELS[GEMINI_MODELS.length - 1]) {
+            await pgPool.query(`
+              UPDATE public.tbl_failed_requests
+              SET error_type = $1,
+                  error_message = $2,
+                  updated_at = NOW()
+              WHERE id = $3
+            `, [errorPayload.type || 'GEMINI_ERROR', errorPayload.message || 'Retry failed', id]);
+
+            return res.status(lastStatus || 500).json({
+              success: false,
+              error: errorPayload,
+              status: 'failed'
+            });
+          }
+        } catch (error) {
+          const message = error?.message || String(error);
+          lastStatus = 503;
+          lastError = { type: 'network_error', message };
+
+          const isRetryable = /fetch failed|timeout|temporarily unavailable|network|429|unavailable|busy/i.test(message);
+          if (!isRetryable || pass === maxPasses - 1 && model === GEMINI_MODELS[GEMINI_MODELS.length - 1]) {
+            await pgPool.query(`
+              UPDATE public.tbl_failed_requests
+              SET error_type = $1,
+                  error_message = $2,
+                  updated_at = NOW()
+              WHERE id = $3
+            `, [lastError.type, lastError.message, id]);
+
+            return res.status(503).json({
+              success: false,
+              error: lastError,
+              status: 'failed'
+            });
+          }
+        }
+      }
+
+      if (pass < maxPasses - 1) {
+        const delayMs = pass === 0 ? 2000 : 4000;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
+    await pgPool.query(`
+      UPDATE public.tbl_failed_requests
+      SET error_type = $1,
+          error_message = $2,
+          updated_at = NOW()
+      WHERE id = $3
+    `, [lastError.type || 'GEMINI_ERROR', lastError.message || 'Gemini is busy, please try again later', id]);
+
+    return res.status(lastStatus || 503).json({
+      success: false,
+      error: {
+        type: lastError.type || 'model_unavailable',
+        message: lastError.message || 'Gemini abhi busy hai, thodi der baad dobara try karo.'
+      },
+      status: 'failed'
+    });
+  } catch (error) {
+    console.error('Error retrying failed request:', error);
+    res.status(500).json({
+      success: false,
+      error: { type: 'retry_server_error', message: error.message || 'Retry failed' },
+      status: 'failed'
+    });
+  }
+});
+
 // Health endpoint for readiness checks
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });

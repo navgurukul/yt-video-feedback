@@ -2,14 +2,17 @@ import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Clock, Play, Video, Trash2 } from "lucide-react";
 import { MotionWrapper } from "@/components/MotionWrapper";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AuthModal } from "@/components/AuthModal";
+import { FailedRequestCard, FailedRequestItem } from "@/components/FailedRequestCard";
 import { format } from "date-fns";
+import { ApiKeyContext } from "@/App";
 
 interface ConceptEvaluation {
   id: string;
@@ -56,11 +59,15 @@ type EvaluationRecord = ConceptEvaluation | ProjectEvaluation | CustomEvaluation
 const History = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { apiKey } = useContext(ApiKeyContext);
+  const API_BASE_URL = import.meta.env.VITE_EVAL_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001';
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationRecord[]>([]);
+  const [failedRequests, setFailedRequests] = useState<FailedRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authType, setAuthType] = useState<"login" | "signup">("login");
+  const [activeTab, setActiveTab] = useState<"successful" | "failed">("successful");
 
   useEffect(() => {
     checkUser();
@@ -80,10 +87,7 @@ const History = () => {
 
   const fetchHistory = async (email: string) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      
-      // Fetch concept evaluations
-      const conceptResponse = await fetch(`${API_URL}/concept-history?email=${encodeURIComponent(email)}`);
+      const conceptResponse = await fetch(`${API_BASE_URL}/concept-history?email=${encodeURIComponent(email)}`);
       let conceptData = { data: [] };
       
       if (conceptResponse.ok) {
@@ -92,8 +96,7 @@ const History = () => {
         console.error('Concept history fetch failed:', conceptResponse.status, conceptResponse.statusText);
       }
       
-      // Fetch project evaluations
-      const projectResponse = await fetch(`${API_URL}/project-history?email=${encodeURIComponent(email)}`);
+      const projectResponse = await fetch(`${API_BASE_URL}/project-history?email=${encodeURIComponent(email)}`);
       let projectData = { data: [] };
       
       if (projectResponse.ok) {
@@ -102,8 +105,7 @@ const History = () => {
         console.error('Project history fetch failed:', projectResponse.status, projectResponse.statusText);
       }
       
-      // Fetch custom evaluations
-      const customResponse = await fetch(`${API_URL}/custom-history?email=${encodeURIComponent(email)}`);
+      const customResponse = await fetch(`${API_BASE_URL}/custom-history?email=${encodeURIComponent(email)}`);
       let customData = { data: [] };
       
       if (customResponse.ok) {
@@ -111,8 +113,16 @@ const History = () => {
       } else {
         console.error('Custom history fetch failed:', customResponse.status, customResponse.statusText);
       }
+
+      const failedResponse = await fetch(`${API_BASE_URL}/failed-requests?email=${encodeURIComponent(email)}`);
+      let failedData = { data: [] };
+
+      if (failedResponse.ok) {
+        failedData = await failedResponse.json();
+      } else {
+        console.error('Failed history fetch failed:', failedResponse.status, failedResponse.statusText);
+      }
       
-      // Combine and sort by created_at
       const conceptRecords: ConceptEvaluation[] = (conceptData.data || []).map((item: any) => ({
         ...item,
         type: 'concept' as const
@@ -133,6 +143,7 @@ const History = () => {
       );
       
       setEvaluationHistory(allRecords);
+      setFailedRequests((failedData.data || []) as FailedRequestItem[]);
     } catch (error) {
       console.error('Error fetching history:', error);
       toast({
@@ -180,6 +191,65 @@ const History = () => {
       });
     }
   };
+
+  const handleFailedDelete = async (id: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/failed-requests/${id}?email=${encodeURIComponent(user?.email || '')}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete failed request');
+      }
+
+      setFailedRequests(prev => prev.filter(record => record.id !== id));
+      toast({
+        title: 'Deleted! 🗑️',
+        description: 'Failed request removed from retry queue',
+      });
+    } catch (error) {
+      console.error('Error deleting failed request:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete this request',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleFailedRetry = async (request: FailedRequestItem) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/failed-requests/${request.id}/retry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userEmail: user?.email, userId: request.user_id, apiKey })
+      });
+
+      const result = await response.json().catch(() => ({ success: false, error: { message: 'Unable to retry this request' } }));
+      if (!response.ok || !result.success) {
+        const message = (result?.error?.message || '').toLowerCase();
+        const friendlyMessage = message.includes('429') || message.includes('busy') || message.includes('unavailable') || message.includes('model_unavailable')
+          ? 'Gemini abhi busy hai, thodi der baad dobara try karo.'
+          : result?.error?.message || 'Unable to retry this request';
+        throw new Error(friendlyMessage);
+      }
+
+      setFailedRequests(prev => prev.filter(record => record.id !== request.id));
+      await fetchHistory(user.email);
+      setActiveTab('successful');
+      toast({
+        title: 'Retry successful ✅',
+        description: 'The failed evaluation has been saved to your results.',
+      });
+    } catch (error) {
+      console.error('Error retrying failed request:', error);
+      toast({
+        title: 'Retry failed',
+        description: error instanceof Error ? error.message : 'Unable to retry this request',
+        variant: 'destructive',
+      });
+    }
+  }; 
 
   const handleCardClick = (record: EvaluationRecord) => {
     if (record.type === 'custom') {
@@ -406,102 +476,146 @@ const History = () => {
             </p>
           </MotionWrapper>
 
+          <div className="max-w-4xl mx-auto mb-8 flex gap-3 justify-center">
+            <Button
+              type="button"
+              variant={activeTab === 'successful' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('successful')}
+              className="border-4 border-foreground font-black uppercase shadow-[4px_4px_0px_0px_rgba(13,13,13,1)] rounded-none"
+            >
+              Successful Evaluations
+            </Button>
+            <Button
+              type="button"
+              variant={activeTab === 'failed' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('failed')}
+              className="border-4 border-foreground font-black uppercase shadow-[4px_4px_0px_0px_rgba(13,13,13,1)] rounded-none"
+            >
+              Failed Requests
+            </Button>
+          </div>
+
           {loading ? (
             <div className="text-center py-20">
               <p className="text-xl font-bold">Loading your history... 📹</p>
             </div>
-          ) : evaluationHistory.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {evaluationHistory.map((record, index) => {
-                const isConcept = record.type === 'concept';
-                const isProject = record.type === 'project';
-                const isCustom = record.type === 'custom';
-                
-                let title = '';
-                let typeLabel = '';
-                let emoji = '';
-                
-                if (isConcept) {
-                  const conceptRecord = record as ConceptEvaluation;
-                  title = conceptRecord.project_name || conceptRecord.page_name || 'Concept Evaluation';
-                  typeLabel = '📚 Concept';
-                  emoji = '📚';
-                } else if (isProject) {
-                  const projectRecord = record as ProjectEvaluation;
-                  title = projectRecord.project_name || 'Project Evaluation';
-                  typeLabel = '🚀 Project';
-                  emoji = '🚀';
-                } else if (isCustom) {
-                  const customRecord = record as CustomEvaluation;
-                  title = customRecord.custom_prompt?.substring(0, 50) + (customRecord.custom_prompt?.length > 50 ? '...' : '') || 'Custom Evaluation';
-                  typeLabel = '⚡ Custom';
-                  emoji = '⚡';
-                }
-                
-                return (
-                  <MotionWrapper key={record.id} delay={0.1 + index * 0.05} direction="up">
-                    <motion.div
-                      whileHover={{ 
-                        scale: 1.03, 
-                        rotate: 1,
-                        y: -5
-                      }}
-                      whileTap={{ scale: 0.98 }}
-                      transition={{ type: "spring", bounce: 0.4 }}
-                      onClick={() => handleCardClick(record)}
-                      className="relative"
-                    >
-                      <Card className="cursor-pointer group hover:shadow-brutal-lg transition-all duration-300">
-                        <motion.button
-                          onClick={(e) => handleDelete(record.id, record.type, e)}
-                          className="absolute -top-2 -right-2 z-10 bg-destructive text-destructive-foreground p-2 border-2 border-foreground shadow-brutal-sm hover:shadow-none transition-all"
-                          whileHover={{ scale: 1.1, rotate: 10 }}
-                          whileTap={{ scale: 0.9 }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </motion.button>
-                        <CardHeader>
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="text-6xl">{emoji}</div>
-                            <motion.div
-                              whileHover={{ scale: 1.2, rotate: 90 }}
-                              transition={{ duration: 0.3 }}
-                            >
-                              <Play className="w-8 h-8 text-primary" />
-                            </motion.div>
-                          </div>
-                          <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
-                            {title}
-                          </CardTitle>
-                          <div className="mt-2">
-                            <span className="inline-block bg-accent border-2 border-foreground px-3 py-1 text-xs font-black uppercase">
-                              {typeLabel}
-                            </span>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2">
-                              <Clock className="w-4 h-4" />
-                              <span className="font-bold">{formatDate(record.created_at)}</span>
+          ) : activeTab === 'successful' ? (
+            evaluationHistory.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                {evaluationHistory.map((record, index) => {
+                  const isConcept = record.type === 'concept';
+                  const isProject = record.type === 'project';
+                  const isCustom = record.type === 'custom';
+                  
+                  let title = '';
+                  let typeLabel = '';
+                  let emoji = '';
+                  
+                  if (isConcept) {
+                    const conceptRecord = record as ConceptEvaluation;
+                    title = conceptRecord.project_name || conceptRecord.page_name || 'Concept Evaluation';
+                    typeLabel = '📚 Concept';
+                    emoji = '📚';
+                  } else if (isProject) {
+                    const projectRecord = record as ProjectEvaluation;
+                    title = projectRecord.project_name || 'Project Evaluation';
+                    typeLabel = '🚀 Project';
+                    emoji = '🚀';
+                  } else if (isCustom) {
+                    const customRecord = record as CustomEvaluation;
+                    title = customRecord.custom_prompt?.substring(0, 50) + (customRecord.custom_prompt?.length > 50 ? '...' : '') || 'Custom Evaluation';
+                    typeLabel = '⚡ Custom';
+                    emoji = '⚡';
+                  }
+                  
+                  return (
+                    <MotionWrapper key={record.id} delay={0.1 + index * 0.05} direction="up">
+                      <motion.div
+                        whileHover={{ 
+                          scale: 1.03, 
+                          rotate: 1,
+                          y: -5
+                        }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ type: "spring", bounce: 0.4 }}
+                        onClick={() => handleCardClick(record)}
+                        className="relative"
+                      >
+                        <Card className="cursor-pointer group hover:shadow-brutal-lg transition-all duration-300">
+                          <motion.button
+                            onClick={(e) => handleDelete(record.id, record.type, e)}
+                            className="absolute -top-2 -right-2 z-10 bg-destructive text-destructive-foreground p-2 border-2 border-foreground shadow-brutal-sm hover:shadow-none transition-all"
+                            whileHover={{ scale: 1.1, rotate: 10 }}
+                            whileTap={{ scale: 0.9 }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </motion.button>
+                          <CardHeader>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="text-6xl">{emoji}</div>
+                              <motion.div
+                                whileHover={{ scale: 1.2, rotate: 90 }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                <Play className="w-8 h-8 text-primary" />
+                              </motion.div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  </MotionWrapper>
-                );
-              })}
+                            <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
+                              {title}
+                            </CardTitle>
+                            <div className="mt-2">
+                              <span className="inline-block bg-accent border-2 border-foreground px-3 py-1 text-xs font-black uppercase">
+                                {typeLabel}
+                              </span>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4" />
+                                <span className="font-bold">{formatDate(record.created_at)}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    </MotionWrapper>
+                  );
+                })}
+              </div>
+            ) : (
+              <MotionWrapper delay={0.3} direction="zoom">
+                <div className="text-center py-20">
+                  <Video className="w-20 h-20 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-xl font-bold text-muted-foreground mb-4">
+                    No analyses yet! 🎬
+                  </p>
+                  <p className="text-lg font-bold text-muted-foreground">
+                    Start by analyzing your first video 🚀
+                  </p>
+                </div>
+              </MotionWrapper>
+            )
+          ) : failedRequests.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {failedRequests.map((request) => (
+                <FailedRequestCard
+                  key={request.id}
+                  request={request}
+                  onRetry={handleFailedRetry}
+                  onDelete={handleFailedDelete}
+                />
+              ))}
             </div>
           ) : (
             <MotionWrapper delay={0.3} direction="zoom">
               <div className="text-center py-20">
                 <Video className="w-20 h-20 mx-auto mb-4 text-muted-foreground" />
                 <p className="text-xl font-bold text-muted-foreground mb-4">
-                  No analyses yet! 🎬
+                  No failed requests right now ✨
                 </p>
                 <p className="text-lg font-bold text-muted-foreground">
-                  Start by analyzing your first video 🚀
+                  Successful retries will appear here.
                 </p>
               </div>
             </MotionWrapper>
