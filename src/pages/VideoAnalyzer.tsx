@@ -81,6 +81,11 @@ const evaluateWithModelFallback = async (
       const errorType = data?.error?.type;
       const errorCode = data?.error?.error_code;
       const errorDetails = `${data?.error?.message || ""} ${data?.error?.details || ""}`;
+      const isQuotaError =
+        response.status === 429 ||
+        errorType === "quota_exceeded" ||
+        errorCode === "QUOTA_EXCEEDED" ||
+        /RESOURCE_EXHAUSTED|quota exceeded|daily quota|rate limit/i.test(errorDetails);
       const isModelAvailabilityError =
         isGeminiRetryLaterError(data?.error, errorDetails) ||
         /model.*(not found|unavailable|unsupported|retired|deprecated)|(?:not found|unavailable|unsupported).*model/i.test(errorDetails);
@@ -88,10 +93,9 @@ const evaluateWithModelFallback = async (
         errorType === "network_error" ||
         errorCode === "NETWORK_ERROR" ||
         response.status === 408 ||
-        response.status === 429 ||
         response.status >= 500 ||
         /service unavailable|high demand|overloaded|temporarily unavailable|capacity|quota exceeded/i.test(errorDetails);
-      const isFallbackEligible = isModelAvailabilityError || isTransientError;
+      const isFallbackEligible = !isQuotaError && (isModelAvailabilityError || isTransientError);
 
       if (response.ok || !isFallbackEligible) {
         if (response.ok) onStatus(`Using ${model} on pass ${passNumber}`);

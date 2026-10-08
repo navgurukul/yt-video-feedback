@@ -265,23 +265,30 @@ ${customPrompt}
         errorString.includes('PERMISSION_DENIED') ||
         errorString.includes('permission denied');
       const hasModelErrorHint = isGeminiModelAvailabilityError(errorString);
+      const isQuotaError =
+        error.status === 429 ||
+        /RESOURCE_EXHAUSTED|quota exceeded|daily quota|rate limit/i.test(errorString);
       const isInvalidRequest =
         errorString.includes('INVALID_ARGUMENT') ||
         (error.status === 400 && !hasModelErrorHint);
       const isModelUnavailable =
         !isAuthenticationError &&
+        !isQuotaError &&
         !isInvalidRequest &&
         (error.status === 404 ||
           error.status === 408 ||
-          error.status === 429 ||
           error.status >= 500 ||
           error.code === 404 ||
-          /RESOURCE_EXHAUSTED|quota exceeded|temporarily unavailable|service unavailable|high demand|overloaded/i.test(errorString) ||
+          /temporarily unavailable|service unavailable|high demand|overloaded/i.test(errorString) ||
           /(?:code|status)["']?\s*[:=]\s*50[023]/i.test(errorString) ||
           hasModelErrorHint);
       
       // Categorize error type; keep Gemini's original message for the UI
-      if (isModelUnavailable) {
+      if (isQuotaError) {
+        statusCode = 429;
+        errorType = 'quota_exceeded';
+        errorCode = 'QUOTA_EXCEEDED';
+      } else if (isModelUnavailable) {
         statusCode = error.status || 503;
         errorType = 'model_unavailable';
         errorCode = 'MODEL_RETRYABLE_ERROR';
