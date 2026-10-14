@@ -14,6 +14,7 @@ import { MotionWrapper } from "@/components/MotionWrapper";
 import { AnimatedIntroText } from "@/components/AnimatedIntroText";
 import { CelebrationEffect } from "@/components/CelebrationEffect";
 import { ErrorPanel } from "@/components/ErrorPanel";
+import { RubricGuidanceButton, RubricGuidanceModal } from "@/components/rubric-guidance";
 import { motion } from "framer-motion";
 import { getPhaseNames, getVideoTitlesForPhase, getVideoDetailsForTitle } from "@/data/videoData";
 import { getProjectVideoForPhase } from "@/data/phasevideodata";
@@ -138,6 +139,7 @@ const VideoAnalyzer = () => {
   const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState("");
+  const [isRubricGuideOpen, setIsRubricGuideOpen] = useState(false);
   
   const phaseNames = getPhaseNames();
   const availableVideoTitles = selectedPhase ? getVideoTitlesForPhase(selectedPhase) : [];
@@ -197,6 +199,10 @@ const VideoAnalyzer = () => {
       setVideoDetailsText(getVideoDetails());
     }
   }, [videoType, selectedPhase, selectedVideoTitle, customPrompt, customContext]);
+
+  useEffect(() => {
+    setIsRubricGuideOpen(false);
+  }, [videoType, selectedPhase]);
 
   // Helper function to create validation error objects
   const createValidationError = (
@@ -994,6 +1000,15 @@ const VideoAnalyzer = () => {
               </div>
             )}
 
+            {videoType !== "other" && selectedPhase && (
+              <div className="space-y-2">
+                <RubricGuidanceButton
+                  onClick={() => setIsRubricGuideOpen(true)}
+                  label="Prepare with Rubrics"
+                />
+              </div>
+            )}
+
             {/* Video Title Selection (only for concept explanation) */}
             {videoType === "concept" && selectedPhase && (
               <div className="space-y-3">
@@ -1119,6 +1134,13 @@ const VideoAnalyzer = () => {
         </Card>
         </MotionWrapper>
       </main>
+
+      <RubricGuidanceModal
+        open={isRubricGuideOpen}
+        onOpenChange={setIsRubricGuideOpen}
+        videoType={videoType}
+        selectedPhase={selectedPhase}
+      />
 
       <Footer />
     </div>

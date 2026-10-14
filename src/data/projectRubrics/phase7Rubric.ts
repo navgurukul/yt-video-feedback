@@ -1,0 +1,1 @@
+export { Phase7Rubric } from "../RubricData";
