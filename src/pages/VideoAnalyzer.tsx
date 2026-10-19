@@ -1004,7 +1004,7 @@ const VideoAnalyzer = () => {
               <div className="space-y-2">
                 <RubricGuidanceButton
                   onClick={() => setIsRubricGuideOpen(true)}
-                  label="Prepare with Rubrics"
+                  label="What Makes a Good Project/Concept Explanation video ?"
                 />
               </div>
             )}

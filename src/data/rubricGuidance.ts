@@ -20,7 +20,7 @@ export const getRubricGuideContext = (
       kind: "concept",
       title: "Concept Explanation — Rubric Guide",
       description:
-        "This guide shows the existing concept explanation rubric. The wording is unchanged and the levels are shown for easy comparison.",
+        "Study the four rubric levels to understand what is expected before you record or submit your concept explanation video.",
       rubric: abilityToExplainRubric,
       selectedPhaseLabel: selectedPhase || undefined,
     };
@@ -39,7 +39,7 @@ export const getRubricGuideContext = (
     kind: "project",
     title: projectGuide.title,
     description:
-      "Compare the four levels to understand what is expected before you record or submit your project video.",
+      "Study the four rubric levels for each parameter to understand what is expected before you record or submit your project video.",
     rubric: projectGuide.rubric,
     selectedPhaseLabel: selectedPhase,
   };

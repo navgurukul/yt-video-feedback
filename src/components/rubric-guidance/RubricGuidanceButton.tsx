@@ -19,7 +19,7 @@ const RubricGuidanceButton = ({ onClick, label }: RubricGuidanceButtonProps) => 
         </span>
         <span className="flex flex-col items-start gap-0.5">
           <span className="text-sm font-semibold tracking-wide">{label}</span>
-          <span className="text-xs font-normal normal-case tracking-normal text-primary-foreground/90">Understand the levels before you record.</span>
+          <span className="text-xs font-normal normal-case tracking-normal text-primary-foreground/90">Read the levels first. They will help you make a better video..</span>
         </span>
       </span>
       <ArrowRight className="h-4 w-4 shrink-0" />

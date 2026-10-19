@@ -75,8 +75,8 @@ const RubricComparisonTable = ({ kind, rubric }: RubricComparisonTableProps) => 
           <table className="min-w-[760px] w-full border-collapse">
             <thead>
               <tr className="bg-muted/40 text-left">
-                <th className="border-b border-foreground px-4 py-3 text-sm font-semibold text-foreground">Level</th>
-                <th className="border-b border-foreground px-4 py-3 text-sm font-semibold text-foreground">What the student should show</th>
+                <th className="border-b border-foreground px-4 py-3 text-sm font-semibold text-foreground">Rubric Level</th>
+                <th className="border-b border-foreground px-4 py-3 text-sm font-semibold text-foreground">Description</th>
               </tr>
             </thead>
             <tbody>
