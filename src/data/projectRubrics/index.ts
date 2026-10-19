@@ -1,18 +1,22 @@
-export { Phase1Rubric } from "./phase1Rubric";
-export { Phase2Rubric } from "./phase2Rubric";
-export { Phase3Rubric } from "./phase3Rubric";
-export { Phase4Rubric } from "./phase4Rubric";
-export { Phase5Rubric } from "./phase5Rubric";
-export { Phase6Rubric } from "./phase6Rubric";
-export { Phase7Rubric } from "./phase7Rubric";
+import {
+  Phase1Rubric,
+  Phase2Rubric,
+  Phase3Rubric,
+  Phase4Rubric,
+  Phase5Rubric,
+  Phase6Rubric,
+  Phase7Rubric,
+} from "../RubricData";
 
-import { Phase1Rubric } from "./phase1Rubric";
-import { Phase2Rubric } from "./phase2Rubric";
-import { Phase3Rubric } from "./phase3Rubric";
-import { Phase4Rubric } from "./phase4Rubric";
-import { Phase5Rubric } from "./phase5Rubric";
-import { Phase6Rubric } from "./phase6Rubric";
-import { Phase7Rubric } from "./phase7Rubric";
+export {
+  Phase1Rubric,
+  Phase2Rubric,
+  Phase3Rubric,
+  Phase4Rubric,
+  Phase5Rubric,
+  Phase6Rubric,
+  Phase7Rubric,
+};
 
 export const projectRubricCatalog = {
   "Phase 1: Student Profile & Course Portal (HTML Only)": {

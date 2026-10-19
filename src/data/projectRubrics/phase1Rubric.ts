@@ -1,1 +1,0 @@
-export { Phase1Rubric } from "../RubricData";
