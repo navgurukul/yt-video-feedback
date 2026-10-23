@@ -29,3 +29,6 @@ Thumbs.db
 
 # Optional eslint cache
 .eslintcache
+
+# multi-tenant script output
+scripts/multi-tenant/last-run-report.txt
