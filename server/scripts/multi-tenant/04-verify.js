@@ -72,6 +72,13 @@ export async function verify(prod, test, ids) {
     }
   }
 
+  // 2b. Old phase names that 05-legacy-name-mapping.sql linked to current phases
+  if ((await test.query(`SELECT to_regclass('public.legacy_phase_name_map') AS t`)).rows[0].t) {
+    const m = (await test.query(
+      `SELECT m.old_name, ph.name AS current_phase FROM legacy_phase_name_map m JOIN phases ph ON ph.id = m.phase_id ORDER BY 1`)).rows;
+    m.forEach((r) => report.push(`INFO  mapped old phase name "${r.old_name}" → "${r.current_phase}"`));
+  }
+
   // 3. Config parity: DB → same structures as the hardcoded files
   const phases = (await test.query(
     `SELECT id, name FROM phases WHERE program_id = $1 ORDER BY sort_order`, [ids.programId])).rows;

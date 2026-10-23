@@ -40,6 +40,15 @@ try {
 
     log('[3/4] Copying legacy tables from PRODUCTION (read-only) ...');
     await copyFromProd(prod, test, ids, log);
+
+    // Numbered SQL files from 05 onwards are applied after the copy, in order.
+    const extra = fs.readdirSync(__dirname)
+      .filter((f) => /^\d{2}-.*\.sql$/.test(f) && Number(f.slice(0, 2)) >= 5)
+      .sort();
+    for (const f of extra) {
+      log(`  - applying ${f}`);
+      await test.query(fs.readFileSync(path.join(__dirname, f), 'utf8'));
+    }
   } else {
     const r = (await test.query(
       `SELECT i.id institution_id, p.id program_id FROM institutions i JOIN programs p ON p.institution_id = i.id
