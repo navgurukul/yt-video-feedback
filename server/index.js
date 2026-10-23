@@ -12,6 +12,9 @@ import { pgPool } from './db.js';
 import { authenticate } from './middleware/auth.js';
 import { tagEvaluation } from './lib/tenant.js';
 import { registerEvaluationRoutes } from './routes/evaluations.js';
+import { registerAdminRoutes } from './routes/admin.js';
+import { registerSuperRoutes } from './routes/super.js';
+import { GEMINI_MODELS } from './lib/gemini.js';
 
 // Load environment variables from .env when running via node
 dotenv.config();
@@ -66,12 +69,7 @@ app.get('/api/me', async (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-const GEMINI_MODELS = [
-  'gemini-3.5-flash',
-  'gemini-3.6-flash',
-  'gemini-3.7-flash',
-  'gemini-3.8-flash'
-];
+// Gemini model fallback list lives in lib/gemini.js
 
 const isGeminiModelAvailabilityError = (errorString = '') =>
   /model.*(not found|unavailable|unsupported|quota|capacity)|(?:not found|unavailable|unsupported).*model/i.test(errorString) ||
@@ -1165,6 +1163,10 @@ app.post('/store-evaluation', async (req, res) => {
 
 // History, single evaluation, delete, manual evaluation, all evaluations (tenant-scoped)
 registerEvaluationRoutes(app);
+
+// Config (/api/config), institution admin (/api/admin/*) and super admin (/api/super/*)
+registerAdminRoutes(app);
+registerSuperRoutes(app);
 
 app.listen(PORT, () => {
   console.log(`Evaluation API listening on http://localhost:${PORT}`);
