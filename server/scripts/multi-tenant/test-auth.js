@@ -43,9 +43,13 @@ let server;
 try {
   // ---- fixtures in TEST ------------------------------------------------------
   const ng = (await db.query(`SELECT id FROM institutions WHERE slug = 'navgurukul'`)).rows[0].id;
+  // Students A and B must be plain students (no evaluator/admin/super_admin role anywhere).
   const [a, b] = (await db.query(
-    `SELECT lower(email) email, COUNT(*)::int n, MIN(id) id FROM tbl_ailabs_ytfeedback_concept_evaluations
-      WHERE institution_id = $1 GROUP BY 1 ORDER BY 2 DESC LIMIT 2`, [ng])).rows;
+    `SELECT lower(e.email) email, COUNT(*)::int n, MIN(e.id) id FROM tbl_ailabs_ytfeedback_concept_evaluations e
+      WHERE e.institution_id = $1
+        AND NOT EXISTS (SELECT 1 FROM user_memberships m
+                         WHERE m.email = lower(e.email) AND m.role <> 'student')
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 2`, [ng])).rows;
   const evaluator = (await db.query(
     `SELECT email FROM user_memberships WHERE institution_id = $1 AND role = 'evaluator' LIMIT 1`, [ng])).rows[0]?.email;
   const superAdmin = (await db.query(`SELECT email FROM user_memberships WHERE role = 'super_admin' LIMIT 1`)).rows[0]?.email;
@@ -55,15 +59,14 @@ try {
   const demo = (await db.query(
     `INSERT INTO institutions (name, slug, type, allowed_email_domains)
      VALUES ('Auth Test Demo College', $1, 'college', $2) RETURNING id`, [DEMO.slug, [DEMO.domain]])).rows[0].id;
+  const bFixture = (await db.query(
+    `INSERT INTO tbl_ailabs_ytfeedback_concept_evaluations (email, project_name, page_name, video_url, institution_id)
+     VALUES ($1, 'AUTH-TEST fixture', 'AUTH-TEST fixture', 'https://youtu.be/auth-test', $2) RETURNING id`, [b.email, ng])).rows[0].id;
   const demoStudent = `student1@${DEMO.domain}`;
   await db.query(`INSERT INTO user_memberships (email, institution_id, role) VALUES ($1, $2, 'student')`, [demoStudent, demo]);
   const demoEval = (await db.query(
     `INSERT INTO tbl_ailabs_ytfeedback_concept_evaluations (email, project_name, page_name, video_url, institution_id)
      VALUES ($1, 'Demo Phase', 'Demo Video', 'https://youtu.be/demo', $2) RETURNING id`, [demoStudent, demo])).rows[0].id;
-  const ngTotal = (await db.query(
-    `SELECT (SELECT COUNT(*) FROM tbl_ailabs_ytfeedback_concept_evaluations WHERE institution_id = $1)
-          + (SELECT COUNT(*) FROM tbl_ailabs_ytfeedback_project_evaluation WHERE institution_id = $1)
-          + (SELECT COUNT(*) FROM tbl_ailabs_ytfeedback_custom_evaluations WHERE institution_id = $1) AS n`, [ng])).rows[0].n;
 
   // ---- start stub + API ------------------------------------------------------
   await new Promise((r) => stub.listen(3998, '127.0.0.1', r));
@@ -96,8 +99,8 @@ try {
     'student A passing ?email=<B> still gets only A\'s rows');
 
   check((await call('GET', `/concept-evaluation/${b.id}`, a.email)).status === 404, 'student A cannot read student B\'s evaluation by id');
-  check((await call('DELETE', `/concept-evaluation/${b.id}`, a.email)).status === 404, 'student A cannot delete student B\'s evaluation');
-  check((await db.query(`SELECT 1 FROM tbl_ailabs_ytfeedback_concept_evaluations WHERE id = $1`, [b.id])).rowCount === 1,
+  check((await call('DELETE', `/concept-evaluation/${bFixture}`, a.email)).status === 404, 'student A cannot delete student B\'s evaluation');
+  check((await db.query(`SELECT 1 FROM tbl_ailabs_ytfeedback_concept_evaluations WHERE id = $1`, [bFixture])).rowCount === 1,
     'student B\'s evaluation still exists');
   check((await call('GET', `/concept-evaluation/${a.id}`, a.email)).status === 200, 'student A can read their own evaluation');
 
@@ -106,8 +109,12 @@ try {
   check((await call('POST', '/manual-evaluation', a.email, { body: { projectEvaluationId: 1, evaluationJson: {} } })).status === 403,
     'student → 403 on POST /manual-evaluation');
 
+  const ngNow = Number((await db.query(
+    `SELECT (SELECT COUNT(*) FROM tbl_ailabs_ytfeedback_concept_evaluations WHERE institution_id = $1)
+          + (SELECT COUNT(*) FROM tbl_ailabs_ytfeedback_project_evaluation WHERE institution_id = $1)
+          + (SELECT COUNT(*) FROM tbl_ailabs_ytfeedback_custom_evaluations WHERE institution_id = $1) AS n`, [ng])).rows[0].n);
   r = await call('GET', '/all-evaluations?limit=500', evaluator);
-  check(r.status === 200 && Number(r.json.pagination.total) === Number(ngTotal), `Navgurukul evaluator sees all ${ngTotal} Navgurukul evaluations`);
+  check(r.status === 200 && Number(r.json.pagination.total) === ngNow, `Navgurukul evaluator sees all ${ngNow} Navgurukul evaluations`);
   r = await call('GET', '/all-evaluations?search=Demo%20Phase', evaluator);
   check(r.status === 200 && r.json.data.length === 0, 'Navgurukul evaluator cannot see Demo College rows');
   check((await call('GET', `/concept-evaluation/${demoEval}`, evaluator)).status === 404, 'Navgurukul evaluator cannot open a Demo College evaluation');
@@ -143,6 +150,7 @@ try {
   if (server) server.kill();
   stub.close();
   await db.query(`DELETE FROM tbl_ailabs_ytfeedback_concept_evaluations WHERE institution_id IN (SELECT id FROM institutions WHERE slug = $1)`, [DEMO.slug]);
+  await db.query(`DELETE FROM tbl_ailabs_ytfeedback_concept_evaluations WHERE project_name = 'AUTH-TEST fixture'`);
   await db.query(`DELETE FROM user_memberships WHERE email LIKE $1`, [`%@${DEMO.domain}`]);
   await db.query(`DELETE FROM institutions WHERE slug = $1`, [DEMO.slug]);
   await closeAll();
