@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import pkg from 'pg';
 const { Client } = pkg;
 import { GoogleGenAI, Type } from '@google/genai';
+import { pgPool } from './db.js';
 
 // Load environment variables from .env when running via node
 dotenv.config();
@@ -38,36 +39,7 @@ const isGeminiModelAvailabilityError = (errorString = '') =>
   /not (found|available)|unavailable|NOT_FOUND|obsolete/i.test(errorString);
 
 // PostgreSQL connection configuration
-const pgConfig = {
-  host: process.env.PG_HOST,
-  port: process.env.PG_PORT || 5432,
-  user: process.env.PG_USER,
-  password: process.env.PG_PASSWORD,
-  database: process.env.PG_DATABASE,
-  ssl: process.env.PG_SSL === 'true' ? { rejectUnauthorized: false } : false,
-  connectionTimeoutMillis: 5000, // 5 second connection timeout
-  idleTimeoutMillis: 30000, // 30 second idle timeout
-  max: 10 // Maximum number of clients in the pool
-};
-
-// Create PostgreSQL client pool for better connection management
-const { Pool } = pkg;
-const pgPool = new Pool(pgConfig);
-
-// Test database connection
-pgPool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('PostgreSQL connection error:', err);
-  } else {
-    console.log('Connected to PostgreSQL database');
-  }
-});
-
-// Handle pool errors
-pgPool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
-});
+// PostgreSQL pool: see db.js (DB_TARGET selects test / prod / prod-readonly)
 
 // Log whether GEMINI key was loaded (masked) to help debugging local env issues
 if (GEMINI_KEY) {
