@@ -18,6 +18,9 @@ const API = 'http://127.0.0.1:3999';
 const DEMO = { slug: 'auth-test-demo-college', domain: 'auth-test-demo.edu' };
 
 let pass = 0, fail = 0;
+const REPORT_LINES = [];
+const _log = console.log.bind(console);
+console.log = (...a) => { REPORT_LINES.push(a.join(' ')); _log(...a); };
 const check = (cond, msg) => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${msg}`); cond ? pass++ : fail++; };
 
 // ---- stub Supabase Auth ------------------------------------------------------
@@ -156,4 +159,8 @@ try {
   await closeAll();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exitCode = fail ? 1 : 0;
+  try {
+    const fs = await import('fs');
+    fs.writeFileSync(path.join(__dirname, 'last-test-auth.txt'), `${new Date().toISOString()}\n` + REPORT_LINES.join('\n') + '\n');
+  } catch { /* report file is optional */ }
 }

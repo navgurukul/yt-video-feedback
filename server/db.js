@@ -37,7 +37,7 @@ const config = {
   password: process.env[`${prefix}PASSWORD`],
   database: env(`${prefix}DATABASE`),
   ssl: env(`${prefix}SSL`) === 'true' ? { rejectUnauthorized: false } : false,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 15000,
   idleTimeoutMillis: 30000,
   max: 10,
 };

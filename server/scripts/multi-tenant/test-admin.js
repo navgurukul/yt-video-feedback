@@ -19,6 +19,9 @@ const ADMIN = `admin@${MBA.domain}`;
 const STUDENT = `student@${MBA.domain}`;
 
 let pass = 0, fail = 0;
+const REPORT_LINES = [];
+const _log = console.log.bind(console);
+console.log = (...a) => { REPORT_LINES.push(a.join(' ')); _log(...a); };
 const check = (cond, msg, extra) => {
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${msg}${!cond && extra !== undefined ? `\n        ${JSON.stringify(extra).slice(0, 400)}` : ''}`);
   cond ? pass++ : fail++;
@@ -72,6 +75,8 @@ try {
   server.stdout.on('data', (d) => { log += d; });
   server.stderr.on('data', (d) => { log += d; });
   for (let i = 0; i < 50; i++) { try { if ((await fetch(API + '/health')).ok) break; } catch {} await new Promise((r) => setTimeout(r, 200)); }
+  // Wait until the API has its first DB connection (slow networks take a few seconds)
+  for (let i = 0; i < 100 && !/Connected to PostgreSQL|PostgreSQL connection error/.test(log); i++) await new Promise((r) => setTimeout(r, 200));
 
   // ---- super admin creates an institution ------------------------------------------
   let r = await call('POST', '/api/super/institutions', superAdmin, {
@@ -214,4 +219,8 @@ try {
   await closeAll();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exitCode = fail ? 1 : 0;
+  try {
+    const fs = await import('fs');
+    fs.writeFileSync(path.join(__dirname, 'last-test-admin.txt'), `${new Date().toISOString()}\n` + REPORT_LINES.join('\n') + '\n');
+  } catch { /* report file is optional */ }
 }

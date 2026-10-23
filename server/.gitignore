@@ -32,3 +32,4 @@ Thumbs.db
 
 # multi-tenant script output
 scripts/multi-tenant/last-run-report.txt
+scripts/multi-tenant/last-test-*.txt

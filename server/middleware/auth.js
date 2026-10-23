@@ -166,7 +166,7 @@ export async function authenticate(req, res, next) {
     }
     next();
   } catch (err) {
-    console.error('[auth] error:', err.message);
+    console.error('[auth] error:', err.code || '', err.message);
     res.status(err.status || 500).json({ error: 'Authentication failed', code: 'AUTH_ERROR' });
   }
 }
