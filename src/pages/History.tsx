@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AuthModal } from "@/components/AuthModal";
 import { format } from "date-fns";
+import { apiFetch } from "@/lib/api";
 
 interface ConceptEvaluation {
   id: string;
@@ -83,7 +84,7 @@ const History = () => {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
       
       // Fetch concept evaluations
-      const conceptResponse = await fetch(`${API_URL}/concept-history?email=${encodeURIComponent(email)}`);
+      const conceptResponse = await apiFetch(`${API_URL}/concept-history`);
       let conceptData = { data: [] };
       
       if (conceptResponse.ok) {
@@ -93,7 +94,7 @@ const History = () => {
       }
       
       // Fetch project evaluations
-      const projectResponse = await fetch(`${API_URL}/project-history?email=${encodeURIComponent(email)}`);
+      const projectResponse = await apiFetch(`${API_URL}/project-history`);
       let projectData = { data: [] };
       
       if (projectResponse.ok) {
@@ -103,7 +104,7 @@ const History = () => {
       }
       
       // Fetch custom evaluations
-      const customResponse = await fetch(`${API_URL}/custom-history?email=${encodeURIComponent(email)}`);
+      const customResponse = await apiFetch(`${API_URL}/custom-history`);
       let customData = { data: [] };
       
       if (customResponse.ok) {
@@ -156,7 +157,7 @@ const History = () => {
         ? `${API_URL}/project-evaluation/${id}`
         : `${API_URL}/custom-evaluation/${id}`;
       
-      const response = await fetch(endpoint, {
+      const response = await apiFetch(endpoint, {
         method: 'DELETE'
       });
       

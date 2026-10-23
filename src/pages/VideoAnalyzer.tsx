@@ -21,6 +21,7 @@ import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase
 import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig, CustomPrompt, CustomConfig} from '@/data/prompt'
 import { ApiKeyContext } from "@/App";
 import { formatErrorInfo, ErrorInfo, isGeminiRetryLaterError } from "@/lib/errorMessages";
+import { apiFetch } from "@/lib/api";
 
 const GEMINI_MODELS = [
   "gemini-3.5-flash",
@@ -51,7 +52,7 @@ const evaluateWithModelFallback = async (
       let data: any;
 
       try {
-        response = await fetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+        response = await apiFetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...payload, model }),
@@ -724,7 +725,7 @@ const VideoAnalyzer = () => {
             
             const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/store-evaluation';
             
-            const response = await fetch(apiUrl, {
+            const response = await apiFetch(apiUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(requestData)

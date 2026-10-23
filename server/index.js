@@ -9,6 +9,9 @@ import pkg from 'pg';
 const { Client } = pkg;
 import { GoogleGenAI, Type } from '@google/genai';
 import { pgPool } from './db.js';
+import { authenticate } from './middleware/auth.js';
+import { tagEvaluation } from './lib/tenant.js';
+import { registerEvaluationRoutes } from './routes/evaluations.js';
 
 // Load environment variables from .env when running via node
 dotenv.config();
@@ -16,13 +19,50 @@ dotenv.config();
 const app = express();
 // app.use(cors());
 
+const CORS_ORIGINS = (process.env.CORS_ORIGINS ||
+  'http://localhost:8080,http://localhost:3000,https://master.d33dd8pvqtvje3.amplifyapp.com')
+  .split(',').map((o) => o.trim()).filter(Boolean);
+
 app.use(
   cors({
-    origin: ["http://localhost:8080", "http://localhost:3000", "https://master.d33dd8pvqtvje3.amplifyapp.com"],
-    credentials: true
+    origin: CORS_ORIGINS,
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Institution-Id']
   })
 );
 app.use(express.json({ limit: '5mb' }));
+
+// Health endpoint for readiness checks (public)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+// Every route below requires a signed-in user with an institution membership.
+app.use(authenticate);
+
+// Who am I + which institutions can I use
+app.get('/api/me', async (req, res) => {
+  const byInst = new Map();
+  for (const m of req.memberships) {
+    if (!m.institution_id) continue;
+    const cur = byInst.get(m.institution_id) || {
+      institutionId: m.institution_id, name: m.institution_name, slug: m.slug, logoUrl: m.logo_url, roles: []
+    };
+    cur.roles.push(m.role);
+    byInst.set(m.institution_id, cur);
+  }
+  const active = await pgPool.query(
+    `SELECT id, name, slug, logo_url FROM institutions WHERE id = $1`, [req.tenant.institutionId]);
+  res.json({
+    email: req.user.email,
+    isSuperAdmin: req.tenant.isSuperAdmin,
+    role: req.tenant.role,
+    memberships: [...byInst.values()],
+    activeInstitution: active.rows[0]
+      ? { id: active.rows[0].id, name: active.rows[0].name, slug: active.rows[0].slug, logoUrl: active.rows[0].logo_url }
+      : null,
+  });
+});
 
 const PORT = process.env.PORT || 3001;
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
@@ -591,6 +631,10 @@ app.post('/store-evaluation', async (req, res) => {
 
       const result = await pgPool.query(query, values);
       const evaluationId = result.rows[0].id;
+      await tagEvaluation({
+        videoType: 'concept', id: evaluationId, institutionId: req.tenant.institutionId,
+        phaseName: selectedPhase, videoTitle: selectedVideoTitle, model: evaluationData?.actual_model_used
+      });
       
       console.log('Successfully inserted concept evaluation with ID:', evaluationId);
 
@@ -615,8 +659,9 @@ app.post('/store-evaluation', async (req, res) => {
               http_status,
               error_message,
               raw_usage_metadata,
+              institution_id,
               created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
           `;
           
           const metricsValues = [
@@ -635,7 +680,8 @@ app.post('/store-evaluation', async (req, res) => {
             apiCall.metrics?.model_version || null,
             apiCall.metrics?.http_status || (apiCall.error ? 500 : 200),
             apiCall.error?.message || apiCall.metrics?.error_message || null,
-            apiCall.metrics?.raw_usage_metadata ? JSON.stringify(apiCall.metrics.raw_usage_metadata) : null
+            apiCall.metrics?.raw_usage_metadata ? JSON.stringify(apiCall.metrics.raw_usage_metadata) : null,
+            req.tenant.institutionId
           ];
           
           return pgPool.query(metricsQuery, metricsValues);
@@ -661,9 +707,10 @@ app.post('/store-evaluation', async (req, res) => {
               issue_description,
               error_code,
               stacktrace,
+              institution_id,
               resolved,
               created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, FALSE, NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NOW())
           `;
           
           const issueValues = [
@@ -672,7 +719,8 @@ app.post('/store-evaluation', async (req, res) => {
             issue.issue_type || 'unknown_error',
             issue.issue_description || 'Unknown error occurred',
             issue.error_code || null,
-            issue.stacktrace || null
+            issue.stacktrace || null,
+            req.tenant.institutionId
           ];
           
           return pgPool.query(issueQuery, issueValues);
@@ -777,6 +825,10 @@ app.post('/store-evaluation', async (req, res) => {
 
       const result = await pgPool.query(query, values);
       const evaluationId = result.rows[0].id;
+      await tagEvaluation({
+        videoType: 'project', id: evaluationId, institutionId: req.tenant.institutionId,
+        phaseName: selectedPhase, videoTitle: selectedVideoTitle, model: evaluationData?.actual_model_used
+      });
       
       console.log('Successfully inserted project evaluation with ID:', evaluationId);
 
@@ -801,8 +853,9 @@ app.post('/store-evaluation', async (req, res) => {
               http_status,
               error_message,
               raw_usage_metadata,
+              institution_id,
               created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
           `;
           
           const metricsValues = [
@@ -821,7 +874,8 @@ app.post('/store-evaluation', async (req, res) => {
             apiCall.metrics?.model_version || null,
             apiCall.metrics?.http_status || (apiCall.error ? 500 : 200),
             apiCall.error?.message || apiCall.metrics?.error_message || null,
-            apiCall.metrics?.raw_usage_metadata ? JSON.stringify(apiCall.metrics.raw_usage_metadata) : null
+            apiCall.metrics?.raw_usage_metadata ? JSON.stringify(apiCall.metrics.raw_usage_metadata) : null,
+            req.tenant.institutionId
           ];
           
           return pgPool.query(metricsQuery, metricsValues);
@@ -847,9 +901,10 @@ app.post('/store-evaluation', async (req, res) => {
               issue_description,
               error_code,
               stacktrace,
+              institution_id,
               resolved,
               created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, FALSE, NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NOW())
           `;
           
           const issueValues = [
@@ -858,7 +913,8 @@ app.post('/store-evaluation', async (req, res) => {
             issue.issue_type || 'unknown_error',
             issue.issue_description || 'Unknown error occurred',
             issue.error_code || null,
-            issue.stacktrace || null
+            issue.stacktrace || null,
+            req.tenant.institutionId
           ];
           
           return pgPool.query(issueQuery, issueValues);
@@ -988,6 +1044,10 @@ app.post('/store-evaluation', async (req, res) => {
 
       const result = await pgPool.query(query, values);
       const evaluationId = result.rows[0].id;
+      await tagEvaluation({
+        videoType: 'custom', id: evaluationId, institutionId: req.tenant.institutionId,
+        phaseName: selectedPhase, videoTitle: selectedVideoTitle, model: evaluationData?.actual_model_used
+      });
       
       console.log('Successfully inserted custom evaluation with ID:', evaluationId);
 
@@ -1012,8 +1072,9 @@ app.post('/store-evaluation', async (req, res) => {
               http_status,
               error_message,
               raw_usage_metadata,
+              institution_id,
               created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
           `;
           
           const metricsValues = [
@@ -1032,7 +1093,8 @@ app.post('/store-evaluation', async (req, res) => {
             apiCall.metrics?.model_version || null,
             apiCall.metrics?.http_status || (apiCall.error ? 500 : 200),
             apiCall.error?.message || apiCall.metrics?.error_message || null,
-            apiCall.metrics?.raw_usage_metadata ? JSON.stringify(apiCall.metrics.raw_usage_metadata) : null
+            apiCall.metrics?.raw_usage_metadata ? JSON.stringify(apiCall.metrics.raw_usage_metadata) : null,
+            req.tenant.institutionId
           ];
           
           return pgPool.query(metricsQuery, metricsValues);
@@ -1058,9 +1120,10 @@ app.post('/store-evaluation', async (req, res) => {
               issue_description,
               error_code,
               stacktrace,
+              institution_id,
               resolved,
               created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, FALSE, NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NOW())
           `;
           
           const issueValues = [
@@ -1069,7 +1132,8 @@ app.post('/store-evaluation', async (req, res) => {
             issue.issue_type || 'unknown_error',
             issue.issue_description || 'Unknown error occurred',
             issue.error_code || null,
-            issue.stacktrace || null
+            issue.stacktrace || null,
+            req.tenant.institutionId
           ];
           
           return pgPool.query(issueQuery, issueValues);
@@ -1099,579 +1163,8 @@ app.post('/store-evaluation', async (req, res) => {
   }
 });
 
-// Fetch concept evaluations history
-app.get('/concept-history', async (req, res) => {
-  try {
-    const userEmail = req.query.email;
-    
-    console.log('Concept history request for email:', userEmail);
-    
-    if (!userEmail) {
-      return res.status(400).json({ error: 'Email parameter is required' });
-    }
-
-    const query = `
-      SELECT 
-        id,
-        email,
-        project_name,
-        page_name,
-        video_url,
-        concept_explanation_accuracy,
-        concept_explanation_feedback,
-        ability_to_explain_evaluation,
-        ability_to_explain_feedback,
-        created_at
-      FROM tbl_ailabs_ytfeedback_concept_evaluations
-      WHERE email = $1
-      ORDER BY created_at DESC
-    `;
-    
-    const result = await pgPool.query(query, [userEmail]);
-    console.log('Concept history found:', result.rows.length, 'records');
-    
-    res.json({ 
-      success: true, 
-      data: result.rows 
-    });
-  } catch (err) {
-    console.error('Error fetching concept history:', err);
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// Fetch project evaluations history
-app.get('/project-history', async (req, res) => {
-  try {
-    const userEmail = req.query.email;
-    
-    console.log('Project history request for email:', userEmail);
-    
-    if (!userEmail) {
-      return res.status(400).json({ error: 'Email parameter is required' });
-    }
-
-    const query = `
-      SELECT 
-        id,
-        email,
-        project_name,
-        video_url,
-        project_explanation_evaluation,
-        project_explanation_feedback,
-        project_explanation_evaluationjson,
-        created_at
-      FROM tbl_ailabs_ytfeedback_project_evaluation
-      WHERE email = $1
-      ORDER BY created_at DESC
-    `;
-    
-    const result = await pgPool.query(query, [userEmail]);
-    console.log('Project history found:', result.rows.length, 'records');
-    
-    res.json({ 
-      success: true, 
-      data: result.rows 
-    });
-  } catch (err) {
-    console.error('Error fetching project history:', err);
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// Fetch single concept evaluation by ID
-app.get('/concept-evaluation/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const query = `
-      SELECT 
-        id,
-        email,
-        project_name,
-        page_name,
-        video_url,
-        concept_explanation_accuracy,
-        concept_explanation_feedback,
-        ability_to_explain_evaluation,
-        ability_to_explain_feedback,
-        created_at
-      FROM tbl_ailabs_ytfeedback_concept_evaluations
-      WHERE id = $1
-    `;
-    
-    const result = await pgPool.query(query, [id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Concept evaluation not found' });
-    }
-    
-    res.json({ 
-      success: true, 
-      data: result.rows[0] 
-    });
-  } catch (err) {
-    console.error('Error fetching concept evaluation:', err);
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// Fetch single project evaluation by ID
-app.get('/project-evaluation/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const query = `
-      SELECT 
-        id,
-        email,
-        project_name,
-        video_url,
-        project_explanation_evaluation,
-        project_explanation_feedback,
-        project_explanation_evaluationjson,
-        created_at
-      FROM tbl_ailabs_ytfeedback_project_evaluation
-      WHERE id = $1
-    `;
-    
-    const result = await pgPool.query(query, [id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Project evaluation not found' });
-    }
-    
-    res.json({ 
-      success: true, 
-      data: result.rows[0] 
-    });
-  } catch (err) {
-    console.error('Error fetching project evaluation:', err);
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// Delete concept evaluation
-app.delete('/concept-evaluation/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const query = `
-      DELETE FROM tbl_ailabs_ytfeedback_concept_evaluations
-      WHERE id = $1
-      RETURNING id
-    `;
-    
-    const result = await pgPool.query(query, [id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Concept evaluation not found' });
-    }
-    
-    res.json({ 
-      success: true, 
-      message: 'Concept evaluation deleted successfully' 
-    });
-  } catch (err) {
-    console.error('Error deleting concept evaluation:', err);
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// Delete project evaluation
-app.delete('/project-evaluation/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const query = `
-      DELETE FROM tbl_ailabs_ytfeedback_project_evaluation
-      WHERE id = $1
-      RETURNING id
-    `;
-    
-    const result = await pgPool.query(query, [id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Project evaluation not found' });
-    }
-    
-    res.json({ 
-      success: true, 
-      message: 'Project evaluation deleted successfully' 
-    });
-  } catch (err) {
-    console.error('Error deleting project evaluation:', err);
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// Fetch custom evaluations history
-app.get('/custom-history', async (req, res) => {
-  try {
-    const userEmail = req.query.email;
-    
-    console.log('Custom history request for email:', userEmail);
-    
-    if (!userEmail) {
-      return res.status(400).json({ error: 'Email parameter is required' });
-    }
-
-    const query = `
-      SELECT 
-        id,
-        email,
-        video_url,
-        custom_prompt,
-        custom_context,
-        overall_assessment,
-        criteria_analysis,
-        custom_feedback,
-        evaluation_json,
-        created_at
-      FROM tbl_ailabs_ytfeedback_custom_evaluations
-      WHERE email = $1
-      ORDER BY created_at DESC
-    `;
-    
-    const result = await pgPool.query(query, [userEmail]);
-    console.log('Custom history found:', result.rows.length, 'records');
-    
-    res.json({ 
-      success: true, 
-      data: result.rows 
-    });
-  } catch (err) {
-    console.error('Error fetching custom history:', err);
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// Fetch single custom evaluation by ID
-app.get('/custom-evaluation/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const query = `
-      SELECT 
-        id,
-        email,
-        video_url,
-        custom_prompt,
-        custom_context,
-        overall_assessment,
-        criteria_analysis,
-        custom_feedback,
-        evaluation_json,
-        created_at
-      FROM tbl_ailabs_ytfeedback_custom_evaluations
-      WHERE id = $1
-    `;
-    
-    const result = await pgPool.query(query, [id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Custom evaluation not found' });
-    }
-    
-    res.json({ 
-      success: true, 
-      data: result.rows[0] 
-    });
-  } catch (err) {
-    console.error('Error fetching custom evaluation:', err);
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// Delete custom evaluation
-app.delete('/custom-evaluation/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const query = `
-      DELETE FROM tbl_ailabs_ytfeedback_custom_evaluations
-      WHERE id = $1
-      RETURNING id
-    `;
-    
-    const result = await pgPool.query(query, [id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Custom evaluation not found' });
-    }
-    
-    res.json({ 
-      success: true, 
-      message: 'Custom evaluation deleted successfully' 
-    });
-  } catch (err) {
-    console.error('Error deleting custom evaluation:', err);
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// Manual evaluation video list
-const fetchManualEvalVideos = async (req, res) => {
-  try {
-    const evaluationId = req.query.id ? parseInt(req.query.id, 10) : null;
-    if (req.query.id && (Number.isNaN(evaluationId) || evaluationId <= 0)) {
-      return res.status(400).json({ error: 'Invalid evaluation id' });
-    }
-
-    let query = `
-      SELECT
-        pe.id,
-        pe.email,
-        pe.project_name,
-        pe.video_url,
-        EXISTS(
-          SELECT 1 FROM tbl_manual_video_evaluations me
-          WHERE me.project_evaluation_id = pe.id
-        ) AS manual_evaluated
-      FROM tbl_ailabs_ytfeedback_project_evaluation pe
-      WHERE pe.project_name IS NOT NULL
-        AND pe.email NOT IN (
-          'sachin.i@navgurukul.org',
-          'rishav@navgurukul.org'
-        )
-    `;
-
-    const values = [];
-    if (evaluationId) {
-      query += ` AND pe.id = $1`;
-      values.push(evaluationId);
-    }
-
-    query += ` ORDER BY pe.project_name;`;
-
-    const result = await pgPool.query(query, values);
-    res.json({ success: true, data: result.rows });
-  } catch (err) {
-    console.error('Error fetching manual evaluation videos:', err);
-    res.status(500).json({ error: String(err) });
-  }
-};
-
-app.get('/manual-eval-videos', fetchManualEvalVideos);
-app.get('/api/manual-eval-videos', fetchManualEvalVideos);
-
-// Save manual evaluation
-const saveManualEvaluation = async (req, res) => {
-  try {
-    const {
-      projectEvaluationId,
-      evaluatorEmail,
-      evaluatedVideoUrl,
-      projectName,
-      phase,
-      evaluationJson,
-      overallRating,
-      overallComments
-    } = req.body;
-
-    if (!projectEvaluationId || !evaluatorEmail || !evaluationJson) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    const query = `
-      INSERT INTO tbl_manual_video_evaluations (
-        project_evaluation_id,
-        evaluator_email,
-        evaluated_video_url,
-        project_name,
-        phase,
-        evaluation_json,
-        overall_rating,
-        overall_comments,
-        evaluation_date,
-        created_at,
-        updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), NOW())
-      RETURNING id;
-    `;
-
-    const values = [
-      projectEvaluationId,
-      evaluatorEmail,
-      evaluatedVideoUrl,
-      projectName,
-      phase,
-      evaluationJson,
-      overallRating || null,
-      overallComments || null
-    ];
-
-    const result = await pgPool.query(query, values);
-    res.json({ success: true, data: result.rows[0] });
-  } catch (err) {
-    console.error('Error saving manual evaluation:', err);
-    res.status(500).json({ error: String(err) });
-  }
-};
-
-app.post('/manual-evaluation', saveManualEvaluation);
-app.post('/api/manual-evaluation', saveManualEvaluation);
-
-// Health endpoint for readiness checks
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
-});
-
-// Fetch ALL evaluations (admin view - all students)
-app.get('/all-evaluations', async (req, res) => {
-  try {
-    const { page = 1, limit = 20, type, search, sortBy = 'created_at', sortOrder = 'desc' } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-    
-    console.log('All evaluations request:', { page, limit, type, search, sortBy, sortOrder });
-    
-    let conceptQuery = '';
-    let projectQuery = '';
-    let conceptParams = [];
-    let projectParams = [];
-    
-    // Build search condition
-    const searchCondition = search 
-      ? `WHERE email ILIKE $1 OR project_name ILIKE $1 OR page_name ILIKE $1` 
-      : '';
-    const projectSearchCondition = search 
-      ? `WHERE email ILIKE $1 OR project_name ILIKE $1` 
-      : '';
-    const customSearchCondition = search 
-      ? `WHERE email ILIKE $1 OR custom_prompt ILIKE $1` 
-      : '';
-    
-    if (search) {
-      conceptParams = [`%${search}%`];
-      projectParams = [`%${search}%`];
-    }
-    
-    // Fetch concept evaluations if type is 'all' or 'concept'
-    let conceptRecords = [];
-    if (!type || type === 'all' || type === 'concept') {
-      conceptQuery = `
-        SELECT 
-          id,
-          email,
-          project_name,
-          page_name,
-          video_url,
-          concept_explanation_accuracy,
-          concept_explanation_feedback,
-          ability_to_explain_evaluation,
-          ability_to_explain_feedback,
-          created_at,
-          'concept' as type
-        FROM tbl_ailabs_ytfeedback_concept_evaluations
-        ${searchCondition}
-        ORDER BY created_at DESC
-      `;
-      const conceptResult = await pgPool.query(conceptQuery, conceptParams);
-      conceptRecords = conceptResult.rows;
-    }
-    
-    // Fetch project evaluations if type is 'all' or 'project'
-    let projectRecords = [];
-    if (!type || type === 'all' || type === 'project') {
-      projectQuery = `
-        SELECT 
-          id,
-          email,
-          project_name,
-          NULL as page_name,
-          video_url,
-          project_explanation_evaluation,
-          project_explanation_feedback,
-          project_explanation_evaluationjson,
-          created_at,
-          'project' as type
-        FROM tbl_ailabs_ytfeedback_project_evaluation
-        ${projectSearchCondition}
-        ORDER BY created_at DESC
-      `;
-      const projectResult = await pgPool.query(projectQuery, projectParams);
-      projectRecords = projectResult.rows;
-    }
-    
-    // Fetch custom evaluations if type is 'all' or 'custom'
-    let customRecords = [];
-    if (!type || type === 'all' || type === 'custom') {
-      const customQuery = `
-        SELECT 
-          id,
-          email,
-          NULL as project_name,
-          NULL as page_name,
-          video_url,
-          custom_prompt,
-          overall_assessment,
-          custom_feedback,
-          evaluation_json,
-          created_at,
-          'custom' as type
-        FROM tbl_ailabs_ytfeedback_custom_evaluations
-        ${customSearchCondition}
-        ORDER BY created_at DESC
-      `;
-      const customParams = search ? [`%${search}%`] : [];
-      const customResult = await pgPool.query(customQuery, customParams);
-      customRecords = customResult.rows;
-    }
-    
-    // Combine and sort all records
-    let allRecords = [...conceptRecords, ...projectRecords, ...customRecords];
-    
-    // Sort combined records
-    allRecords.sort((a, b) => {
-      if (sortBy === 'email') {
-        return sortOrder === 'asc' 
-          ? a.email.localeCompare(b.email)
-          : b.email.localeCompare(a.email);
-      } else if (sortBy === 'project_name') {
-        return sortOrder === 'asc' 
-          ? (a.project_name || '').localeCompare(b.project_name || '')
-          : (b.project_name || '').localeCompare(a.project_name || '');
-      } else {
-        // Default: sort by created_at
-        return sortOrder === 'asc' 
-          ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-    });
-    
-    // Get total count before pagination
-    const totalCount = allRecords.length;
-    
-    // Apply pagination
-    const paginatedRecords = allRecords.slice(offset, offset + parseInt(limit));
-    
-    // Get unique emails count (unique students)
-    const uniqueEmails = new Set(allRecords.map(r => r.email));
-    
-    console.log('All evaluations found:', totalCount, 'records from', uniqueEmails.size, 'students');
-    
-    res.json({ 
-      success: true, 
-      data: paginatedRecords,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / parseInt(limit))
-      },
-      stats: {
-        totalEvaluations: totalCount,
-        uniqueStudents: uniqueEmails.size,
-        conceptCount: conceptRecords.length,
-        projectCount: projectRecords.length,
-        customCount: customRecords.length
-      }
-    });
-  } catch (err) {
-    console.error('Error fetching all evaluations:', err);
-    res.status(500).json({ error: String(err) });
-  }
-});
+// History, single evaluation, delete, manual evaluation, all evaluations (tenant-scoped)
+registerEvaluationRoutes(app);
 
 app.listen(PORT, () => {
   console.log(`Evaluation API listening on http://localhost:${PORT}`);

@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ApiKeyContext } from "@/App";
 import { ApiKeyModal } from "@/components/ApiKeyModal";
+import { useTenant, hasRole } from "@/lib/tenant";
 
 /**
  * Header Component
@@ -27,6 +28,8 @@ export const Header = () => {
   const { apiKey, setApiKey } = useContext(ApiKeyContext);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { me } = useTenant();
+  const canSeeAll = hasRole(me, "evaluator");
 
   useEffect(() => {
     console.log("Header: useEffect mount - checking user");
@@ -146,9 +149,11 @@ export const Header = () => {
               <Link to="/history" className="font-bold hover:text-primary hover:scale-105 transition-all">
                 History
               </Link>
-              {/* <Link to="/all-evaluations" className="font-bold hover:text-primary hover:scale-105 transition-all">
-                All Evaluations
-              </Link> */}
+              {canSeeAll && (
+                <Link to="/all-evaluations" className="font-bold hover:text-primary hover:scale-105 transition-all">
+                  All Evaluations
+                </Link>
+              )}
             </nav>
           </div>
           
@@ -236,13 +241,15 @@ export const Header = () => {
               >
                 History
               </Link>
-              <Link 
-                to="/all-evaluations" 
-                className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                All Evaluations
-              </Link>
+              {canSeeAll && (
+                <Link 
+                  to="/all-evaluations" 
+                  className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  All Evaluations
+                </Link>
+              )}
 
               {/* Divider */}
               <div className="border-t-2 border-foreground my-2"></div>

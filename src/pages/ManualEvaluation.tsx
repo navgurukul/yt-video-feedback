@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric, Phase5Rubric, Phase6Rubric, Phase7Rubric } from "@/data/RubricData";
+import { apiFetch } from "@/lib/api";
 
 interface ProjectVideoRecord {
   id: number;
@@ -74,7 +75,7 @@ const ManualEvaluation = () => {
       setSearchError(null);
       const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_EVAL_API_URL || (import.meta.env.DEV ? "" : window.location.origin);
       const query = evaluationId ? `?id=${encodeURIComponent(evaluationId)}` : "";
-      const response = await fetch(`${API_URL}/manual-eval-videos${query}`);
+      const response = await apiFetch(`${API_URL}/manual-eval-videos${query}`);
       if (!response.ok) throw new Error("Failed to fetch videos");
       const data = await response.json();
       setVideos(data.data || []);
@@ -177,7 +178,7 @@ const ManualEvaluation = () => {
     try {
       setSaving(true);
       const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_EVAL_API_URL || (import.meta.env.DEV ? "" : window.location.origin);
-      const response = await fetch(`${API_URL}/manual-evaluation`, {
+      const response = await apiFetch(`${API_URL}/manual-evaluation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
