@@ -3,6 +3,7 @@
 //   cd server
 //   node scripts/multi-tenant/run.js --super-admin you@navgurukul.org
 //   node scripts/multi-tenant/run.js --verify-only
+//   (refuses to rebuild once testing/sync has started; --force-rebuild overrides — see cutover/)
 //
 // Reads PG_* (production, READ-ONLY session) and TEST_PG_* (writes) from server/.env.
 // Writes a report to scripts/multi-tenant/last-run-report.txt.
@@ -28,6 +29,21 @@ try {
   const t = (await test.query(`SELECT current_database() db`)).rows[0];
   log(`Production: ${p.db} (read-only=${p.ro})   Test: ${t.db}`);
   if (p.ro !== 'on') throw new Error('Production session is not read-only; aborting.');
+
+  // Once testing has started, TEST holds rows MAIN does not (testers' evaluations, other
+  // institutions, rows synced by cutover/sync-from-main.js). run.js TRUNCATEs the legacy
+  // tables, so it refuses unless asked explicitly.
+  if (!verifyOnly && !args.includes('--force-rebuild')) {
+    const ledger = (await test.query(`SELECT to_regclass('public.migration_sync_ledger') t`)).rows[0].t;
+    const synced = ledger ? Number((await test.query(`SELECT COUNT(*) n FROM migration_sync_ledger`)).rows[0].n) : 0;
+    const hasEval = (await test.query(`SELECT to_regclass('public.tbl_ailabs_ytfeedback_concept_evaluations') t`)).rows[0].t;
+    const foreign = hasEval ? Number((await test.query(
+      `SELECT COUNT(*) n FROM tbl_ailabs_ytfeedback_concept_evaluations e JOIN institutions i ON i.id = e.institution_id WHERE i.slug <> 'navgurukul'`)).rows[0].n) : 0;
+    if (synced || foreign) {
+      throw new Error(`TEST already has synced or test-created data (${synced} synced rows, ${foreign} evaluations of other institutions). ` +
+        'Re-running run.js would wipe it: use scripts/multi-tenant/cutover/sync-from-main.js instead, or pass --force-rebuild.');
+    }
+  }
 
   let ids;
   if (!verifyOnly) {

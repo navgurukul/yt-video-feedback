@@ -22,3 +22,7 @@ docs/report_doc.xml
 .gitignore
 docs/YT_Manual_vs_Tool_Evaluation_Comparison_Report.xlsx
 docs/YT_Manual_vs_Tool_Evaluation_Comparison_Report.docx
+
+# Prompt 8 cutover: reports and rollback exports (student data)
+server/scripts/multi-tenant/cutover/last-*.txt
+server/scripts/multi-tenant/cutover/rollback/
