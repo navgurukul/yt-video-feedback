@@ -194,13 +194,15 @@ try {
   r = await call('POST', '/api/super/institutions', superAdmin, {
     name: 'Navgurukul Clone Test', slug: 'auth-test-ng-clone', adminEmail: `admin@ng-clone.test`, cloneFromInstitutionId: ng,
   });
-  check(r.status === 201 && r.json?.cloned?.phases === 7 && r.json.cloned.videos === 77 && r.json.cloned.rubrics === 8,
-    'new institution cloned from Navgurukul gets 7 phases, 77 videos, 8 rubrics', r.json?.cloned);
+  // Navgurukul's rubric count includes Project Analyzer rubrics once that tool's run.js has been run
+  const ngRubrics = Number((await db.query(`SELECT COUNT(DISTINCT name) n FROM rubrics WHERE institution_id = $1 AND is_active`, [ng])).rows[0].n);
+  check(r.status === 201 && r.json?.cloned?.phases === 7 && r.json.cloned.videos === 77 && r.json.cloned.rubrics === ngRubrics,
+    `new institution cloned from Navgurukul gets 7 phases, 77 videos, ${ngRubrics} rubrics`, r.json?.cloned);
   const clone = r.json?.institution?.id;
   const sameText = (await db.query(
     `SELECT COUNT(*)::int n FROM rubrics a JOIN rubrics b ON a.name = b.name
       WHERE a.institution_id = $1 AND b.institution_id = $2 AND a.is_active AND b.is_active AND a.criteria::text = b.criteria::text`, [ng, clone])).rows[0].n;
-  check(sameText === 8, 'cloned rubrics are byte-identical to the originals');
+  check(sameText === ngRubrics, 'cloned rubrics are byte-identical to the originals');
 
   r = await call('GET', '/api/super/stats', superAdmin);
   check(r.status === 200 && r.json?.institutions >= 3, 'super admin stats', r.json?.institutions);
