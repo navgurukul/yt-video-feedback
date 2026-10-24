@@ -316,7 +316,7 @@ WITH firsts AS (
   SELECT f.*, CASE WHEN f.phase_no = 1 THEN 1
                    WHEN prev.first_submission IS NULL THEN NULL
                    ELSE GREATEST(1, CEIL(EXTRACT(EPOCH FROM f.first_submission - prev.first_submission) / 86400)) END AS days_taken
-    FROM firsts f LEFT JOIN firsts prev ON prev.email = f.email AND prev.campus_id = f.campus_id AND prev.phase_no = f.phase_no - 1
+    FROM firsts f LEFT JOIN firsts prev ON prev.email = f.email AND prev.phase_no = f.phase_no - 1   -- as production: by email
 ), scores AS (
   SELECT es.campus_id, es.student_school, sps.phase_no, ROUND(AVG(sps.phase_score), 2) AS avg_score
     FROM dash.eligible_students es JOIN dash.student_phase_scores sps ON sps.email = es.email
@@ -444,20 +444,21 @@ SELECT email, phase_name, phase_no,
  ORDER BY email, phase_no;
 
 -- "Students Concept Explanation Analysis" (was view v_ailabs_students_concept_explanationanalysis):
--- every concept-video evaluation with its feedback split into columns.
+-- every concept-video evaluation with its feedback split into columns (plain-text feedback
+-- of older rows is shown whole in the *_did_well columns).
 CREATE OR REPLACE VIEW dash.students_concept_explanation_analysis AS
 SELECT c.email, c.phase_name, c.video_number, c.video_title,
        c.ability_to_explain_evaluation,
-       dash.fb(dash.try_jsonb(c.ability_to_explain_feedback), 'What you did well.', 'What you did well?')                     AS ability_to_explain_did_well,
+       COALESCE(dash.fb(dash.try_jsonb(c.ability_to_explain_feedback), 'What you did well.', 'What you did well?'),
+                CASE WHEN dash.try_jsonb(c.ability_to_explain_feedback) IS NULL THEN c.ability_to_explain_feedback END) AS ability_to_explain_did_well,
        dash.fb(dash.try_jsonb(c.ability_to_explain_feedback), 'What could you do better.', 'What could you do better?')       AS ability_to_explain_could_be_better,
        dash.fb(dash.try_jsonb(c.ability_to_explain_feedback), 'Suggestion for improving explanation.', 'Suggestion for improvement.') AS ability_to_explain_suggestion,
        CASE WHEN c.accuracy IS NULL THEN NULL WHEN c.accuracy > 80 THEN 'Yes' ELSE 'No' END                                    AS accuracy_above_80,
        c.accuracy                                                                                                              AS concept_explanation_accuracy,
-       dash.fb(dash.try_jsonb(c.concept_explanation_feedback), 'What you did well.', 'What you did well?')                   AS concept_explanation_did_well,
+       COALESCE(dash.fb(dash.try_jsonb(c.concept_explanation_feedback), 'What you did well.', 'What you did well?'),
+                CASE WHEN dash.try_jsonb(c.concept_explanation_feedback) IS NULL THEN c.concept_explanation_feedback END) AS concept_explanation_did_well,
        dash.fb(dash.try_jsonb(c.concept_explanation_feedback), 'What could you do better.', 'What could you do better?')     AS concept_explanation_could_be_better,
        dash.fb(dash.try_jsonb(c.concept_explanation_feedback), 'Suggestion for technical accuracy improvement.', 'Suggestion for improvement.') AS concept_explanation_suggestion,
-       CASE WHEN dash.try_jsonb(c.ability_to_explain_feedback) IS NULL THEN c.ability_to_explain_feedback END                 AS ability_to_explain_feedback_text,
-       CASE WHEN dash.try_jsonb(c.concept_explanation_feedback) IS NULL THEN c.concept_explanation_feedback END               AS concept_explanation_feedback_text,
        c.created_at AS evaluated_at
   FROM dash.yt_concept_evals c;
 
