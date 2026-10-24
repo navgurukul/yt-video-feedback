@@ -3,7 +3,7 @@
 //
 //   cd server
 //   node scripts/multi-tenant/dashboard/run.js
-//   DASH_READER_PASSWORD='…' node scripts/multi-tenant/dashboard/run.js   # also (re)creates login superset_dash
+//   (no roles or logins are created; Superset uses your existing TEST connection)
 //
 // Run the two daily syncs first so the tool data in TEST is current:
 //   yt-video-feedback/server: node scripts/multi-tenant/cutover/sync-from-main.js

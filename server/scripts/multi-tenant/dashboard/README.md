@@ -18,7 +18,7 @@ Superset's **NayaGharCentralDB** connection is the YT tool's production database
 cd yt-video-feedback/server
 node scripts/multi-tenant/cutover/sync-from-main.js                                       # YT data → TEST
 (cd "../../Project Analyzer/athena-pa-admin" && node scripts/multi-tenant/cutover/sync-from-main.js)   # PA data → TEST
-DASH_READER_PASSWORD='<password for superset_dash>' node scripts/multi-tenant/dashboard/run.js
+node scripts/multi-tenant/dashboard/run.js
 ```
 
 `run.js` runs these steps:
@@ -26,7 +26,7 @@ DASH_READER_PASSWORD='<password for superset_dash>' node scripts/multi-tenant/da
 | Step | What it does | Writes |
 |---|---|---|
 | `copy-dashboard-tables.js` | Copies the 10 non-tool tables from production; MAIN always wins. Re-creates the two production views (`v_ailabs_*`) in TEST and saves their definitions in `production-views/`. | TEST only |
-| `apply-dash-views.js` | Rebuilds schema `dash`: one view per query in `superset-queries/`. With `DASH_READER_PASSWORD`, it also tries to create the read-only login `superset_dash`. That login can read only what the queries need: no password hashes, no API keys, no project code, no writes. Creating a login needs the CREATEROLE privilege. Without it the views are still created and a NOTE is printed; then either connect Superset with the TEST database user, or have the RDS master user run this script once. | TEST only |
+| `apply-dash-views.js` | Rebuilds schema `dash`: one view per query in `superset-queries/`. Uses the `TEST_PG_*` user; creates no roles or logins. | TEST only |
 | `compare-old-new.js` | Compares old and new queries cell by cell (see below). | nothing (both read only) |
 
 ## SQL query for each dashboard component (`superset-queries/`)
@@ -93,7 +93,7 @@ The **CONFIG CHECK** at the top compares the original syllabus tables (phase nam
 
 Import `campus_learning_dashboard_multitenant.zip` (Dashboards → Import).
 
-- **Connection:** the import creates **NayaGharTestDB (multi-tenant)**: `superset_dash@db-pg…/test_ghar_central_db`. Give the `superset_dash` password when asked.
+- **Connection:** use the TEST connection you already have in Superset. The simplest way is to build each chart from its `superset-queries/` file in SQL Lab (steps above). If you import the zip instead, it adds a connection **NayaGharTestDB (multi-tenant)**; edit it (Settings → Database Connections) to use the same user and password as your existing TEST connection.
 - **Datasets and charts:** 9 SQL datasets named "… (TEST)", each holding the matching query, plus the 9 charts and the dashboard **Campus Learning Dashboard (Multi-tenant TEST)**.
 - **Production is safe:** the production dashboard is untouched, because all UUIDs are new.
 
