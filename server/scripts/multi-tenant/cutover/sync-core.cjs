@@ -328,17 +328,17 @@ async function syncPgTable(main, test, table, opts = {}) {
   // ---- writes (TEST only), one transaction per batch, ledger in the same transaction ---
   const upsertFromMain = async (client, batch, mode) => {
     const data = (await withUtc(main, (c) => c.query(
-      `SELECT COALESCE(json_agg(t), '[]'::json) AS data FROM (SELECT ${colList} FROM public.${q(table)} t WHERE ${keyExpr("t")} = ANY($1::text[])) t`,
+      `SELECT COALESCE(json_agg(t), '[]'::json)::text AS data FROM (SELECT ${colList} FROM public.${q(table)} t WHERE ${keyExpr("t")} = ANY($1::text[])) t`,
       [batch]))).rows[0].data;
-    if (!data.length) return;
+    if (data === "[]") return; // JSON kept as text: Node would round 18-digit numbers
     if (mode === "insert") {
       await client.query(
         `INSERT INTO ${q(table)} (${colList}) OVERRIDING SYSTEM VALUE
-         SELECT ${colList} FROM json_populate_recordset(NULL::${q(table)}, $1::json)`, [JSON.stringify(data)]);
+         SELECT ${colList} FROM json_populate_recordset(NULL::${q(table)}, $1::json)`, [data]);
     } else {
       const set = cols.filter((c) => !pk.includes(c)).map((c) => `${q(c)} = s.${q(c)}`).join(", ");
       const on = pk.map((c) => `t.${q(c)} = s.${q(c)}`).join(" AND ");
-      if (set) await client.query(`UPDATE ${q(table)} t SET ${set} FROM json_populate_recordset(NULL::${q(table)}, $1::json) s WHERE ${on}`, [JSON.stringify(data)]);
+      if (set) await client.query(`UPDATE ${q(table)} t SET ${set} FROM json_populate_recordset(NULL::${q(table)}, $1::json) s WHERE ${on}`, [data]);
     }
   };
   const recordWritten = async (client, batch) => {
@@ -543,16 +543,17 @@ async function exportPgRollback(main, test, { tables, since, institutionId }) {
     const changed = `GREATEST(${tsCols.map((c) => `${q(c)}::timestamptz`).join(", ")}) > $1`;
     const instFilter = institutionId && testCols.has("institution_id") ? ` AND institution_id = $2` : "";
     const data = (await withUtc(test, (c) => c.query(
-      `SELECT COALESCE(json_agg(t ORDER BY ${mainMeta.pk.map(q).join(", ")}), '[]'::json) AS data
+      `SELECT COALESCE(json_agg(t ORDER BY ${mainMeta.pk.map(q).join(", ")}), '[]'::json)::text AS data, count(*)::int AS n
          FROM (SELECT ${cols.map(q).join(", ")} FROM ${q(table)} WHERE ${changed}${instFilter}) t`,
-      institutionId && instFilter ? [since, institutionId] : [since]))).rows[0].data;
-    counts[table] = data.length;
-    if (!data.length) continue;
-    const json = JSON.stringify(data);
+      institutionId && instFilter ? [since, institutionId] : [since]))).rows[0];
+    const n = data.n; // JSON kept as text: Node would round 18-digit numbers
+    counts[table] = n;
+    if (!n) continue;
+    const json = data.data;
     let tag = "rb";
     while (json.includes(`$${tag}$`)) tag += "x";
     const update = cols.filter((c) => !mainMeta.pk.includes(c)).map((c) => `${q(c)} = EXCLUDED.${q(c)}`).join(", ");
-    sql.push(`-- ${table}: ${data.length} row(s) created or changed in TEST since ${since.toISOString()}`,
+    sql.push(`-- ${table}: ${n} row(s) created or changed in TEST since ${since.toISOString()}`,
       `INSERT INTO ${q(table)} (${cols.map(q).join(", ")}) OVERRIDING SYSTEM VALUE`,
       `SELECT ${cols.map(q).join(", ")} FROM json_populate_recordset(NULL::${q(table)}, $${tag}$${json}$${tag}$)`,
       `ON CONFLICT (${mainMeta.pk.map(q).join(", ")}) DO ${update ? `UPDATE SET ${update}` : "NOTHING"};`, "");

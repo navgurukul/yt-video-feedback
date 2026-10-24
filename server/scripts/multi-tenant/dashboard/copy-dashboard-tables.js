@@ -51,11 +51,13 @@ async function replaceTable(table, lines) {
     await c.query('BEGIN');
     await c.query(`TRUNCATE ${q(table)}`);
     for (let off = 0; ; off += 2000) {
-      const data = (await core.withUtc(prod, (p) => p.query(
-        `SELECT COALESCE(json_agg(t), '[]'::json) d FROM (SELECT ${list} FROM public.${q(table)} ORDER BY ${list} LIMIT 2000 OFFSET ${off}) t`))).rows[0].d;
-      if (!data.length) break;
-      await c.query(`INSERT INTO ${q(table)} (${list}) SELECT ${list} FROM json_populate_recordset(NULL::${q(table)}, $1::json)`, [JSON.stringify(data)]);
-      n += data.length;
+      // JSON stays text end to end: parsing it in Node would round the 18-digit ids
+      // (163704000001683717 -> 163704000001683700) and break every join on them
+      const page = (await core.withUtc(prod, (p) => p.query(
+        `SELECT COALESCE(json_agg(t), '[]'::json)::text d, count(*)::int n FROM (SELECT ${list} FROM public.${q(table)} ORDER BY ${list} LIMIT 2000 OFFSET ${off}) t`))).rows[0];
+      if (!page.n) break;
+      await c.query(`INSERT INTO ${q(table)} (${list}) SELECT ${list} FROM json_populate_recordset(NULL::${q(table)}, $1::json)`, [page.d]);
+      n += page.n;
     }
     await c.query('COMMIT');
   } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
