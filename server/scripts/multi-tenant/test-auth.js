@@ -145,6 +145,25 @@ try {
     check(r.status === 200 && r.json.data.some((x) => x.id === demoEval), 'super admin can view another institution');
   }
 
+  // ---- failed-request recovery (merged from master) ---------------------------------
+  r = await call('POST', '/failed-requests', a.email, { body: {
+    userId: 'stub', userEmail: b.email, videoUrl: 'https://youtu.be/auth-test-failed', videoType: 'project',
+    selectedPhase: 'AUTH-TEST', errorType: 'GEMINI_ERROR', errorMessage: 'busy',
+    request_payload: { videoUrl: 'https://youtu.be/auth-test-failed', videoType: 'project', evaluationKind: 'project', apiKey: 'SECRET-KEY' } } });
+  const failedId = r.json?.data?.id;
+  check(r.status === 201 && r.json.data.user_email === a.email && r.json.data.institution_id === ng,
+    'failed request is saved for the signed-in user (not the email in the body) with institution_id', r.json);
+  check(!JSON.stringify(r.json?.data?.request_payload || {}).includes('SECRET-KEY'), 'API keys are stripped from saved failed requests');
+  r = await call('GET', '/failed-requests', a.email);
+  check(r.status === 200 && r.json.data.some((x) => x.id === failedId), 'owner sees their failed request');
+  r = await call('GET', `/failed-requests?email=${encodeURIComponent(a.email)}`, b.email);
+  check(r.status === 200 && !r.json.data.some((x) => x.id === failedId), "another student can't list it (even with ?email=)");
+  check((await call('GET', `/failed-requests/${failedId}`, b.email)).status === 404, "another student can't open it");
+  check((await call('DELETE', `/failed-requests/${failedId}`, b.email)).status === 404, "another student can't delete it");
+  check((await call('POST', `/failed-requests/${failedId}/retry`, b.email, { body: {} })).status === 404, "another student can't retry it");
+  check((await call('DELETE', `/failed-requests/${failedId}`, a.email)).status === 200, 'owner can delete their failed request');
+  check((await call('GET', '/failed-requests')).status === 401, 'failed requests need a login');
+
   if (fail) console.log('\n--- server log (last 40 lines) ---\n' + log.split('\n').slice(-40).join('\n'));
 } catch (e) {
   console.error('ERROR:', e.message);
@@ -155,6 +174,7 @@ try {
   await db.query(`DELETE FROM tbl_ailabs_ytfeedback_concept_evaluations WHERE institution_id IN (SELECT id FROM institutions WHERE slug = $1)`, [DEMO.slug]);
   await db.query(`DELETE FROM tbl_ailabs_ytfeedback_concept_evaluations WHERE project_name = 'AUTH-TEST fixture'`);
   await db.query(`DELETE FROM user_memberships WHERE email LIKE $1`, [`%@${DEMO.domain}`]);
+  await db.query(`DELETE FROM tbl_failed_requests WHERE video_url = 'https://youtu.be/auth-test-failed'`).catch(() => {});
   await db.query(`DELETE FROM institutions WHERE slug = $1`, [DEMO.slug]);
   await closeAll();
   console.log(`\n${pass} passed, ${fail} failed`);

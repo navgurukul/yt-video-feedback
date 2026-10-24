@@ -13,6 +13,7 @@ export const LEGACY_TABLES = [
   'tbl_manual_video_evaluations',
   'tbl_llm_api_calls',
   'tbl_user_issues',
+  'tbl_failed_requests',     // failed-request recovery (master, Oct 2026); skipped if not in production yet
 ];
 
 const EVAL_TABLES = LEGACY_TABLES.slice(0, 3);
@@ -99,7 +100,11 @@ async function copyRows(prod, test, table, cols, pk, log) {
       [JSON.stringify(batch)]);
     copied += batch.length;
   }
-  if (cols.includes('id')) {
+  // Only integer ids have a sequence to move forward (tbl_failed_requests uses UUIDs).
+  const seq = cols.includes('id')
+    ? (await test.query(`SELECT pg_get_serial_sequence($1, 'id') AS s`, [table])).rows[0].s
+    : null;
+  if (seq) {
     await test.query(
       `SELECT setval(pg_get_serial_sequence($1, 'id'), GREATEST(COALESCE((SELECT MAX(id) FROM ${q(table)}), 0), 1))`,
       [table]);

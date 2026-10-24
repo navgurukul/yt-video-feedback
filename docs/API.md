@@ -22,6 +22,9 @@ Roles, lowest to highest: `student` < `evaluator` < `institution_admin` < `super
 | POST | `/store-evaluation` | Identity comes from the token. Send `videoAssignmentId` to link the exact video; otherwise it's resolved from `selectedPhase`/`selectedVideoTitle`. `config_snapshot` records the rubric and prompt versions used. |
 | GET | `/concept-history`, `/project-history`, `/custom-history` | Your own rows in the active institution. The legacy `?email=` is ignored. |
 | GET / DELETE | `/{concept,project,custom}-evaluation/:id` | Read: the owner, or an evaluator+ of the same institution. Delete: the owner, or an institution_admin+. |
+| GET / POST | `/failed-requests` | Failed-request recovery: your own saved failed evaluations in the active institution. POST saves one (owner from the token; API keys stripped). |
+| GET / DELETE | `/failed-requests/:id` | Owner only. |
+| POST | `/failed-requests/:id/retry` | Owner only. Replays the request through `/evaluate` and `/store-evaluation` with your login (project and custom; concept retry is not supported). Gemini key: institution → `apiKey` → server env. |
 
 ## Evaluator+
 

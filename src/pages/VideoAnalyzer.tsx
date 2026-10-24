@@ -14,8 +14,9 @@ import { MotionWrapper } from "@/components/MotionWrapper";
 import { AnimatedIntroText } from "@/components/AnimatedIntroText";
 import { CelebrationEffect } from "@/components/CelebrationEffect";
 import { ErrorPanel } from "@/components/ErrorPanel";
+import { RubricGuidanceButton, RubricGuidanceModal } from "@/components/rubric-guidance";
 import { motion } from "framer-motion";
-import { useInstitutionConfig } from "@/hooks/useInstitutionConfig";
+import { useInstitutionConfig, useRubric } from "@/hooks/useInstitutionConfig";
 import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric,Phase5Rubric, Phase6Rubric, Phase7Rubric } from "@/data/RubricData";
 import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig, CustomPrompt, CustomConfig} from '@/data/prompt'
 import { ApiKeyContext } from "@/App";
@@ -28,6 +29,8 @@ const GEMINI_MODELS = [
   "gemini-3.7-flash",
   "gemini-3.8-flash",
 ] as const;
+
+const API_BASE_URL = import.meta.env.VITE_EVAL_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const MAX_MODEL_PASSES = 3;
@@ -51,7 +54,7 @@ const evaluateWithModelFallback = async (
       let data: any;
 
       try {
-        response = await apiFetch((import.meta.env.VITE_EVAL_API_URL || 'http://localhost:3001') + '/evaluate', {
+        response = await apiFetch(`${API_BASE_URL}/evaluate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...payload, model }),
@@ -140,6 +143,7 @@ const VideoAnalyzer = () => {
   const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState("");
+  const [isRubricGuideOpen, setIsRubricGuideOpen] = useState(false);
   
   // Syllabus for the signed-in user's institution (falls back to the built-in data if unavailable)
   const { config: syllabus, source: configSource, isLoading: configLoading } = useInstitutionConfig();
@@ -155,6 +159,24 @@ const VideoAnalyzer = () => {
     : [];
   const selectedConceptVideo = currentPhase?.videos.find((v) => v.videoType === "concept" && v.title === selectedVideoTitle);
   const selectedProjectVideo = currentPhase?.videos.find((v) => v.videoType === "project");
+
+  // Rubric guide ("What makes a good video?") uses the institution's own rubric when available
+  const guideRubricId = videoType === "project"
+    ? selectedProjectVideo?.rubricId
+    : (selectedConceptVideo ?? currentPhase?.videos.find((v) => v.videoType === "concept"))?.abilityRubricId;
+  const { data: guideRubric } = useRubric(useServerPrompts ? guideRubricId : null);
+  const guideOverride = useServerPrompts && guideRubric && videoType !== "other"
+    ? {
+        kind: (videoType === "project" ? "project" : "concept") as "project" | "concept",
+        title: videoType === "project" ? `${selectedPhase}: Project Rubric` : "Concept Explanation: Rubric Guide",
+        description: videoType === "project"
+          ? "Study the levels for each parameter to understand what is expected before you record or submit your project video."
+          : "Study the rubric levels to understand what is expected before you record or submit your concept explanation video.",
+        rubric: guideRubric.criteria as any[], // eslint-disable-line @typescript-eslint/no-explicit-any
+        levels: guideRubric.levels,
+        selectedPhaseLabel: selectedPhase || undefined,
+      }
+    : null;
 
   // Video details mapping
   const getVideoDetails = () => {
@@ -221,6 +243,10 @@ const VideoAnalyzer = () => {
     }
   }, [videoType, selectedPhase, selectedVideoTitle, customPrompt, customContext, syllabus]);
 
+  useEffect(() => {
+    setIsRubricGuideOpen(false);
+  }, [videoType, selectedPhase]);
+
   // Helper function to create validation error objects
   const createValidationError = (
     title: string,
@@ -237,6 +263,83 @@ const VideoAnalyzer = () => {
       retryable: false,
       nextSteps: "Fill in the required field(s) and try again",
     };
+  };
+
+  const saveFailedRequest = async (
+    failedPayload: Record<string, unknown>,
+    errorType: string,
+    errorMessage: string,
+  ) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+
+      let activeUser: any = null;
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (!sessionError && sessionData?.session?.user) {
+        activeUser = sessionData.session.user;
+      }
+
+      if (!activeUser) {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (!userError) activeUser = userData?.user ?? null;
+      }
+
+      if (!activeUser || !activeUser.email) {
+        console.warn('Failed request not saved because no active authenticated user was found.');
+        return false;
+      }
+
+      // With the institution syllabus, a retry is replayed through the server-side prompt path:
+      // store the video id + evaluation kind instead of the client-built prompt.
+      const retryPayload: Record<string, unknown> = useServerPrompts
+        ? {
+            ...failedPayload,
+            promptbegining: null,
+            rubric: null,
+            structuredreturnedconfig: null,
+            videoAssignmentId:
+              videoType === "concept" ? selectedConceptVideo?.id ?? null
+              : videoType === "project" ? selectedProjectVideo?.id ?? null
+              : null,
+            evaluationKind:
+              videoType === "concept"
+                ? (failedPayload.promptbegining === AbilityToExplainPrompt ? "ability_to_explain" : "accuracy")
+                : videoType === "project" ? "project" : "custom",
+          }
+        : failedPayload;
+      failedPayload = retryPayload;
+
+      const requestBody = {
+        userId: activeUser.id,
+        userEmail: activeUser.email,
+        ...failedPayload,
+        errorType,
+        errorMessage,
+        request_payload: {
+          ...failedPayload,
+          userId: activeUser.id,
+          userEmail: activeUser.email,
+        }
+      };
+
+      const response = await apiFetch(`${API_BASE_URL}/failed-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Failed request save API rejected the payload:', result);
+        return false;
+      }
+
+      console.log('Failed request saved for retry:', result);
+      return true;
+    } catch (saveError) {
+      console.warn('Failed to save evaluation request for retry:', saveError);
+      return false;
+    }
   };
 
   const handleAnalyze = () => {
@@ -347,10 +450,12 @@ const VideoAnalyzer = () => {
       duration: Infinity // Keep toast visible until manually dismissed
     });
 
+    
     (async () => {
+      let projectRubric: any = null;
       try {
         let evaluationPayload = {};
-        let projectRubric = null;
+        // let projectRubric: any = null;
         
         // Create payload with common fields
         const payload = {
@@ -437,13 +542,25 @@ const VideoAnalyzer = () => {
             setShowCelebration(false);
             dismiss();
             
-            // Extract and format error info - prioritize HTTP status code from response
             const httpStatus = accuracyResp?.status || 500;
             const formattedError = formatErrorInfo(
               accuracyData?.error || {},
               !accuracyResp?.ok ? httpStatus : undefined,
               "accuracy"
             );
+
+            await saveFailedRequest({
+              videoUrl,
+              videoType,
+              selectedPhase,
+              selectedVideoTitle,
+              videoDetails: videoDetailsText,
+              promptbegining: AccuracyPrompt,
+              rubric: {},
+              structuredreturnedconfig: AccuracyConfig,
+              customPrompt: null,
+              customContext: null,
+            }, accuracyData?.error?.type || 'GEMINI_ERROR', formattedError.message);
             
             setErrorInfo(formattedError);
             setError(formattedError.message);
@@ -517,6 +634,19 @@ const VideoAnalyzer = () => {
             // This will be handled in AnalysisResults to show accuracy + error banner
             
             // For now, treat as critical error on ability alone but preserve accuracy
+            await saveFailedRequest({
+              videoUrl,
+              videoType,
+              selectedPhase,
+              selectedVideoTitle,
+              videoDetails: videoDetailsText,
+              promptbegining: AbilityToExplainPrompt,
+              rubric: abilityToExplainRubric,
+              structuredreturnedconfig: AbilityToExplainConfig,
+              customPrompt: null,
+              customContext: null,
+            }, abilityData?.error?.type || 'GEMINI_ERROR', formattedError.message);
+
             setErrorInfo(formattedError);
             setError(formattedError.message);
             setIsAnalyzing(false);
@@ -612,6 +742,19 @@ const VideoAnalyzer = () => {
               "custom"
             );
             
+            await saveFailedRequest({
+              videoUrl,
+              videoType,
+              selectedPhase: null,
+              selectedVideoTitle: null,
+              videoDetails: videoDetailsText,
+              promptbegining: CustomPrompt,
+              rubric: {},
+              structuredreturnedconfig: CustomConfig,
+              customPrompt,
+              customContext,
+            }, data?.error?.type || 'GEMINI_ERROR', formattedError.message);
+
             setErrorInfo(formattedError);
             setError(formattedError.message);
             setIsAnalyzing(false);
@@ -730,6 +873,19 @@ const VideoAnalyzer = () => {
               "project"
             );
             
+            await saveFailedRequest({
+              videoUrl,
+              videoType,
+              selectedPhase,
+              selectedVideoTitle: null,
+              videoDetails: videoDetailsText,
+              promptbegining: ProjectPrompt,
+              rubric: projectRubric || {},
+              structuredreturnedconfig: projectconfig,
+              customPrompt: null,
+              customContext: null,
+            }, data?.error?.type || 'GEMINI_ERROR', formattedError.message);
+
             setErrorInfo(formattedError);
             setError(formattedError.message);
             setIsAnalyzing(false);
@@ -811,6 +967,19 @@ const VideoAnalyzer = () => {
         }, 800);
       } catch (err: any) {
         console.error('Evaluation error', err);
+        await saveFailedRequest({
+          videoUrl,
+          videoType,
+          selectedPhase: videoType !== 'other' ? selectedPhase : null,
+          selectedVideoTitle: videoType === 'concept' ? selectedVideoTitle : null,
+          videoDetails: videoDetailsText,
+          promptbegining: videoType === 'concept' ? AccuracyPrompt : videoType === 'project' ? ProjectPrompt : CustomPrompt,
+          rubric: videoType === 'project' ? projectRubric ?? {} : {},
+          structuredreturnedconfig: videoType === 'concept' ? AccuracyConfig : videoType === 'project' ? projectconfig : CustomConfig,
+          customPrompt: videoType === 'other' ? customPrompt : null,
+          customContext: videoType === 'other' ? customContext : null,
+        }, 'GENERIC_EVALUATION_ERROR', err?.message || 'Evaluation failed unexpectedly');
+
         setShowCelebration(false);
         dismiss(); // Dismiss the processing toast on error
         setError('Evaluation failed. See console for details.');
@@ -944,6 +1113,15 @@ const VideoAnalyzer = () => {
               </div>
             )}
 
+            {videoType !== "other" && selectedPhase && (!useServerPrompts || guideOverride) && (
+              <div className="space-y-2">
+                <RubricGuidanceButton
+                  onClick={() => setIsRubricGuideOpen(true)}
+                  label="What Makes a Good Project/Concept Explanation video ?"
+                />
+              </div>
+            )}
+
             {/* Video Title Selection (only for concept explanation) */}
             {videoType === "concept" && selectedPhase && (
               <div className="space-y-3">
@@ -1069,6 +1247,14 @@ const VideoAnalyzer = () => {
         </Card>
         </MotionWrapper>
       </main>
+
+      <RubricGuidanceModal
+        open={isRubricGuideOpen}
+        onOpenChange={setIsRubricGuideOpen}
+        videoType={videoType}
+        selectedPhase={selectedPhase}
+        override={useServerPrompts ? guideOverride : undefined}
+      />
 
       <Footer />
     </div>

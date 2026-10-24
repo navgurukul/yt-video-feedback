@@ -43,7 +43,7 @@ export async function verify(prod, test, ids) {
     ok(n === 0, `${t}: rows without institution_id = ${n}`);
 
     const emailCol = t === 'tbl_manual_video_evaluations' ? 'evaluator_email'
-      : ['tbl_llm_api_calls', 'tbl_user_issues'].includes(t) ? 'user_email' : 'email';
+      : ['tbl_llm_api_calls', 'tbl_user_issues', 'tbl_failed_requests'].includes(t) ? 'user_email' : 'email';
     const sql = `SELECT md5(string_agg(${emailCol} || ':' || c, ',' ORDER BY ${emailCol})) h FROM
                  (SELECT ${emailCol}, COUNT(*) c FROM public."${t}" GROUP BY 1) x`;
     const ha = (await prod.query(sql)).rows[0].h, hb = (await test.query(sql)).rows[0].h;

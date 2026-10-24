@@ -14,6 +14,7 @@ import { tagEvaluation } from './lib/tenant.js';
 import { registerEvaluationRoutes } from './routes/evaluations.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerSuperRoutes } from './routes/super.js';
+import { registerFailedRequestRoutes, ensureFailedRequestsTable } from './routes/failedRequests.js';
 import { GEMINI_MODELS, resolveGeminiKey } from './lib/gemini.js';
 import { resolveEvaluationRequest, EvaluateRequestError } from './lib/evaluation-request.js';
 
@@ -1200,6 +1201,10 @@ registerEvaluationRoutes(app);
 // Config (/api/config), institution admin (/api/admin/*) and super admin (/api/super/*)
 registerAdminRoutes(app);
 registerSuperRoutes(app);
+
+// Failed-request recovery (save failed evaluations, retry later), scoped to the signed-in user
+ensureFailedRequestsTable();
+registerFailedRequestRoutes(app, { port: PORT });
 
 app.listen(PORT, () => {
   console.log(`Evaluation API listening on http://localhost:${PORT}`);
