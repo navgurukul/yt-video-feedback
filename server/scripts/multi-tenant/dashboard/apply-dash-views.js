@@ -68,29 +68,65 @@ async function main() {
         throw new Error(`${file}.sql: ${e.message}`);
       }
     }
-    const pw = process.env.DASH_READER_PASSWORD;
-    if (pw) {
-      const db = (await c.query('SELECT current_database() d')).rows[0].d;
-      const lit = (s) => "'" + s.replace(/'/g, "''") + "'";
-      await c.query(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'superset_dash') THEN CREATE ROLE superset_dash LOGIN; END IF; END $$`);
-      await c.query(`ALTER ROLE superset_dash WITH LOGIN PASSWORD ${lit(pw)}`);
-      await c.query(`ALTER ROLE superset_dash SET default_transaction_read_only = on`);
-      await c.query(`ALTER ROLE superset_dash SET search_path = public, dash`);
-      await c.query(`ALTER ROLE superset_dash SET statement_timeout = '120s'`);
-      await c.query(`GRANT CONNECT ON DATABASE "${db.replace(/"/g, '""')}" TO superset_dash`);
-      await c.query(`GRANT USAGE ON SCHEMA dash, public TO superset_dash`);
-      await c.query(`GRANT SELECT ON ALL TABLES IN SCHEMA dash TO superset_dash`);
-      for (const [table, cols] of READER_TABLES) {
-        const exists = (await c.query(`SELECT to_regclass('public.' || quote_ident($1)) t`, [table])).rows[0].t;
-        if (!exists) continue;
-        await c.query(`GRANT SELECT ${cols ? `(${cols.map((x) => `"${x}"`).join(', ')})` : ''} ON public."${table}" TO superset_dash`);
-      }
-    }
     await c.query('COMMIT');
-    console.log(`dash schema rebuilt in TEST: ${Object.keys(VIEWS).length} views from superset-queries/, campus/student tables read from "${src}"${pw ? '; login superset_dash updated' : ''}`);
+    console.log(`dash schema rebuilt in TEST: ${Object.keys(VIEWS).length} views from superset-queries/, campus/student tables read from "${src}"`);
   } catch (e) {
     await c.query('ROLLBACK').catch(() => {});
     throw e;
   } finally { c.release(); }
+  if (process.env.DASH_READER_PASSWORD) await readerLogin(process.env.DASH_READER_PASSWORD);
+  else await regrantIfLoginExists();
+}
+
+// the dash schema was just rebuilt: an existing superset_dash login needs its grants back
+async function regrantIfLoginExists() {
+  const c = await test.connect();
+  try {
+    if (!(await c.query(`SELECT 1 FROM pg_roles WHERE rolname = 'superset_dash'`)).rowCount) return;
+    await c.query('BEGIN');
+    await grantReader(c);
+    await c.query('COMMIT');
+    console.log('grants for the existing login superset_dash renewed');
+  } catch (e) {
+    await c.query('ROLLBACK').catch(() => {});
+    console.log(`NOTE: could not renew grants for superset_dash (${e.message})`);
+  } finally { c.release(); }
+}
+
+// Optional, separate transaction: the read-only login for Superset. Needs CREATEROLE; without it the
+// views above are still in place and the login can be created by the database admin (see README).
+async function readerLogin(pw) {
+  const c = await test.connect();
+  try {
+    await c.query('BEGIN');
+    const exists = (await c.query(`SELECT 1 FROM pg_roles WHERE rolname = 'superset_dash'`)).rowCount > 0;
+    const lit = (s) => "'" + s.replace(/'/g, "''") + "'";
+    if (!exists) await c.query(`CREATE ROLE superset_dash LOGIN PASSWORD ${lit(pw)}`);
+    else await c.query(`ALTER ROLE superset_dash WITH LOGIN PASSWORD ${lit(pw)}`);
+    await c.query(`ALTER ROLE superset_dash SET default_transaction_read_only = on`);
+    await c.query(`ALTER ROLE superset_dash SET search_path = public, dash`);
+    await c.query(`ALTER ROLE superset_dash SET statement_timeout = '120s'`);
+    await grantReader(c);
+    await c.query('COMMIT');
+    console.log('login superset_dash created/updated (read only)');
+  } catch (e) {
+    await c.query('ROLLBACK').catch(() => {});
+    console.log(`NOTE: the read-only login superset_dash was not created (${e.message}).`);
+    console.log('      The dashboard views are in place. Either connect Superset with the TEST database user,');
+    console.log('      or ask the RDS admin (master user) to run: node scripts/multi-tenant/dashboard/apply-dash-views.js');
+    console.log('      with DASH_READER_PASSWORD set, using an admin account in TEST_PG_*.');
+  } finally { c.release(); }
+}
+
+async function grantReader(c) {
+  const db = (await c.query('SELECT current_database() d')).rows[0].d;
+  await c.query(`GRANT CONNECT ON DATABASE "${db.replace(/"/g, '""')}" TO superset_dash`);
+  await c.query(`GRANT USAGE ON SCHEMA dash, public TO superset_dash`);
+  await c.query(`GRANT SELECT ON ALL TABLES IN SCHEMA dash TO superset_dash`);
+  for (const [table, cols] of READER_TABLES) {
+    const exists = (await c.query(`SELECT to_regclass('public.' || quote_ident($1)) t`, [table])).rows[0].t;
+    if (!exists) continue;
+    await c.query(`GRANT SELECT ${cols ? `(${cols.map((x) => `"${x}"`).join(', ')})` : ''} ON public."${table}" TO superset_dash`);
+  }
 }
 main().catch((e) => { console.error('ERROR:', e.message); process.exitCode = 2; }).finally(() => closeAll());

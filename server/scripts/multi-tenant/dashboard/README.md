@@ -26,7 +26,7 @@ DASH_READER_PASSWORD='<password for superset_dash>' node scripts/multi-tenant/da
 | Step | What it does | Writes |
 |---|---|---|
 | `copy-dashboard-tables.js` | Copies the 10 non-tool tables from production; MAIN always wins. Re-creates the two production views (`v_ailabs_*`) in TEST and saves their definitions in `production-views/`. | TEST only |
-| `apply-dash-views.js` | Rebuilds schema `dash`: one view per query in `superset-queries/`. With `DASH_READER_PASSWORD`, it also creates the read-only login `superset_dash`. That login can read only what the queries need: no password hashes, no API keys, no project code, no writes. | TEST only |
+| `apply-dash-views.js` | Rebuilds schema `dash`: one view per query in `superset-queries/`. With `DASH_READER_PASSWORD`, it also tries to create the read-only login `superset_dash`. That login can read only what the queries need: no password hashes, no API keys, no project code, no writes. Creating a login needs the CREATEROLE privilege. Without it the views are still created and a NOTE is printed; then either connect Superset with the TEST database user, or have the RDS master user run this script once. | TEST only |
 | `compare-old-new.js` | Compares old and new queries cell by cell (see below). | nothing (both read only) |
 
 ## SQL query for each dashboard component (`superset-queries/`)
