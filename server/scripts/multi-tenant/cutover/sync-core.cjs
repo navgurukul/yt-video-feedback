@@ -213,6 +213,7 @@ async function moveTestRow(client, table, oldId, seq) {
 /**
  * Syncs one table MAIN → TEST.
  * opts: { dryRun, sourceWins, applyDeletes, deleteTestOnlyInstitution, idGap, headroom, identity,
+ *         mirror (reference tables: TEST becomes an exact copy of MAIN, rows only in TEST are removed),
  *         extraColumns, excludeColumns, log }
  */
 async function syncPgTable(main, test, table, opts = {}) {
@@ -294,7 +295,7 @@ async function syncPgTable(main, test, table, opts = {}) {
       case "test-only":
         r.counts[decision]++; sample(decision, k);
         testOnlyByInst[d.inst || "none"] = (testOnlyByInst[d.inst || "none"] || 0) + 1;
-        if (opts.deleteTestOnlyInstitution && d.inst === opts.deleteTestOnlyInstitution) plan.deleteTestOnly.push(k);
+        if (opts.mirror || (opts.deleteTestOnlyInstitution && d.inst === opts.deleteTestOnlyInstitution)) plan.deleteTestOnly.push(k);
         break;
       case "deleted-in-source-edited":
         r.counts[decision]++; sample(decision, k);
