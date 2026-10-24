@@ -32,6 +32,8 @@ export const Header = () => {
   const institution = me?.activeInstitution;
   const switchable = (me?.memberships?.length ?? 0) > 1 || !!me?.isSuperAdmin;
   const canSeeAll = hasRole(me, "evaluator");
+  const canAdmin = hasRole(me, "institution_admin");
+  const isSuper = !!me?.isSuperAdmin;
 
   useEffect(() => {
     console.log("Header: useEffect mount - checking user");
@@ -178,6 +180,21 @@ export const Header = () => {
                   All Evaluations
                 </Link>
               )}
+              {canSeeAll && (
+                <Link to="/manual-evaluation" className="font-bold hover:text-primary hover:scale-105 transition-all">
+                  Manual Eval
+                </Link>
+              )}
+              {canAdmin && (
+                <Link to="/admin" className="font-bold hover:text-primary hover:scale-105 transition-all">
+                  Admin
+                </Link>
+              )}
+              {isSuper && (
+                <Link to="/super-admin" className="font-bold hover:text-primary hover:scale-105 transition-all">
+                  Super Admin
+                </Link>
+              )}
             </nav>
           </div>
           
@@ -272,6 +289,21 @@ export const Header = () => {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   All Evaluations
+                </Link>
+              )}
+              {canSeeAll && (
+                <Link to="/manual-evaluation" className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all" onClick={() => setIsMobileMenuOpen(false)}>
+                  Manual Evaluation
+                </Link>
+              )}
+              {canAdmin && (
+                <Link to="/admin" className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all" onClick={() => setIsMobileMenuOpen(false)}>
+                  Admin
+                </Link>
+              )}
+              {isSuper && (
+                <Link to="/super-admin" className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all" onClick={() => setIsMobileMenuOpen(false)}>
+                  Super Admin
                 </Link>
               )}
 
