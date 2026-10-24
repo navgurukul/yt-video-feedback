@@ -17,7 +17,8 @@
 // Every differing row gets a reason when one is known; "UNEXPLAINED" marks the ones to look at.
 //
 // Both databases are only read (READ ONLY transactions; production also in a read-only session).
-// The production LIMIT 1000 is lifted so the full results are compared.
+// The LIMIT 1000 wrappers Superset put around the production dataset SQL are lifted so complete
+// results are compared (the production view behind component 07 has its own LIMIT 1000, and so does query 07).
 // Output: last-compare-report.txt + compare-out/<component>.csv (every differing cell).
 import fs from 'fs';
 import path from 'path';
@@ -37,8 +38,8 @@ const COMPONENTS = [
   ['Student Missing Phase Submission Details', 'student_missing_phase_submissions', '04_student_missing_phase_submission_details', ['email', 'phase_name', 'campus_name', 'school_name']],
   ['Student Current Phase and Phase Scores', 'student_current_phase_scores', '05_student_current_phase_and_phase_scores', ['email', 'campus_name', 'school_name', 'student_name', 'student_status']],
   ['Concept Explanation Summary View', 'concept_explanation_summary', '06_concept_explanation_summary_view', ['email', 'phase_name']],
-  ['Students Concept Explanation Analysis', 'students_concept_explanation_analysis', '07_students_concept_explanation_analysis', ['email', 'phase_name', 'video_title', 'evaluated_at']],
-  ['Phasewise Student Project Explanation Analysis', 'phasewise_project_explanation_analysis', '08_phasewise_student_project_explanation_analysis', ['email', 'phase_name', 'criteria', 'evaluated_at']],
+  ['Students Concept Explanation Analysis', 'students_concept_explanation_analysis', '07_students_concept_explanation_analysis', ['email', 'phase_name', 'video_number', 'video_title']],
+  ['Phasewise Student Project Explanation Analysis', 'phasewise_project_explanation_analysis', '08_phasewise_student_project_explanation_analysis', ['email', 'phase_name', 'source', 'criteria', 'evaluated_at']],
   ['Weekly Campus Learning', 'weekly_campus_summary', '09_weekly_campus_learning', ['campus_name', 'week']],
 ];
 
@@ -56,8 +57,10 @@ async function run(pool, sql) {
     return { error: e.message };
   } finally { c.release(); }
 }
-const sqlOf = (file) => fs.readFileSync(file, 'utf8').split('\n').filter((l) => !l.startsWith('--')).join('\n')
-  .trim().replace(/;\s*$/, '').replace(/LIMIT 1000\b/g, 'LIMIT 100000000');
+const sqlOf = (file, liftLimit) => {
+  const sql = fs.readFileSync(file, 'utf8').split('\n').filter((l) => !l.startsWith('--')).join('\n').trim().replace(/;\s*$/, '');
+  return liftLimit ? sql.replace(/LIMIT 1000\b/g, 'LIMIT 100000000') : sql;
+};
 
 // ---------------------------------------------------------------- comparison ----------
 const isNum = (v) => v !== null && /^-?\d+(\.\d+)?(e[-+]?\d+)?$/i.test(String(v).trim());
@@ -193,10 +196,33 @@ async function main() {
   const facts = await loadFacts();
   fs.mkdirSync(OUT, { recursive: true });
 
+  // the new queries take phase names / video titles from the multi-tenant config; production from the
+  // old syllabus tables. Any difference here shows up in the components.
+  lines.push('CONFIG CHECK  (old syllabus tables copied from MAIN vs the new multi-tenant config in TEST)');
+  const cfg = await run(test, `
+    WITH np AS (SELECT COALESCE((regexp_match(ph.name, '^\\s*Phase\\s+(\\d+)', 'i'))[1]::int, ph.sort_order) AS n, ph.name, ph.id
+                  FROM public.phases ph JOIN public.programs p ON p.id = ph.program_id JOIN public.institutions i ON i.id = p.institution_id
+                 WHERE i.slug = 'navgurukul' AND p.name = 'School of Programming' AND ph.is_active)
+    SELECT 'phase' AS kind, COALESCE(o.id, np.n)::text AS phase, o.phase_name AS old, np.name AS new
+      FROM public.tbl_ailabls_ytfeedback_phases o FULL JOIN np ON np.n = o.id
+     WHERE o.phase_name IS DISTINCT FROM np.name
+    UNION ALL
+    SELECT 'video', COALESCE(o.phase_id, v.n)::text, o.video_title || ' [' || o.video_type || ']', v.title
+      FROM (SELECT * FROM public.tbl_ailabls_ytfeedback_phasevideos) o
+      FULL JOIN (SELECT np.n, va.title FROM public.video_assignments va JOIN np ON np.id = va.phase_id
+                  WHERE va.video_type = 'concept' AND va.is_active) v
+        ON v.n = o.phase_id AND lower(trim(v.title)) = lower(trim(o.video_title))
+     WHERE o.video_title IS NULL OR v.title IS NULL
+     ORDER BY 1, 2, 3`);
+  if (cfg.error) lines.push(`  could not compare: ${cfg.error}`);
+  else if (!cfg.rows.length) lines.push('  IDENTICAL  phase names and concept video titles');
+  else for (const [kind, phase, o, n] of cfg.rows) lines.push(`  ${kind} (phase ${phase}): old=${JSON.stringify(o)}  new=${JSON.stringify(n)}`);
+  lines.push('');
+
   const summary = [];
   for (const [title, prodFile, newFile, keys] of COMPONENTS) {
-    const oldSql = sqlOf(path.join(__dirname, 'production-datasets', `${prodFile}.sql`));
-    const newSql = sqlOf(path.join(__dirname, 'superset-queries', `${newFile}.sql`));
+    const oldSql = sqlOf(path.join(__dirname, 'production-datasets', `${prodFile}.sql`), true);
+    const newSql = sqlOf(path.join(__dirname, 'superset-queries', `${newFile}.sql`), false);
     const [oM, oT, nT] = [await run(prod, oldSql), await run(test, oldSql), await run(test, newSql)];
     lines.push('='.repeat(100), `${title}   (production: ${prodFile}.sql   new: ${newFile}.sql)`);
     for (const [n, r] of [['OLD@MAIN', oM], ['OLD@TEST', oT], ['NEW@TEST', nT]]) if (r.error) lines.push(`  ${n}: ERROR ${r.error}`);

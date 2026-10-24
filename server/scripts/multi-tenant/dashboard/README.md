@@ -1,104 +1,100 @@
 # Campus Learning Dashboard (Superset) on the TEST database
 
-Superset's **NayaGharCentralDB** connection is the YT tool's production database (`PG_*` in `server/.env`, `ghar_central_db`). This folder makes the same dashboard run entirely on **`test_ghar_central_db`** (`TEST_PG_*`).
+Location: `yt-video-feedback/server/scripts/multi-tenant/dashboard/`. Run every command from `yt-video-feedback/server`.
 
-**What comes from where:**
+Superset's **NayaGharCentralDB** connection is the YT tool's production database (`PG_*` in `server/.env`, `ghar_central_db`). This folder makes the same dashboard run entirely on **`test_ghar_central_db`** (`TEST_PG_*`):
 
-- **Copied from production:** the tables the dashboard reads that the tools don't own. MAIN is only read.
-  - `tbl_ghar_add_student`, `tbl_ghar_create_campus`, `tbl_ghar_assign_school_to_campus`
-  - `tbl_ghar_Write_Improve_Data`, `tbl_ghar_Speak_Improve_Data`
-  - `tbl_ghar_apply_leave`, `tbl_ghar_leave_type`
-  - `tbl_ailabs_phasewise_parameter_weightages`
-  - `tbl_ailabls_ytfeedback_phases`, `tbl_ailabls_ytfeedback_phasevideos`
-- **Re-created in TEST** from their production definitions: the two MAIN views `v_ailabs_students_concept_explanationanalysis` and `v_ailabs_phasewise_student_project_explanation_analysis`.
-- **Already in TEST:** the YT / Project Analyzer data, the multi-tenant one kept current by the daily `cutover/sync-from-main.js` of both tools.
-- **Built on top:** `dash.*` views, one per Superset dataset, that read the new multi-tenant structure (phases, phase links, phase specs) and are scoped to Navgurukul.
+- **YT and Project Analyzer data:** read from the new multi-tenant tables, Navgurukul rows only. The daily `cutover/sync-from-main.js` of both tools keeps them current.
+- **Everything else the dashboard reads:** copied from production. MAIN is only read.
+  - students, campuses and schools
+  - leave and attendance
+  - English write and speak grades
+  - parameter weightages
+  - the original syllabus tables
 
-## Run (from `yt-video-feedback/server`, on a machine that can reach RDS)
+## Run
 
 ```bash
-# 0. tool data current in TEST
-node scripts/multi-tenant/cutover/sync-from-main.js                              # YT
-(cd "../../Project Analyzer/athena-pa-admin" && node scripts/multi-tenant/cutover/sync-from-main.js)   # PA (MongoDB)
-
-# 1–3. copy dashboard tables + views, build dash.* views, compare OLD vs NEW queries cell by cell
+cd yt-video-feedback/server
+node scripts/multi-tenant/cutover/sync-from-main.js                                       # YT data → TEST
+(cd "../../Project Analyzer/athena-pa-admin" && node scripts/multi-tenant/cutover/sync-from-main.js)   # PA data → TEST
 DASH_READER_PASSWORD='<password for superset_dash>' node scripts/multi-tenant/dashboard/run.js
 ```
 
-`run.js` runs these three steps; each can also be run alone:
+`run.js` runs these steps:
 
 | Step | What it does | Writes |
 |---|---|---|
-| `copy-dashboard-tables.js [--dry-run]` | Copies the 10 tables. MAIN always wins, so TEST becomes an exact copy: rows added or edited in TEST are reset or removed. Re-creates the two views (and any views or tables they need) from `pg_get_viewdef`. Saves the production definitions in `production-views/`. | TEST only |
-| `apply-dash-views.js [--src public\|main_ro]` | Rebuilds schema `dash` from `dash-views.sql`. With `DASH_READER_PASSWORD`, it also creates the read-only login `superset_dash`, which can read the `dash` views and the columns the `superset-queries/` need, and nothing else. | TEST only |
-| `compare-old-new.js [--samples N]` | Runs every **old** (production) query and every **new** query (`superset-queries/`) and compares them on **row count, column names and order, and every cell**. Old queries run on production and on TEST; new queries run on TEST. Each difference gets a reason (see below). Report: `last-compare-report.txt`; every differing cell goes to `compare-out/<component>.csv`. | nothing (both read only) |
-
-Keep running `copy-dashboard-tables.js` with the daily sync until the switch. The ghar tables keep changing in MAIN. The Project Analyzer sync (`--reference-only`) copies the same 10 tables too.
-
-## Reading the comparison (`last-compare-report.txt`)
-
-For each of the 9 components it shows the row counts (OLD@MAIN / OLD@TEST / NEW@TEST) and three checks:
-
-| Check | Compares | Answers |
-|---|---|---|
-| **QUERY CHECK** | old query vs new query, both on TEST (same data) | Do the new queries compute exactly what the old ones did? |
-| **END TO END** | old query on production vs new query on TEST | Will the new dashboard show what the current one shows? |
-| **DATA CHECK** | old query on production vs old query on TEST | Is TEST's copy of the data complete? |
-
-**IDENTICAL** means the same number of rows, the same columns in the same order, and every cell equal. Otherwise you get:
-
-- counts of differing cells, per column
-- sample rows with the old and new values, and a **reason**
-- the full list of differing cells in the CSV
-
-Known reasons:
-
-- **YT project videos saved under an OLD phase name.** The old query drops them; the new one counts them, so it shows more submissions and fewer false "Skipped" phases.
-- **Concept videos whose title the old query can't match.** The new query uses the video link.
-- **Rows of another institution.** The new queries are Navgurukul-only.
-- **Tool data differs between production and TEST.** Run the daily sync, or the rows were created by testers in TEST.
-- **UNEXPLAINED.** A real difference to look at; send me the CSV.
-
-The production LIMIT 1000 is lifted for the comparison so complete results are compared. Charts 07 and 08 come from two production views whose SQL isn't in the Superset export. The copy step saves their real definitions in `production-views/`. If those two components differ, send me those files and I'll align queries 07 and 08.
+| `copy-dashboard-tables.js` | Copies the 10 non-tool tables from production; MAIN always wins. Re-creates the two production views (`v_ailabs_*`) in TEST and saves their definitions in `production-views/`. | TEST only |
+| `apply-dash-views.js` | Rebuilds schema `dash`: one view per query in `superset-queries/`. With `DASH_READER_PASSWORD`, it also creates the read-only login `superset_dash`. That login can read only what the queries need: no password hashes, no API keys, no project code, no writes. | TEST only |
+| `compare-old-new.js` | Compares old and new queries cell by cell (see below). | nothing (both read only) |
 
 ## SQL query for each dashboard component (`superset-queries/`)
 
-Each file is one complete query for one chart. It runs on the **TEST** database on its own (no views needed) and returns the same columns as the production dataset, so the chart settings stay the same. Run `copy-dashboard-tables.js` first: the queries read the copied student, campus, grade and leave tables from TEST.
+Each file is one complete query for one chart. It runs on its own on the TEST database and returns exactly the production dataset's columns, in the same order. Each query reproduces the production query's rules on the new multi-tenant tables:
 
-| File | Chart | Production dataset it replaces | Chart type / columns (as production) |
-|---|---|---|---|
-| `01_campus_phase_progress.sql` | Campus Phase Progress | Campus Phase Progress | Table (raw): campus_name, school_name, total_students, avg_write_grade, avg_speak_grade, phase1–phase7 |
-| `02_campus_phase_timeline_score.sql` | Campus Phase Timeline & Score | Campus Phase Timeline & Score | Table (raw): campus_name, school_name, phase_name, student_count, avg_time_days, avg_score |
-| `03_student_phase_submission_details.sql` | Student Phase Submission Details | Phase Submission Student Details | Table (raw): campus_name, school_name, student_name, email, phase_name, first_submission; time filter first_submission |
-| `04_student_missing_phase_submission_details.sql` | Student Missing Phase Submission Details | Student Missing Phase Submission Details | Table (raw): campus_name, school_name, student_name, email, phase_name, last_submitted_phase |
-| `05_student_current_phase_and_phase_scores.sql` | Student Current Phase and Phase Scores | Student Current Phase and Phase Scores | Table (raw): campus_name … phase7_score (same 18 columns as production) |
-| `06_concept_explanation_summary_view.sql` | Concept Explanation Summary View | Concept Explanation Summary View | Table (raw): email, phase_name, videos_cleared, video_cleared_accuracy, last_ability_to_explain_level |
-| `07_students_concept_explanation_analysis.sql` | Students Concept Explanation Analysis | view v_ailabs_students_concept_explanationanalysis | Table (raw): 13 columns; time filter evaluated_at |
-| `08_phasewise_student_project_explanation_analysis.sql` | Phasewise Student Project Explanation Analysis | view v_ailabs_phasewise_student_project_explanation_analysis | Table (aggregate, group by all 9 columns); time filter evaluated_at |
-| `09_weekly_campus_learning.sql` | Weekly Campus Learning | Weekly Campus Wise Summary | Table (aggregate, group by all 8 columns); time filter week |
+- **YT project video:** belongs to the phase it was saved under, by phase name.
+- **Concept video:** matched by video title, or "title - phase name".
+- **Video numbers:** as in the original syllabus table.
+- **Project Analyzer projects:** matched to a phase through their phase spec.
+- **Scores:** same weighted formula as production.
+- **Component 07:** keeps the production view's `LIMIT 1000`.
 
-**To create a chart from a query by hand:**
+| File | Chart | Production dataset it replaces |
+|---|---|---|
+| `01_campus_phase_progress.sql` | Campus Phase Progress | Campus Phase Progress |
+| `02_campus_phase_timeline_score.sql` | Campus Phase Timeline & Score | Campus Phase Timeline & Score |
+| `03_student_phase_submission_details.sql` | Student Phase Submission Details | Phase Submission Student Details |
+| `04_student_missing_phase_submission_details.sql` | Student Missing Phase Submission Details | Student Missing Phase Submission Details |
+| `05_student_current_phase_and_phase_scores.sql` | Student Current Phase and Phase Scores | Student Current Phase and Phase Scores |
+| `06_concept_explanation_summary_view.sql` | Concept Explanation Summary View | Concept Explanation Summary View |
+| `07_students_concept_explanation_analysis.sql` | Students Concept Explanation Analysis | view `v_ailabs_students_concept_explanationanalysis` |
+| `08_phasewise_student_project_explanation_analysis.sql` | Phasewise Student Project Explanation Analysis | view `v_ailabs_phasewise_student_project_explanation_analysis` |
+| `09_weekly_campus_learning.sql` | Weekly Campus Learning | Weekly Campus Wise Summary |
 
-1. Open **SQL → SQL Lab**, select the TEST connection, and paste the file.
-2. Click **Run**, then **Save → Save dataset**, and give it a name.
-3. In the chart editor, pick **Table**, add the columns listed above, then **Save → Add to dashboard**.
+Two behaviours are kept from production on purpose, so the numbers match. Each query has a one-line comment showing how to change it:
 
-**Tested** on a production-like replica: the real syllabus, rubrics and weightages, and students with and without submissions under old phase names.
+- YT project videos saved under an **old phase name** are not counted, as in production. Using the phase link instead would count them.
+- Component 07 shows only the **first 1000 rows**, ordered by email, phase and video. Students later in the alphabet don't appear, as in production.
 
-- **Matches production.** Queries 01–06 and 09 return exactly the rows the production SQL returns on MAIN. Where they differ, every differing student is one with submissions under an old phase name: production drops those rows, the new queries count them.
-- **Matches the views.** Every query returns the same rows as its `dash.*` view.
-- **Superset login.** All 9 run under the read-only login `superset_dash`, which can't see password hashes, API keys or project code, and can't write.
+**To build a chart from a query by hand:**
+
+1. Open **SQL Lab** on the TEST connection, paste the file and click **Run**.
+2. Click **Save → Save dataset**.
+3. Create a **Table** chart with the columns from the file's header, then **Save → Add to dashboard**.
+
+## Comparison: `compare-old-new.js` → `last-compare-report.txt` + `compare-out/*.csv`
+
+For each of the 9 components, the script runs the **old** production query (`production-datasets/`) and the **new** query, then compares:
+
+| Check | Compares | Answers |
+|---|---|---|
+| **QUERY CHECK** | old vs new query, both on TEST (same data) | Do the new queries compute exactly what the old ones did? |
+| **END TO END** | old query on production vs new query on TEST | Will the new dashboard show what the current one shows? |
+| **DATA CHECK** | old query on production vs old query on TEST | Is TEST's copy of the data complete? |
+
+**IDENTICAL** means the same number of rows, the same columns in the same order, and every cell equal (compared as exact text). Otherwise the report lists:
+
+- counts of differing cells, per column
+- sample rows with the old and new values
+- a reason per row
+
+Every differing cell goes into `compare-out/<component>.csv`.
+
+Known reasons:
+
+- **Tool data differs between production and TEST** (sync not run yet, or testers' rows): run the syncs.
+- **Rows of another institution:** the new queries are Navgurukul-only, so this only affects the query check.
+- **UNEXPLAINED:** send me the CSV.
+
+The **CONFIG CHECK** at the top compares the original syllabus tables (phase names, concept video titles) with the new multi-tenant configuration. Any difference there shows up in the components.
 
 ## Superset
 
 Import `campus_learning_dashboard_multitenant.zip` (Dashboards → Import).
 
-- The import creates the connection **NayaGharTestDB (multi-tenant)**: `superset_dash@db-pg…/test_ghar_central_db`. Give the `superset_dash` password when asked.
-- It also creates 9 SQL datasets named "… (TEST)", each holding the matching query from `superset-queries/`, plus the 9 charts and the dashboard **Campus Learning Dashboard (Multi-tenant TEST)**.
-- The production dashboard is untouched: all UUIDs are new.
-- Tested on Superset 6.1.0, the version the export came from.
+- **Connection:** the import creates **NayaGharTestDB (multi-tenant)**: `superset_dash@db-pg…/test_ghar_central_db`. Give the `superset_dash` password when asked.
+- **Datasets and charts:** 9 SQL datasets named "… (TEST)", each holding the matching query, plus the 9 charts and the dashboard **Campus Learning Dashboard (Multi-tenant TEST)**.
+- **Production is safe:** the production dashboard is untouched, because all UUIDs are new.
 
-Alternatives:
-
-- **Read MAIN's tables live** instead of copying them: `10-main-ro-fdw.sql` (postgres_fdw, read only) and `apply-dash-views.js --src main_ro`.
-- **Keep the production SQL:** after the copy, every production dataset query also runs unchanged on TEST. To keep the old SQL, point the old datasets at the TEST connection.
+Optional: to read the campus and student tables live from production instead of copying them, run `10-main-ro-fdw.sql` (postgres_fdw, read only) and then `apply-dash-views.js --src main_ro`.

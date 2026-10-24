@@ -38,19 +38,17 @@ eligible_students AS (        -- students (copied from production: tbl_ghar_*)
      AND s."Navgurukul_Email" IS NOT NULL
      AND TRIM(s."Navgurukul_Email") <> ''
 ),
-yt_project AS (           -- YT project-explanation evaluations, matched to a phase by their phase link
+yt_project AS (           -- YT project-explanation evaluations; phase = the phase whose name the
+                          -- video was saved under (same rule as production)
   SELECT e.id, LOWER(TRIM(e.email)) AS email, np.phase_no, np.phase_name, e.created_at,
          e.project_explanation_evaluationjson AS evaluation_json,
          (e.project_explanation_evaluationjson IS NOT NULL
           AND TRIM(e.project_explanation_evaluationjson) <> '') AS has_evaluation
     FROM public.tbl_ailabs_ytfeedback_project_evaluation e
     JOIN scope s ON s.institution_id = e.institution_id
-    LEFT JOIN public.legacy_phase_name_map m           -- rows saved under an old phase name
-           ON e.phase_id IS NULL AND m.old_name = e.project_name
-    JOIN nav_phases np
-      ON np.phase_uuid = COALESCE(e.phase_id, m.phase_id)
-      OR (e.phase_id IS NULL AND m.phase_id IS NULL
-          AND LOWER(TRIM(np.phase_name)) = LOWER(TRIM(e.project_name)))
+    JOIN nav_phases np ON LOWER(TRIM(np.phase_name)) = LOWER(TRIM(e.project_name))
+    -- To also count videos saved under an OLD phase name (production does not), use the
+    -- phase link instead:   JOIN nav_phases np ON np.phase_uuid = e.phase_id
 ),
 pa_project AS (           -- Project Analyzer projects, matched to a phase through their phase spec
   SELECT pp."_id" AS project_id, LOWER(TRIM(pu.email)) AS email, np.phase_no, np.phase_name,
@@ -79,7 +77,7 @@ student_phase_gaps AS (
   SELECT f.*,
          CASE WHEN f.phase_no = 1 THEN 1
               WHEN prev.first_submission IS NULL THEN NULL
-              ELSE GREATEST(1, CEIL(EXTRACT(EPOCH FROM f.first_submission - prev.first_submission) / 86400))
+              ELSE GREATEST(1, CEIL(EXTRACT(EPOCH FROM f.first_submission - prev.first_submission)::numeric / 86400))
          END AS days_taken
     FROM student_phase_first f
     LEFT JOIN student_phase_first prev ON prev.email = f.email AND prev.phase_no = f.phase_no - 1

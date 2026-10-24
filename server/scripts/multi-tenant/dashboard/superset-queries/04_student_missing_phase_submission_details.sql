@@ -1,6 +1,6 @@
 -- ==================================================================================
 -- Dashboard component: Student Missing Phase Submission Details
--- Database: TEST (test_ghar_central_db). Columns: campus_name, school_name, student_name, email, phase_name, last_submitted_phase, (+ phase_id, full_phase_name, missing_type)
+-- Database: TEST (test_ghar_central_db). Columns: campus_name, school_name, student_name, email, phase_id, phase_name, full_phase_name, last_submitted_phase, missing_type
 -- Every student x phase with no submission. missing_type: 'Not started' (nothing submitted),
 -- 'Skipped (gap)' (a later phase was submitted), 'Pending' (not reached yet).
 -- ==================================================================================
@@ -38,19 +38,17 @@ eligible_students AS (        -- students (copied from production: tbl_ghar_*)
      AND s."Navgurukul_Email" IS NOT NULL
      AND TRIM(s."Navgurukul_Email") <> ''
 ),
-yt_project AS (           -- YT project-explanation evaluations, matched to a phase by their phase link
+yt_project AS (           -- YT project-explanation evaluations; phase = the phase whose name the
+                          -- video was saved under (same rule as production)
   SELECT e.id, LOWER(TRIM(e.email)) AS email, np.phase_no, np.phase_name, e.created_at,
          e.project_explanation_evaluationjson AS evaluation_json,
          (e.project_explanation_evaluationjson IS NOT NULL
           AND TRIM(e.project_explanation_evaluationjson) <> '') AS has_evaluation
     FROM public.tbl_ailabs_ytfeedback_project_evaluation e
     JOIN scope s ON s.institution_id = e.institution_id
-    LEFT JOIN public.legacy_phase_name_map m           -- rows saved under an old phase name
-           ON e.phase_id IS NULL AND m.old_name = e.project_name
-    JOIN nav_phases np
-      ON np.phase_uuid = COALESCE(e.phase_id, m.phase_id)
-      OR (e.phase_id IS NULL AND m.phase_id IS NULL
-          AND LOWER(TRIM(np.phase_name)) = LOWER(TRIM(e.project_name)))
+    JOIN nav_phases np ON LOWER(TRIM(np.phase_name)) = LOWER(TRIM(e.project_name))
+    -- To also count videos saved under an OLD phase name (production does not), use the
+    -- phase link instead:   JOIN nav_phases np ON np.phase_uuid = e.phase_id
 ),
 pa_project AS (           -- Project Analyzer projects, matched to a phase through their phase spec
   SELECT pp."_id" AS project_id, LOWER(TRIM(pu.email)) AS email, np.phase_no, np.phase_name,

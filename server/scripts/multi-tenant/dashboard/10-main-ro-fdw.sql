@@ -35,7 +35,9 @@ IMPORT FOREIGN SCHEMA public LIMIT TO (
   "tbl_ghar_Speak_Improve_Data",
   tbl_ghar_apply_leave,
   tbl_ghar_leave_type,
-  tbl_ailabs_phasewise_parameter_weightages
+  tbl_ailabs_phasewise_parameter_weightages,
+  tbl_ailabls_ytfeedback_phases,
+  tbl_ailabls_ytfeedback_phasevideos
 ) FROM SERVER main_ro_srv INTO main_ro;
 
 -- quick check

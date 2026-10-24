@@ -38,19 +38,17 @@ eligible_students AS (        -- students (copied from production: tbl_ghar_*)
      AND s."Navgurukul_Email" IS NOT NULL
      AND TRIM(s."Navgurukul_Email") <> ''
 ),
-yt_project AS (           -- YT project-explanation evaluations, matched to a phase by their phase link
+yt_project AS (           -- YT project-explanation evaluations; phase = the phase whose name the
+                          -- video was saved under (same rule as production)
   SELECT e.id, LOWER(TRIM(e.email)) AS email, np.phase_no, np.phase_name, e.created_at,
          e.project_explanation_evaluationjson AS evaluation_json,
          (e.project_explanation_evaluationjson IS NOT NULL
           AND TRIM(e.project_explanation_evaluationjson) <> '') AS has_evaluation
     FROM public.tbl_ailabs_ytfeedback_project_evaluation e
     JOIN scope s ON s.institution_id = e.institution_id
-    LEFT JOIN public.legacy_phase_name_map m           -- rows saved under an old phase name
-           ON e.phase_id IS NULL AND m.old_name = e.project_name
-    JOIN nav_phases np
-      ON np.phase_uuid = COALESCE(e.phase_id, m.phase_id)
-      OR (e.phase_id IS NULL AND m.phase_id IS NULL
-          AND LOWER(TRIM(np.phase_name)) = LOWER(TRIM(e.project_name)))
+    JOIN nav_phases np ON LOWER(TRIM(np.phase_name)) = LOWER(TRIM(e.project_name))
+    -- To also count videos saved under an OLD phase name (production does not), use the
+    -- phase link instead:   JOIN nav_phases np ON np.phase_uuid = e.phase_id
 ),
 pa_project AS (           -- Project Analyzer projects, matched to a phase through their phase spec
   SELECT pp."_id" AS project_id, LOWER(TRIM(pu.email)) AS email, np.phase_no, np.phase_name,
@@ -111,7 +109,7 @@ latest_grade AS (         -- latest English grade per student (copied from produ
 ),
 campus_grades AS (        -- average grade, as a grade label
   SELECT campus_id, school_name, kind,
-         CASE ROUND(AVG(grade_num))
+         CASE ROUND(AVG(grade_num)::numeric)
            WHEN 0 THEN 'Absent in Exam' WHEN 1 THEN '-A1' WHEN 2 THEN 'A1' WHEN 3 THEN 'A2'
            WHEN 4 THEN 'B1' WHEN 5 THEN 'B2' WHEN 6 THEN 'C1' WHEN 7 THEN 'C2' END AS grade
     FROM (SELECT es.campus_id, cs.school_name, g.kind,

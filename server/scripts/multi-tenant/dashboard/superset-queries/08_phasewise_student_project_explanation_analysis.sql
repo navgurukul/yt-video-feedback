@@ -1,9 +1,9 @@
 -- ==================================================================================
 -- Dashboard component: Phasewise Student Project Explanation Analysis
--- Database: TEST (test_ghar_central_db). Columns: evaluated_at, email, phase_name, source, criteria, level, What you did well?, What could you do better?, Suggestion for improvement?
--- Every rubric parameter of every YT project-explanation and Project Analyzer evaluation, with the
--- level and feedback (time filter: evaluated_at). Replaces production view
--- v_ailabs_phasewise_student_project_explanation_analysis.
+-- Database: TEST (test_ghar_central_db). Columns: email, phase_name, source, evaluated_at, criteria, level, What you did well?, What could you do better?, Suggestion for improvement?
+-- Every rubric parameter of each student's LATEST YT project-explanation ("YT Tool") and Project Analyzer
+-- ("Athena") evaluation per phase, with level and feedback (time filter: evaluated_at).
+-- Same rules as production view v_ailabs_phasewise_student_project_explanation_analysis.
 -- ==================================================================================
 WITH
 scope AS (                -- Navgurukul / School of Programming in the multi-tenant tools
@@ -20,19 +20,17 @@ nav_phases AS (           -- phase number = the "Phase N" in the phase name (sor
     JOIN scope s ON s.program_id = ph.program_id
    WHERE ph.is_active
 ),
-yt_project AS (           -- YT project-explanation evaluations, matched to a phase by their phase link
+yt_project AS (           -- YT project-explanation evaluations; phase = the phase whose name the
+                          -- video was saved under (same rule as production)
   SELECT e.id, LOWER(TRIM(e.email)) AS email, np.phase_no, np.phase_name, e.created_at,
          e.project_explanation_evaluationjson AS evaluation_json,
          (e.project_explanation_evaluationjson IS NOT NULL
           AND TRIM(e.project_explanation_evaluationjson) <> '') AS has_evaluation
     FROM public.tbl_ailabs_ytfeedback_project_evaluation e
     JOIN scope s ON s.institution_id = e.institution_id
-    LEFT JOIN public.legacy_phase_name_map m           -- rows saved under an old phase name
-           ON e.phase_id IS NULL AND m.old_name = e.project_name
-    JOIN nav_phases np
-      ON np.phase_uuid = COALESCE(e.phase_id, m.phase_id)
-      OR (e.phase_id IS NULL AND m.phase_id IS NULL
-          AND LOWER(TRIM(np.phase_name)) = LOWER(TRIM(e.project_name)))
+    JOIN nav_phases np ON LOWER(TRIM(np.phase_name)) = LOWER(TRIM(e.project_name))
+    -- To also count videos saved under an OLD phase name (production does not), use the
+    -- phase link instead:   JOIN nav_phases np ON np.phase_uuid = e.phase_id
 ),
 pa_project AS (           -- Project Analyzer projects, matched to a phase through their phase spec
   SELECT pp."_id" AS project_id, LOWER(TRIM(pu.email)) AS email, np.phase_no, np.phase_name,
@@ -48,59 +46,62 @@ pa_project AS (           -- Project Analyzer projects, matched to a phase throu
       OR (ps.id IS NULL AND pp.phase ~ '^phase[0-9]+$'
           AND np.phase_no = substring(pp.phase FROM 6)::int)
 ),
-parameter_levels AS (
-  SELECT 'YT Project Explanation'::text AS source, y.email, y.phase_name, y.created_at AS evaluated_at,
-         prm.value ->> 'name' AS criteria, prm.value ->> 'level' AS level, prm.value -> 'feedback' AS fb,
-         NULL::jsonb AS pa_fb
-    FROM yt_project y
+latest_yt_eval AS (       -- latest YT project evaluation with a result, per student and phase
+  SELECT DISTINCT ON (email, phase_no) email, phase_no, created_at AS evaluated_at, evaluation_json
+    FROM yt_project
+   WHERE has_evaluation
+   ORDER BY email, phase_no, created_at DESC
+),
+latest_pa_eval AS (       -- latest completed Project Analyzer evaluation, per student and phase
+  SELECT DISTINCT ON (email, phase_no) email, phase_no, evaluated_at, final_feedback
+    FROM pa_project
+   WHERE status = 'completed' AND final_feedback IS NOT NULL
+   ORDER BY email, phase_no, evaluated_at DESC NULLS LAST
+),
+yt_rows AS (              -- as production: every phase, its latest evaluations, one row per parameter
+  SELECT l.email, ph.phase_no, ph.phase_name, 'YT Tool'::text AS source, l.evaluated_at,
+         prm.value ->> 'name' AS criteria, prm.value ->> 'level' AS level,
+         (SELECT string_agg(item, chr(10))
+          FROM jsonb_array_elements_text(
+                 CASE WHEN jsonb_typeof(prm.value -> 'feedback' -> 'What you did well.') = 'array' THEN prm.value -> 'feedback' -> 'What you did well.' ELSE '[]'::jsonb END) item) AS did_well,
+         (SELECT string_agg(item, chr(10))
+          FROM jsonb_array_elements_text(
+                 CASE WHEN jsonb_typeof(prm.value -> 'feedback' -> 'What could you do better.') = 'array' THEN prm.value -> 'feedback' -> 'What could you do better.' ELSE '[]'::jsonb END) item) AS could_be_better,
+         (SELECT string_agg(item, chr(10))
+          FROM jsonb_array_elements_text(
+                 CASE WHEN jsonb_typeof(prm.value -> 'feedback' -> 'Suggestion for project improvement.') = 'array' THEN prm.value -> 'feedback' -> 'Suggestion for project improvement.' ELSE '[]'::jsonb END) item) AS suggestions
+    FROM nav_phases ph
+    LEFT JOIN latest_yt_eval l ON l.phase_no = ph.phase_no
+    LEFT JOIN LATERAL jsonb_array_elements(
+      CASE WHEN jsonb_typeof(l.evaluation_json::jsonb -> 'parameters') = 'array'
+           THEN l.evaluation_json::jsonb -> 'parameters' ELSE '[]'::jsonb END) prm ON TRUE
+),
+pa_rows AS (
+  SELECT l.email, ph.phase_no, ph.phase_name, 'Athena'::text AS source, l.evaluated_at,
+         c.value ->> 'parameter' AS criteria, c.value ->> 'assignedLevel' AS level,
+         (SELECT string_agg(item, chr(10))
+          FROM jsonb_array_elements_text(
+                 CASE WHEN jsonb_typeof(c.value -> 'detailedFeedback' -> 'wellDone') = 'array' THEN c.value -> 'detailedFeedback' -> 'wellDone' ELSE '[]'::jsonb END) item) AS did_well,
+         (SELECT string_agg(item, chr(10))
+          FROM jsonb_array_elements_text(
+                 CASE WHEN jsonb_typeof(c.value -> 'detailedFeedback' -> 'couldBeBetter') = 'array' THEN c.value -> 'detailedFeedback' -> 'couldBeBetter' ELSE '[]'::jsonb END) item) AS could_be_better,
+         (SELECT string_agg(item, chr(10))
+          FROM jsonb_array_elements_text(
+                 CASE WHEN jsonb_typeof(c.value -> 'detailedFeedback' -> 'suggestions') = 'array' THEN c.value -> 'detailedFeedback' -> 'suggestions' ELSE '[]'::jsonb END) item) AS suggestions
+    FROM nav_phases ph
+    JOIN latest_pa_eval l ON l.phase_no = ph.phase_no
     CROSS JOIN LATERAL jsonb_array_elements(
-      CASE WHEN jsonb_typeof(y.evaluation_json::jsonb -> 'parameters') = 'array'
-           THEN y.evaluation_json::jsonb -> 'parameters' ELSE '[]'::jsonb END) prm
-   WHERE y.has_evaluation AND y.evaluation_json ~ '^\s*\{.*\}\s*$'
-  UNION ALL
-  SELECT 'Project Analyzer', p.email, p.phase_name, p.evaluated_at,
-         c.value ->> 'parameter', c.value ->> 'assignedLevel', NULL::jsonb, c.value -> 'detailedFeedback'
-    FROM pa_project p
-    CROSS JOIN LATERAL jsonb_array_elements(
-      CASE WHEN jsonb_typeof(p.final_feedback -> 'criterionWiseEvaluation') = 'array'
-           THEN p.final_feedback -> 'criterionWiseEvaluation' ELSE '[]'::jsonb END) c
-   WHERE p.status = 'completed'
+      CASE WHEN jsonb_typeof(l.final_feedback -> 'criterionWiseEvaluation') = 'array'
+           THEN l.final_feedback -> 'criterionWiseEvaluation' ELSE '[]'::jsonb END) c
 )
-SELECT evaluated_at,
-       email,
+SELECT email,
        phase_name,
        source,
+       evaluated_at,
        criteria,
        level,
-       COALESCE((SELECT string_agg('• ' || item, E'\n')
-          FROM jsonb_array_elements_text(
-                 CASE jsonb_typeof(COALESCE(fb -> 'What you did well.', fb -> 'What you did well?', fb -> 'What could you do well?'))
-                   WHEN 'array' THEN COALESCE(fb -> 'What you did well.', fb -> 'What you did well?', fb -> 'What could you do well?')
-                   ELSE jsonb_build_array(COALESCE(fb -> 'What you did well.', fb -> 'What you did well?', fb -> 'What could you do well?')) END) item),
-                (SELECT string_agg('• ' || item, E'\n')
-          FROM jsonb_array_elements_text(
-                 CASE jsonb_typeof(COALESCE(pa_fb -> 'wellDone'))
-                   WHEN 'array' THEN COALESCE(pa_fb -> 'wellDone')
-                   ELSE jsonb_build_array(COALESCE(pa_fb -> 'wellDone')) END) item))      AS "What you did well?",
-       COALESCE((SELECT string_agg('• ' || item, E'\n')
-          FROM jsonb_array_elements_text(
-                 CASE jsonb_typeof(COALESCE(fb -> 'What could you do better.', fb -> 'What could you do better?'))
-                   WHEN 'array' THEN COALESCE(fb -> 'What could you do better.', fb -> 'What could you do better?')
-                   ELSE jsonb_build_array(COALESCE(fb -> 'What could you do better.', fb -> 'What could you do better?')) END) item),
-                (SELECT string_agg('• ' || item, E'\n')
-          FROM jsonb_array_elements_text(
-                 CASE jsonb_typeof(COALESCE(pa_fb -> 'couldBeBetter'))
-                   WHEN 'array' THEN COALESCE(pa_fb -> 'couldBeBetter')
-                   ELSE jsonb_build_array(COALESCE(pa_fb -> 'couldBeBetter')) END) item)) AS "What could you do better?",
-       COALESCE((SELECT string_agg('• ' || item, E'\n')
-          FROM jsonb_array_elements_text(
-                 CASE jsonb_typeof(COALESCE(fb -> 'Suggestion for project improvement.', fb -> 'Suggestion for improvement?', fb -> 'Suggestion for improvement.'))
-                   WHEN 'array' THEN COALESCE(fb -> 'Suggestion for project improvement.', fb -> 'Suggestion for improvement?', fb -> 'Suggestion for improvement.')
-                   ELSE jsonb_build_array(COALESCE(fb -> 'Suggestion for project improvement.', fb -> 'Suggestion for improvement?', fb -> 'Suggestion for improvement.')) END) item),
-                (SELECT string_agg('• ' || item, E'\n')
-          FROM jsonb_array_elements_text(
-                 CASE jsonb_typeof(COALESCE(pa_fb -> 'suggestions'))
-                   WHEN 'array' THEN COALESCE(pa_fb -> 'suggestions')
-                   ELSE jsonb_build_array(COALESCE(pa_fb -> 'suggestions')) END) item))   AS "Suggestion for improvement?"
-  FROM parameter_levels
- ORDER BY evaluated_at DESC, email, criteria
+       did_well        AS "What you did well?",
+       could_be_better AS "What could you do better?",
+       suggestions     AS "Suggestion for improvement?"
+  FROM (SELECT * FROM yt_rows UNION ALL SELECT * FROM pa_rows) all_feedback
+ ORDER BY email, phase_no, source, criteria
