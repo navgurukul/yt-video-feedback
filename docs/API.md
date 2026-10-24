@@ -131,3 +131,5 @@ Roles, lowest to highest: `student` < `evaluator` < `institution_admin` < `super
 | `ENCRYPTION_KEY` | Encrypts institution Gemini keys. Any random string of 32+ characters; keep it stable. |
 | `CORS_ORIGINS` | Comma-separated allowed frontend origins. |
 | `GEMINI_API_KEY` | Optional server-wide fallback key. |
+
+Frontend (root `.env`): `VITE_USE_DB_CONFIG=false` makes the analyzer use the built-in Navgurukul syllabus and send client-built prompts (legacy mode). By default it loads `/api/config`, and falls back to the built-in data automatically if that fails.

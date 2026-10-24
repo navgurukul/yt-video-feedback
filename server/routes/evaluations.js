@@ -102,7 +102,7 @@ export function registerEvaluationRoutes(app) {
       const institutionId = viewInstitution(req);
       const values = [institutionId];
       let query = `
-        SELECT pe.id, pe.email, pe.project_name, pe.video_url,
+        SELECT pe.id, pe.email, pe.project_name, pe.video_url, pe.rubric_id,
                EXISTS (SELECT 1 FROM tbl_manual_video_evaluations me WHERE me.project_evaluation_id = pe.id) AS manual_evaluated
           FROM tbl_ailabs_ytfeedback_project_evaluation pe
           JOIN institutions i ON i.id = pe.institution_id

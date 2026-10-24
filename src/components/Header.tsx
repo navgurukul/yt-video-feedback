@@ -28,7 +28,9 @@ export const Header = () => {
   const { apiKey, setApiKey } = useContext(ApiKeyContext);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { me } = useTenant();
+  const { me, switchInstitution } = useTenant();
+  const institution = me?.activeInstitution;
+  const switchable = (me?.memberships?.length ?? 0) > 1 || !!me?.isSuperAdmin;
   const canSeeAll = hasRole(me, "evaluator");
 
   useEffect(() => {
@@ -138,6 +140,28 @@ export const Header = () => {
                 Feedback<span className="text-primary">Hub</span> 💬
               </span>
             </Link>
+            {/* Active institution (name + logo); switcher when the user has several */}
+            {institution && (
+              <div className="hidden lg:flex items-center gap-2 border-2 border-foreground px-2 py-1 bg-background" title="Your institution">
+                {institution.logoUrl && (
+                  <img src={institution.logoUrl} alt="" className="h-6 w-6 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                )}
+                {switchable && me && me.memberships.length > 1 ? (
+                  <select
+                    aria-label="Switch institution"
+                    className="bg-transparent font-bold text-sm focus:outline-none"
+                    value={institution.id}
+                    onChange={(e) => switchInstitution(e.target.value)}
+                  >
+                    {me.memberships.map((m) => (
+                      <option key={m.institutionId} value={m.institutionId}>{m.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="font-bold text-sm">{institution.name}</span>
+                )}
+              </div>
+            )}
             {/* Desktop Navigation */}
             <nav className="hidden md:flex gap-6">
               <Link to="/" className="font-bold hover:text-primary hover:scale-105 transition-all">
