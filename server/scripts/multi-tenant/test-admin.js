@@ -59,7 +59,11 @@ try {
   await cleanup();
   const superAdmin = (await db.query(`SELECT email FROM user_memberships WHERE role = 'super_admin' LIMIT 1`)).rows[0]?.email;
   const ng = (await db.query(`SELECT id FROM institutions WHERE slug = 'navgurukul'`)).rows[0].id;
-  const ngEvaluator = (await db.query(`SELECT email FROM user_memberships WHERE institution_id = $1 AND role = 'evaluator' LIMIT 1`, [ng])).rows[0]?.email;
+  // an evaluator whose highest role is evaluator (some people also hold an admin membership)
+  const ngEvaluator = (await db.query(
+    `SELECT m.email FROM user_memberships m WHERE m.institution_id = $1 AND m.role = 'evaluator'
+        AND NOT EXISTS (SELECT 1 FROM user_memberships x WHERE x.email = m.email AND x.role IN ('institution_admin','super_admin'))
+      LIMIT 1`, [ng])).rows[0]?.email;
   const ngRubric = (await db.query(`SELECT id FROM rubrics WHERE institution_id = $1 AND rubric_type = 'project' LIMIT 1`, [ng])).rows[0].id;
   const ngPhase = (await db.query(`SELECT ph.id FROM phases ph JOIN programs p ON p.id = ph.program_id WHERE p.institution_id = $1 LIMIT 1`, [ng])).rows[0].id;
   if (!superAdmin) throw new Error('No super_admin in the test DB: run run.js --super-admin <email>');
@@ -194,8 +198,9 @@ try {
   r = await call('POST', '/api/super/institutions', superAdmin, {
     name: 'Navgurukul Clone Test', slug: 'auth-test-ng-clone', adminEmail: `admin@ng-clone.test`, cloneFromInstitutionId: ng,
   });
-  // Navgurukul's rubric count includes Project Analyzer rubrics once that tool's run.js has been run
-  const ngRubrics = Number((await db.query(`SELECT COUNT(DISTINCT name) n FROM rubrics WHERE institution_id = $1 AND is_active`, [ng])).rows[0].n);
+  // Project Analyzer rubrics (project_analysis) share the table but are not cloned by the YT tool
+  const ngRubrics = Number((await db.query(
+    `SELECT COUNT(DISTINCT name) n FROM rubrics WHERE institution_id = $1 AND is_active AND rubric_type <> 'project_analysis'`, [ng])).rows[0].n);
   check(r.status === 201 && r.json?.cloned?.phases === 7 && r.json.cloned.videos === 77 && r.json.cloned.rubrics === ngRubrics,
     `new institution cloned from Navgurukul gets 7 phases, 77 videos, ${ngRubrics} rubrics`, r.json?.cloned);
   const clone = r.json?.institution?.id;
