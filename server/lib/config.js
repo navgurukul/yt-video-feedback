@@ -131,13 +131,14 @@ export function validatePrompt({ kind, prompt_text: text, generation_config: cfg
 }
 
 // ---------------------------------------------------------------------------
-// Clone an institution's active setup into another (new) institution.
+// Clone an institution's active setup into another (new) institution. Project Analyzer
+// rubrics/prompts are left out (the PA has its own clone-pa-config).
 // Runs inside the caller's transaction client.
 // ---------------------------------------------------------------------------
 export async function cloneInstitutionConfig(client, fromId, toId, actor) {
   const rubricMap = new Map();
   const rubrics = (await client.query(
-    `SELECT DISTINCT ON (name) * FROM rubrics WHERE institution_id = $1 AND is_active
+    `SELECT DISTINCT ON (name) * FROM rubrics WHERE institution_id = $1 AND is_active AND rubric_type <> 'project_analysis'
       ORDER BY name, version DESC`, [fromId])).rows;
   for (const r of rubrics) {
     const id = (await client.query(
@@ -147,7 +148,7 @@ export async function cloneInstitutionConfig(client, fromId, toId, actor) {
     rubricMap.set(r.id, id);
   }
   // Videos may point at older versions too: map every version id of a name to the new copy.
-  const allVersions = (await client.query(`SELECT id, name FROM rubrics WHERE institution_id = $1`, [fromId])).rows;
+  const allVersions = (await client.query(`SELECT id, name FROM rubrics WHERE institution_id = $1 AND rubric_type <> 'project_analysis'`, [fromId])).rows;
   for (const v of allVersions) {
     const latest = rubrics.find((r) => r.name === v.name);
     if (latest && !rubricMap.has(v.id)) rubricMap.set(v.id, rubricMap.get(latest.id));
@@ -155,7 +156,7 @@ export async function cloneInstitutionConfig(client, fromId, toId, actor) {
 
   const promptMap = new Map();
   const prompts = (await client.query(
-    `SELECT DISTINCT ON (kind, name) * FROM prompt_templates WHERE institution_id = $1 AND is_active
+    `SELECT DISTINCT ON (kind, name) * FROM prompt_templates WHERE institution_id = $1 AND is_active AND kind NOT LIKE 'pa\\_%'
       ORDER BY kind, name, version DESC`, [fromId])).rows;
   for (const p of prompts) {
     const id = (await client.query(
@@ -165,7 +166,7 @@ export async function cloneInstitutionConfig(client, fromId, toId, actor) {
     promptMap.set(p.id, id);
   }
   const allPromptVersions = (await client.query(
-    `SELECT id, kind, name FROM prompt_templates WHERE institution_id = $1`, [fromId])).rows;
+    `SELECT id, kind, name FROM prompt_templates WHERE institution_id = $1 AND kind NOT LIKE 'pa\\_%'`, [fromId])).rows;
   for (const v of allPromptVersions) {
     const latest = prompts.find((p) => p.kind === v.kind && p.name === v.name);
     if (latest && !promptMap.has(v.id)) promptMap.set(v.id, promptMap.get(latest.id));

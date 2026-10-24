@@ -264,19 +264,21 @@ export function registerAdminRoutes(app) {
   }));
 
   // ---- rubrics (versioned) ----------------------------------------------------------
+  // project_analysis rubrics and pa_* prompts belong to the Project Analyzer (same tables,
+  // managed in its own admin), so they are hidden here.
   app.get('/api/admin/rubrics', admin, handle(async (req, res) => {
     const rows = (await pgPool.query(
       `SELECT DISTINCT ON (name) r.*, (SELECT COUNT(*)::int FROM rubrics x WHERE x.institution_id = r.institution_id AND x.name = r.name) AS versions
-         FROM rubrics r WHERE institution_id = $1 ORDER BY name, version DESC`, [inst(req)])).rows;
+         FROM rubrics r WHERE institution_id = $1 AND rubric_type <> 'project_analysis' ORDER BY name, version DESC`, [inst(req)])).rows;
     res.json(rows.map((r) => ({ ...camelRubric(r), versions: r.versions })));
   }));
   app.get('/api/admin/rubrics/:id', admin, handle(async (req, res) => {
-    const r = await one(`SELECT * FROM rubrics WHERE id = $1 AND institution_id = $2`, [uuid.parse(req.params.id), inst(req)]);
+    const r = await one(`SELECT * FROM rubrics WHERE id = $1 AND institution_id = $2 AND rubric_type <> 'project_analysis'`, [uuid.parse(req.params.id), inst(req)]);
     if (!r) throw new HttpError(404, 'Rubric not found');
     res.json(camelRubric(r));
   }));
   app.get('/api/admin/rubrics/:id/versions', admin, handle(async (req, res) => {
-    const r = await one(`SELECT name FROM rubrics WHERE id = $1 AND institution_id = $2`, [uuid.parse(req.params.id), inst(req)]);
+    const r = await one(`SELECT name FROM rubrics WHERE id = $1 AND institution_id = $2 AND rubric_type <> 'project_analysis'`, [uuid.parse(req.params.id), inst(req)]);
     if (!r) throw new HttpError(404, 'Rubric not found');
     const rows = (await pgPool.query(`SELECT * FROM rubrics WHERE institution_id = $1 AND name = $2 ORDER BY version DESC`, [inst(req), r.name])).rows;
     res.json(rows.map(camelRubric));
@@ -296,7 +298,7 @@ export function registerAdminRoutes(app) {
   // past evaluations keep pointing at the version they were graded with.
   app.post('/api/admin/rubrics/:id/versions', admin, handle(async (req, res) => {
     const id = uuid.parse(req.params.id);
-    const base = await one(`SELECT * FROM rubrics WHERE id = $1 AND institution_id = $2`, [id, inst(req)]);
+    const base = await one(`SELECT * FROM rubrics WHERE id = $1 AND institution_id = $2 AND rubric_type <> 'project_analysis'`, [id, inst(req)]);
     if (!base) throw new HttpError(404, 'Rubric not found');
     const b = RubricVersionIn.parse(req.body);
     const levels = b.levels || base.levels;
@@ -328,17 +330,17 @@ export function registerAdminRoutes(app) {
     const rows = (await pgPool.query(
       `SELECT DISTINCT ON (COALESCE(institution_id::text,'global'), kind, name) p.*,
               (SELECT COUNT(*)::int FROM prompt_templates x WHERE x.institution_id IS NOT DISTINCT FROM p.institution_id AND x.kind = p.kind AND x.name = p.name) AS versions
-         FROM prompt_templates p WHERE institution_id = $1 OR institution_id IS NULL
+         FROM prompt_templates p WHERE (institution_id = $1 OR institution_id IS NULL) AND kind NOT LIKE 'pa\\_%'
         ORDER BY COALESCE(institution_id::text,'global'), kind, name, version DESC`, [inst(req)])).rows;
     res.json(rows.map((p) => ({ ...camelPrompt(p), versions: p.versions })));
   }));
   app.get('/api/admin/prompts/:id', admin, handle(async (req, res) => {
-    const p = await one(`SELECT * FROM prompt_templates WHERE id = $1 AND (institution_id = $2 OR institution_id IS NULL)`, [uuid.parse(req.params.id), inst(req)]);
+    const p = await one(`SELECT * FROM prompt_templates WHERE id = $1 AND (institution_id = $2 OR institution_id IS NULL) AND kind NOT LIKE 'pa\\_%'`, [uuid.parse(req.params.id), inst(req)]);
     if (!p) throw new HttpError(404, 'Prompt not found');
     res.json(camelPrompt(p));
   }));
   app.get('/api/admin/prompts/:id/versions', admin, handle(async (req, res) => {
-    const p = await one(`SELECT * FROM prompt_templates WHERE id = $1 AND (institution_id = $2 OR institution_id IS NULL)`, [uuid.parse(req.params.id), inst(req)]);
+    const p = await one(`SELECT * FROM prompt_templates WHERE id = $1 AND (institution_id = $2 OR institution_id IS NULL) AND kind NOT LIKE 'pa\\_%'`, [uuid.parse(req.params.id), inst(req)]);
     if (!p) throw new HttpError(404, 'Prompt not found');
     const rows = (await pgPool.query(
       `SELECT * FROM prompt_templates WHERE institution_id IS NOT DISTINCT FROM $1 AND kind = $2 AND name = $3 ORDER BY version DESC`,
@@ -358,7 +360,7 @@ export function registerAdminRoutes(app) {
   }));
   app.post('/api/admin/prompts/:id/versions', admin, handle(async (req, res) => {
     const id = uuid.parse(req.params.id);
-    const base = await one(`SELECT * FROM prompt_templates WHERE id = $1 AND institution_id = $2`, [id, inst(req)]);
+    const base = await one(`SELECT * FROM prompt_templates WHERE id = $1 AND institution_id = $2 AND kind NOT LIKE 'pa\\_%'`, [id, inst(req)]);
     if (!base) throw new HttpError(404, 'Prompt not found (global default prompts cannot be edited; create your own copy instead)');
     const b = PromptVersionIn.parse(req.body);
     const { errors } = validatePrompt({ kind: base.kind, prompt_text: b.promptText, generation_config: b.generationConfig });
