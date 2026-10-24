@@ -18,8 +18,8 @@ Roles, lowest to highest: `student` < `evaluator` < `institution_admin` < `super
 | GET | `/api/me` | `{ email, isSuperAdmin, role, memberships[], activeInstitution }` |
 | GET | `/api/config` | Active institution's syllabus: `institution`, `programs[].phases[].videos[]` (active only, ordered). Cached 60 s and refreshed on every admin change. |
 | GET | `/api/rubrics/:id` | A rubric of your institution (to render results). |
-| POST | `/evaluate` | Unchanged request shape for now (server-side prompts come in Prompt 5). |
-| POST | `/store-evaluation` | Identity comes from the token. Rows are linked to institution, phase, video, rubric and prompts. |
+| POST | `/evaluate` | **New:** `{ videoUrl, videoAssignmentId, evaluationKind: accuracy\|ability_to_explain\|project, apiKey?, model? }` or `{ videoUrl, evaluationKind: "custom", customPrompt, customContext? }`. The server loads the prompt and rubric from the DB; the response adds `evaluation_config` (video, prompt and rubric ids + versions). **Legacy** bodies with `promptbegining` still work but log a deprecation. Gemini key: institution key → `apiKey` → server env. |
+| POST | `/store-evaluation` | Identity comes from the token. Send `videoAssignmentId` to link the exact video; otherwise it's resolved from `selectedPhase`/`selectedVideoTitle`. `config_snapshot` records the rubric and prompt versions used. |
 | GET | `/concept-history`, `/project-history`, `/custom-history` | Your own rows in the active institution. The legacy `?email=` is ignored. |
 | GET / DELETE | `/{concept,project,custom}-evaluation/:id` | Read: the owner, or an evaluator+ of the same institution. Delete: the owner, or an institution_admin+. |
 

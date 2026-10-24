@@ -36,3 +36,12 @@ ${customPrompt}
 
           ${rubricContent}`;
 }
+
+// Mirrors VideoAnalyzer.tsx getVideoDetails() for videoType "other" (custom evaluation).
+export function buildCustomVideoDetails({ customPrompt, customContext }) {
+  let details = `Custom Evaluation Criteria:\n${customPrompt}`;
+  if (customContext && customContext.trim()) {
+    details += `\n\nAdditional Context:\n${customContext}`;
+  }
+  return details;
+}

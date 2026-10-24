@@ -8,13 +8,14 @@ import { fileURLToPath } from 'url';
 import pkg from 'pg';
 const { Client } = pkg;
 import { GoogleGenAI, Type } from '@google/genai';
-import { pgPool } from './db.js';
+import { pgPool, DB_TARGET } from './db.js';
 import { authenticate } from './middleware/auth.js';
 import { tagEvaluation } from './lib/tenant.js';
 import { registerEvaluationRoutes } from './routes/evaluations.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerSuperRoutes } from './routes/super.js';
-import { GEMINI_MODELS } from './lib/gemini.js';
+import { GEMINI_MODELS, resolveGeminiKey } from './lib/gemini.js';
+import { resolveEvaluationRequest, EvaluateRequestError } from './lib/evaluation-request.js';
 
 // Load environment variables from .env when running via node
 dotenv.config();
@@ -93,10 +94,32 @@ if (GEMINI_KEY) {
 
 app.post('/evaluate', async (req, res) => {
   try {
-    const { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext, model: requestedModel } = req.body;
+    let { videoUrl, videoDetails, promptbegining, rubric, evaluationType, structuredreturnedconfig, apiKey, customPrompt, customContext, model: requestedModel } = req.body;
     const model = requestedModel || GEMINI_MODELS[0];
 
     if (!videoUrl) return res.status(400).json({ error: 'Missing videoUrl' });
+
+    // New clients send { videoAssignmentId, evaluationKind }: the server builds the prompt from the
+    // institution's configuration. Legacy clients still send the prompt and rubric themselves.
+    let evaluationConfig = null;
+    if (req.body.evaluationKind) {
+      try {
+        const r = await resolveEvaluationRequest(req.body, req.tenant.institutionId);
+        ({ promptbegining, structuredreturnedconfig, videoDetails, rubric, customPrompt, evaluationType } = r);
+        evaluationConfig = r.meta;
+      } catch (e) {
+        if (e instanceof EvaluateRequestError) {
+          return res.status(e.status).json({
+            error: { type: 'invalid_request', message: e.message, status_code: e.status, error_code: 'INVALID_EVALUATION_REQUEST' }
+          });
+        }
+        throw e;
+      }
+    } else if (promptbegining) {
+      console.warn(`[deprecated] /evaluate called with a client-built prompt by ${req.user.email}; update the frontend to send videoAssignmentId + evaluationKind`);
+    } else {
+      return res.status(400).json({ error: 'Send evaluationKind (and videoAssignmentId) to evaluate a video' });
+    }
 
     if (!GEMINI_MODELS.includes(model)) {
       return res.status(400).json({
@@ -110,7 +133,8 @@ app.post('/evaluate', async (req, res) => {
     }
     
     // Use API key from request body if provided, otherwise fall back to environment variable
-    const effectiveApiKey = apiKey || GEMINI_KEY;
+    // Institution key (encrypted in DB) → key the user entered → server env key
+    const { key: effectiveApiKey } = await resolveGeminiKey(req.tenant.institutionId, apiKey);
     
     if (!effectiveApiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not configured and not provided in request' });
 
@@ -148,6 +172,11 @@ ${customPrompt}
           ${videoDetails}
 
           ${rubricContent}`;
+
+    // Test-only: return the composed prompt instead of calling Gemini (used by test-prompts.js).
+    if (process.env.EVALUATE_DRY_RUN === '1' && DB_TARGET === 'test') {
+      return res.json({ dryRun: true, promptText, apiConfig, evaluationType, evaluation_config: evaluationConfig });
+    }
 
       contents = [
         {
@@ -249,6 +278,7 @@ ${customPrompt}
         text: fullResponse, 
         parsed,
         metrics,
+        evaluation_config: evaluationConfig,
         error: null
       });
     } catch (error) {
@@ -631,7 +661,8 @@ app.post('/store-evaluation', async (req, res) => {
       const evaluationId = result.rows[0].id;
       await tagEvaluation({
         videoType: 'concept', id: evaluationId, institutionId: req.tenant.institutionId,
-        phaseName: selectedPhase, videoTitle: selectedVideoTitle, model: evaluationData?.actual_model_used
+        phaseName: selectedPhase, videoTitle: selectedVideoTitle, model: evaluationData?.actual_model_used,
+        videoAssignmentId: req.body.videoAssignmentId
       });
       
       console.log('Successfully inserted concept evaluation with ID:', evaluationId);
@@ -825,7 +856,8 @@ app.post('/store-evaluation', async (req, res) => {
       const evaluationId = result.rows[0].id;
       await tagEvaluation({
         videoType: 'project', id: evaluationId, institutionId: req.tenant.institutionId,
-        phaseName: selectedPhase, videoTitle: selectedVideoTitle, model: evaluationData?.actual_model_used
+        phaseName: selectedPhase, videoTitle: selectedVideoTitle, model: evaluationData?.actual_model_used,
+        videoAssignmentId: req.body.videoAssignmentId
       });
       
       console.log('Successfully inserted project evaluation with ID:', evaluationId);
@@ -1044,7 +1076,8 @@ app.post('/store-evaluation', async (req, res) => {
       const evaluationId = result.rows[0].id;
       await tagEvaluation({
         videoType: 'custom', id: evaluationId, institutionId: req.tenant.institutionId,
-        phaseName: selectedPhase, videoTitle: selectedVideoTitle, model: evaluationData?.actual_model_used
+        phaseName: selectedPhase, videoTitle: selectedVideoTitle, model: evaluationData?.actual_model_used,
+        videoAssignmentId: req.body.videoAssignmentId
       });
       
       console.log('Successfully inserted custom evaluation with ID:', evaluationId);
