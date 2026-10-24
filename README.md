@@ -250,3 +250,18 @@ The frontend uses environment variables to configure backend API URLs:
 ## 🤝 Support
 
 For issues or questions, contact the Navgurukul team.
+
+## Multi-tenant architecture (branch `feat/multi-tenant`)
+
+The tool now serves many institutions (Navgurukul branches, colleges, MBA programs).
+
+- **Roles:** super admin (creates institutions) → institution admin (syllabus, rubrics, prompts, users, Gemini key) → evaluator → student. Access is checked on the server from the Supabase login.
+- **Data model:** Institution → Program → Phase → Video assignment, with versioned rubrics and prompt templates. Every evaluation row stores its institution, video, rubric and prompt versions.
+- **Prompts are built on the server** from the database (`server/lib/evaluation-request.js`). Navgurukul's prompts are byte-identical to the previous hardcoded ones.
+- **Screens:** `/admin` (institution admin) and `/super-admin`.
+- **Docs:**
+  - `docs/MULTI_TENANT_PLAN.md`: design.
+  - `docs/API.md`: endpoints and environment.
+  - `docs/ROLLOUT.md`: moving to the main database.
+  - `server/scripts/multi-tenant/README.md`: test database scripts and test suites.
+- **Database selection:** `server/db.js`, with `DB_TARGET=test|prod|prod-readonly`. Local development uses the TEST database by default.

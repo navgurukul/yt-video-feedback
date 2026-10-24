@@ -16,9 +16,9 @@ export const LEGACY_TABLES = [
   'tbl_failed_requests',     // failed-request recovery (master, Oct 2026); skipped if not in production yet
 ];
 
-const EVAL_TABLES = LEGACY_TABLES.slice(0, 3);
+export const EVAL_TABLES = LEGACY_TABLES.slice(0, 3);
 
-const TENANT_COLUMNS = {
+export const TENANT_COLUMNS = {
   all: [['institution_id', 'UUID REFERENCES institutions(id)']],
   eval: [
     ['program_id', 'UUID REFERENCES programs(id)'],
@@ -59,7 +59,7 @@ function columnDDL(c) {
   return s;
 }
 
-async function mirrorTable(prod, test, table, log) {
+export async function mirrorTable(prod, test, table, log, { tenantColumns = true } = {}) {
   const exists = (await prod.query(`SELECT to_regclass('public.' || $1) AS t`, [table])).rows[0].t;
   if (!exists) { log(`  - ${table}: not in production, skipped`); return null; }
 
@@ -75,14 +75,14 @@ async function mirrorTable(prod, test, table, log) {
       await test.query(`ALTER TABLE ${q(table)} ADD COLUMN IF NOT EXISTS ${columnDDL(plain)}`);
     }
   }
-  const extra = [...TENANT_COLUMNS.all, ...(EVAL_TABLES.includes(table) ? TENANT_COLUMNS.eval : [])];
+  const extra = tenantColumns ? [...TENANT_COLUMNS.all, ...(EVAL_TABLES.includes(table) ? TENANT_COLUMNS.eval : [])] : [];
   for (const [name, type] of extra) {
     await test.query(`ALTER TABLE ${q(table)} ADD COLUMN IF NOT EXISTS ${name} ${type}`);
   }
   return { cols: cols.map((c) => c.name), pk };
 }
 
-async function copyRows(prod, test, table, cols, pk, log) {
+export async function copyRows(prod, test, table, cols, pk, log) {
   const list = cols.map(q).join(', ');
   const order = pk.length ? pk.map(q).join(', ') : list;
   const BATCH = 500;
@@ -113,25 +113,21 @@ async function copyRows(prod, test, table, cols, pk, log) {
   return copied;
 }
 
-export async function copyFromProd(prod, test, ids, log = console.log) {
-  const meta = {};
-  for (const t of LEGACY_TABLES) meta[t] = await mirrorTable(prod, test, t, log);
-
-  const present = LEGACY_TABLES.filter((t) => meta[t]);
-  await test.query(`TRUNCATE ${present.map(q).join(', ')} RESTART IDENTITY CASCADE`);
-
-  const counts = {};
-  for (const t of present) counts[t] = await copyRows(prod, test, t, meta[t].cols, meta[t].pk, log);
-
-  // ---- Backfill tenant links ---------------------------------------------
+/**
+ * Links legacy rows to the tenant model. Only touches rows that are not linked yet,
+ * so it is safe to run again on a live database (used by the promote scripts too).
+ * ids: { institutionId, programId, promptIds: { custom } }
+ */
+export async function backfillTenantLinks(db, ids, present, log = () => {}) {
+  const has = (t) => present.includes(t);
   const inst = ids.institutionId;
   for (const t of present) {
-    await test.query(`UPDATE ${q(t)} SET institution_id = $1 WHERE institution_id IS NULL`, [inst]);
+    await db.query(`UPDATE ${q(t)} SET institution_id = $1 WHERE institution_id IS NULL`, [inst]);
   }
   const snapshot = JSON.stringify({ source: 'legacy-migration', rubric_version: 1, prompt_version: 1 });
 
-  if (meta.tbl_ailabs_ytfeedback_concept_evaluations) {
-    await test.query(
+  if (has('tbl_ailabs_ytfeedback_concept_evaluations')) {
+    await db.query(
       `UPDATE tbl_ailabs_ytfeedback_concept_evaluations e SET
           program_id = $1, phase_id = ph.id, video_assignment_id = va.id,
           rubric_id = va.ability_rubric_id,
@@ -139,33 +135,36 @@ export async function copyFromProd(prod, test, ids, log = console.log) {
           config_snapshot = $2::jsonb
          FROM phases ph
          JOIN video_assignments va ON va.phase_id = ph.id AND va.video_type = 'concept'
-        WHERE ph.program_id = $1 AND ph.name = e.project_name AND va.title = e.page_name`,
-      [ids.programId, snapshot]);
+        WHERE ph.program_id = $1 AND ph.name = e.project_name AND va.title = e.page_name
+          AND e.video_assignment_id IS NULL AND e.institution_id = $3`,
+      [ids.programId, snapshot, inst]);
   }
-  if (meta.tbl_ailabs_ytfeedback_project_evaluation) {
-    await test.query(
+  if (has('tbl_ailabs_ytfeedback_project_evaluation')) {
+    await db.query(
       `UPDATE tbl_ailabs_ytfeedback_project_evaluation e SET
           program_id = $1, phase_id = ph.id, video_assignment_id = va.id, rubric_id = va.rubric_id,
           prompt_template_ids = jsonb_build_object('project', va.project_prompt_id),
           config_snapshot = $2::jsonb
          FROM phases ph
          JOIN video_assignments va ON va.phase_id = ph.id AND va.video_type = 'project'
-        WHERE ph.program_id = $1 AND ph.name = e.project_name`,
-      [ids.programId, snapshot]);
+        WHERE ph.program_id = $1 AND ph.name = e.project_name
+          AND e.video_assignment_id IS NULL AND e.institution_id = $3`,
+      [ids.programId, snapshot, inst]);
   }
-  if (meta.tbl_ailabs_ytfeedback_custom_evaluations) {
-    await test.query(
+  if (has('tbl_ailabs_ytfeedback_custom_evaluations')) {
+    await db.query(
       `UPDATE tbl_ailabs_ytfeedback_custom_evaluations SET
-          prompt_template_ids = jsonb_build_object('custom', $1::uuid), config_snapshot = $2::jsonb`,
-      [ids.promptIds.custom, snapshot]);
+          prompt_template_ids = jsonb_build_object('custom', $1::uuid), config_snapshot = $2::jsonb
+        WHERE prompt_template_ids IS NULL AND institution_id = $3`,
+      [ids.promptIds.custom, snapshot, inst]);
   }
 
   // ---- Indexes + FK that production has -----------------------------------
   for (const t of present) {
-    await test.query(`CREATE INDEX IF NOT EXISTS ${q('idx_' + t.slice(0, 40) + '_inst')} ON ${q(t)} (institution_id, created_at DESC)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS ${q('idx_' + t.slice(0, 40) + '_inst')} ON ${q(t)} (institution_id, created_at DESC)`);
   }
-  if (meta.tbl_manual_video_evaluations && meta.tbl_ailabs_ytfeedback_project_evaluation) {
-    await test.query(`DO $$ BEGIN
+  if (has('tbl_manual_video_evaluations') && has('tbl_ailabs_ytfeedback_project_evaluation')) {
+    await db.query(`DO $$ BEGIN
       IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_project_evaluation') THEN
         ALTER TABLE tbl_manual_video_evaluations ADD CONSTRAINT fk_project_evaluation
           FOREIGN KEY (project_evaluation_id) REFERENCES tbl_ailabs_ytfeedback_project_evaluation(id) ON DELETE CASCADE;
@@ -178,13 +177,27 @@ export async function copyFromProd(prod, test, ids, log = console.log) {
     ['tbl_ailabs_ytfeedback_project_evaluation', 'email', 'student'],
     ['tbl_ailabs_ytfeedback_custom_evaluations', 'email', 'student'],
     ['tbl_manual_video_evaluations', 'evaluator_email', 'evaluator'],
-  ].filter(([t]) => meta[t]);
+  ].filter(([t]) => has(t));
   for (const [t, col, role] of emailSources) {
-    await test.query(
+    await db.query(
       `INSERT INTO user_memberships (email, institution_id, role, program_id)
        SELECT DISTINCT lower(trim(${q(col)})), $1::uuid, $2, $3::uuid FROM ${q(t)}
         WHERE ${q(col)} IS NOT NULL AND trim(${q(col)}) <> ''
        ON CONFLICT DO NOTHING`, [inst, role, ids.programId]);
   }
+  log('  - tenant links backfilled');
+}
+
+export async function copyFromProd(prod, test, ids, log = console.log) {
+  const meta = {};
+  for (const t of LEGACY_TABLES) meta[t] = await mirrorTable(prod, test, t, log);
+
+  const present = LEGACY_TABLES.filter((t) => meta[t]);
+  await test.query(`TRUNCATE ${present.map(q).join(', ')} RESTART IDENTITY CASCADE`);
+
+  const counts = {};
+  for (const t of present) counts[t] = await copyRows(prod, test, t, meta[t].cols, meta[t].pk, log);
+
+  await backfillTenantLinks(test, ids, present, log);
   return counts;
 }

@@ -38,3 +38,16 @@ node scripts/multi-tenant/run.js --super-admin sachin.i@navgurukul.org
 - `rubrics.criteria` and `prompt_templates.generation_config` use the `JSON` type, not `JSONB`. `JSONB` re-orders keys, which would change the rubric text Gemini sees.
 - If `src/data/*.ts` changes, regenerate `navgurukul-seed.json`. The verify step will FAIL until you do.
 - `prompt-builder.js` reproduces how the app builds prompts today. The server will reuse it when it starts building prompts from the DB.
+
+## Test suites (TEST database; nothing touches MAIN)
+
+| Command | Checks | Saves output to |
+|---|---|---|
+| `node scripts/multi-tenant/test-auth.js` | 34 login and permission checks: students, evaluators, other institutions, failed requests | `last-test-auth.txt` |
+| `node scripts/multi-tenant/test-admin.js` | 45 checks of the admin and super-admin APIs: versioning, validation, encryption, cloning | `last-test-admin.txt` |
+| `node scripts/multi-tenant/test-prompts.js` | Server-built prompts identical to the legacy ones for all 147 video evaluations (dry run, no Gemini) | `last-test-prompts.txt` |
+| `node scripts/multi-tenant/seed-demo.js --admin you@…` | Adds a Demo MBA College for trying a second institution in the UI | — |
+
+## Moving to the main database
+
+`promote/make-scratch.js`, `promote/promote.js` and `promote/down.sql`. Follow `docs/ROLLOUT.md`.
