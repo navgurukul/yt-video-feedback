@@ -21,7 +21,7 @@ Superset's **NayaGharCentralDB** connection is the YT tool's production database
 node scripts/multi-tenant/cutover/sync-from-main.js                              # YT
 (cd "../../Project Analyzer/athena-pa-admin" && node scripts/multi-tenant/cutover/sync-from-main.js)   # PA (MongoDB)
 
-# 1–3. copy dashboard tables + views, build dash.* views, verify against production
+# 1–3. copy dashboard tables + views, build dash.* views, compare OLD vs NEW queries cell by cell
 DASH_READER_PASSWORD='<password for superset_dash>' node scripts/multi-tenant/dashboard/run.js
 ```
 
@@ -31,20 +31,35 @@ DASH_READER_PASSWORD='<password for superset_dash>' node scripts/multi-tenant/da
 |---|---|---|
 | `copy-dashboard-tables.js [--dry-run]` | Copies the 10 tables. MAIN always wins, so TEST becomes an exact copy: rows added or edited in TEST are reset or removed. Re-creates the two views (and any views or tables they need) from `pg_get_viewdef`. Saves the production definitions in `production-views/`. | TEST only |
 | `apply-dash-views.js [--src public\|main_ro]` | Rebuilds schema `dash` from `dash-views.sql`. With `DASH_READER_PASSWORD`, it also creates the read-only login `superset_dash`, which can read the `dash` views and the columns the `superset-queries/` need, and nothing else. | TEST only |
-| `verify-dashboard.js [--samples N]` | For every production dataset and both views, runs the production SQL on MAIN and compares it with the same SQL on TEST (**MIGRATION**) and with the `dash.*` view (**NEW VIEW**). For each differing student it shows their tool-row counts on both sides. Report: `last-verify-report.txt`. | nothing (both read only) |
+| `compare-old-new.js [--samples N]` | Runs every **old** (production) query and every **new** query (`superset-queries/`) and compares them on **row count, column names and order, and every cell**. Old queries run on production and on TEST; new queries run on TEST. Each difference gets a reason (see below). Report: `last-compare-report.txt`; every differing cell goes to `compare-out/<component>.csv`. | nothing (both read only) |
 
 Keep running `copy-dashboard-tables.js` with the daily sync until the switch. The ghar tables keep changing in MAIN. The Project Analyzer sync (`--reference-only`) copies the same 10 tables too.
 
-## Reading the verify report
+## Reading the comparison (`last-compare-report.txt`)
 
-- **MIGRATION SAME** means TEST holds the same data the production queries see. Expected differences:
-  - production rows newer than the last sync
-  - rows testers created in TEST
-  - Project Analyzer projects newer in TEST: TEST syncs them from MongoDB, while MAIN's `_af` tables are Airflow's delayed copy
-- **NEW VIEW SAME** means the multi-tenant `dash.*` query gives the production numbers. Expected differences:
-  - evaluations saved under **old phase names**: production silently drops them, the new views count them
-  - the two `v_ailabs_*` views: `dash.*` is a re-implementation from the columns only. Compare it with `production-views/*.sql` after the first copy.
-- A line ending in `(same data → query logic)` is a real query difference to look at. `(data differs)` means the student's tool data isn't the same on both sides yet.
+For each of the 9 components it shows the row counts (OLD@MAIN / OLD@TEST / NEW@TEST) and three checks:
+
+| Check | Compares | Answers |
+|---|---|---|
+| **QUERY CHECK** | old query vs new query, both on TEST (same data) | Do the new queries compute exactly what the old ones did? |
+| **END TO END** | old query on production vs new query on TEST | Will the new dashboard show what the current one shows? |
+| **DATA CHECK** | old query on production vs old query on TEST | Is TEST's copy of the data complete? |
+
+**IDENTICAL** means the same number of rows, the same columns in the same order, and every cell equal. Otherwise you get:
+
+- counts of differing cells, per column
+- sample rows with the old and new values, and a **reason**
+- the full list of differing cells in the CSV
+
+Known reasons:
+
+- **YT project videos saved under an OLD phase name.** The old query drops them; the new one counts them, so it shows more submissions and fewer false "Skipped" phases.
+- **Concept videos whose title the old query can't match.** The new query uses the video link.
+- **Rows of another institution.** The new queries are Navgurukul-only.
+- **Tool data differs between production and TEST.** Run the daily sync, or the rows were created by testers in TEST.
+- **UNEXPLAINED.** A real difference to look at; send me the CSV.
+
+The production LIMIT 1000 is lifted for the comparison so complete results are compared. Charts 07 and 08 come from two production views whose SQL isn't in the Superset export. The copy step saves their real definitions in `production-views/`. If those two components differ, send me those files and I'll align queries 07 and 08.
 
 ## SQL query for each dashboard component (`superset-queries/`)
 
@@ -56,7 +71,7 @@ Each file is one complete query for one chart. It runs on the **TEST** database 
 | `02_campus_phase_timeline_score.sql` | Campus Phase Timeline & Score | Campus Phase Timeline & Score | Table (raw): campus_name, school_name, phase_name, student_count, avg_time_days, avg_score |
 | `03_student_phase_submission_details.sql` | Student Phase Submission Details | Phase Submission Student Details | Table (raw): campus_name, school_name, student_name, email, phase_name, first_submission; time filter first_submission |
 | `04_student_missing_phase_submission_details.sql` | Student Missing Phase Submission Details | Student Missing Phase Submission Details | Table (raw): campus_name, school_name, student_name, email, phase_name, last_submitted_phase |
-| `05_student_current_phase_and_phase_scores.sql` | Student Current Phase and Phase Scores | Student Current Phase and Phase Scores | Table (raw): campus_name … phase7_score (18 columns); time filter joining_date |
+| `05_student_current_phase_and_phase_scores.sql` | Student Current Phase and Phase Scores | Student Current Phase and Phase Scores | Table (raw): campus_name … phase7_score (same 18 columns as production) |
 | `06_concept_explanation_summary_view.sql` | Concept Explanation Summary View | Concept Explanation Summary View | Table (raw): email, phase_name, videos_cleared, video_cleared_accuracy, last_ability_to_explain_level |
 | `07_students_concept_explanation_analysis.sql` | Students Concept Explanation Analysis | view v_ailabs_students_concept_explanationanalysis | Table (raw): 13 columns; time filter evaluated_at |
 | `08_phasewise_student_project_explanation_analysis.sql` | Phasewise Student Project Explanation Analysis | view v_ailabs_phasewise_student_project_explanation_analysis | Table (aggregate, group by all 9 columns); time filter evaluated_at |

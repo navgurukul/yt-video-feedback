@@ -1,5 +1,5 @@
 // One command for the dashboard on TEST: copy MAIN's dashboard tables + views, rebuild the
-// dash views, verify against production.
+// dash views, compare OLD vs NEW queries cell by cell.
 //
 //   cd server
 //   node scripts/multi-tenant/dashboard/run.js
@@ -13,9 +13,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-for (const step of ['copy-dashboard-tables.js', 'apply-dash-views.js', 'verify-dashboard.js']) {
+for (const step of ['copy-dashboard-tables.js', 'apply-dash-views.js', 'compare-old-new.js']) {
   console.log(`\n===== ${step} =====`);
   const r = spawnSync(process.execPath, [path.join(__dirname, step), ...process.argv.slice(2)], { stdio: 'inherit' });
   if (r.status) { console.error(`${step} failed (exit ${r.status}); stopping`); process.exit(r.status); }
 }
-console.log('\nReports: last-copy-report.txt, last-verify-report.txt (in scripts/multi-tenant/dashboard/)');
+console.log('\nReports (in scripts/multi-tenant/dashboard/): last-copy-report.txt, last-compare-report.txt, compare-out/*.csv');

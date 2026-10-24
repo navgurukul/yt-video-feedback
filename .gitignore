@@ -27,3 +27,4 @@ docs/YT_Manual_vs_Tool_Evaluation_Comparison_Report.docx
 server/scripts/multi-tenant/cutover/last-*.txt
 server/scripts/multi-tenant/cutover/rollback/
 server/scripts/multi-tenant/dashboard/last-*.txt
+server/scripts/multi-tenant/dashboard/compare-out/

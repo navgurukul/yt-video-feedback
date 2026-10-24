@@ -1,6 +1,6 @@
 -- ==================================================================================
 -- Dashboard component: Student Current Phase and Phase Scores
--- Database: TEST (test_ghar_central_db). Columns: campus_name, school_name, student_name, email, student_status, joining_date, time_on_campus_days, total_present_days, write_grade, speak_grade, current_phase, expected_phase, phase1_score .. phase7_score
+-- Database: TEST (test_ghar_central_db). Columns: campus_name, school_name, student_name, email, student_status, time_on_campus_days, total_present_days, write_grade, speak_grade, current_phase, expected_phase, phase1_score .. phase7_score
 -- One row per student (Active, Intern in/out of campus, InActive). current_phase = last phase with a YT
 -- result or a completed PA project + 1; expected_phase from days present (joining date minus leave days).
 -- ==================================================================================
@@ -170,7 +170,6 @@ SELECT b.campus_name,
        b.student_name,
        b.email,
        b.student_status,
-       b.joining_date,
        b.time_on_campus_days,
        b.total_present_days,
        gw.grade AS write_grade,
