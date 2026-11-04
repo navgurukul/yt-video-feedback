@@ -17,8 +17,8 @@ import { ErrorPanel } from "@/components/ErrorPanel";
 import { RubricGuidanceButton, RubricGuidanceModal } from "@/components/rubric-guidance";
 import { motion } from "framer-motion";
 import { getPhaseNames, getVideoTitlesForPhase, getVideoDetailsForTitle } from "@/data/videoData";
-import { getProjectVideoForPhase } from "@/data/phasevideodata";
-import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric,Phase5Rubric, Phase6Rubric, Phase7Rubric } from "@/data/RubricData";
+import { getProjectVideoForPhase, projectOnlyPhaseNames } from "@/data/phasevideodata";
+import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric, Phase5Rubric, Phase6Rubric, Phase7Rubric, Phase8Rubric, Phase9Rubric, Phase10Rubric } from "@/data/RubricData";
 import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig, CustomPrompt, CustomConfig} from '@/data/prompt'
 import { ApiKeyContext } from "@/App";
 import { formatErrorInfo, ErrorInfo, isGeminiRetryLaterError } from "@/lib/errorMessages";
@@ -35,6 +35,9 @@ const API_BASE_URL = import.meta.env.VITE_EVAL_API_URL || import.meta.env.VITE_A
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const MAX_MODEL_PASSES = 3;
 const PASS_BACKOFF_MS = [2000, 4000];
+
+const isProjectOnlyPhase = (phase: string) =>
+  projectOnlyPhaseNames.includes(phase as (typeof projectOnlyPhaseNames)[number]);
 
 const evaluateWithModelFallback = async (
   payload: Record<string, unknown>,
@@ -147,6 +150,7 @@ const VideoAnalyzer = () => {
   
   const phaseNames = getPhaseNames();
   const availableVideoTitles = selectedPhase ? getVideoTitlesForPhase(selectedPhase) : [];
+  const selectedPhaseIsProjectOnly = isProjectOnlyPhase(selectedPhase);
 
   // Video details mapping
   const getVideoDetails = () => {
@@ -192,6 +196,12 @@ const VideoAnalyzer = () => {
     setError("");
     setErrorInfo(null);
   }, [selectedPhase, videoType]);
+
+  useEffect(() => {
+    if (selectedPhaseIsProjectOnly && videoType !== "project") {
+      setVideoType("project");
+    }
+  }, [selectedPhaseIsProjectOnly, videoType]);
 
   // Update video details when selections change
   useEffect(() => {
@@ -291,7 +301,7 @@ const VideoAnalyzer = () => {
     
     // Validate video URL
     if (!videoUrl || !videoUrl.includes("youtube.com") && !videoUrl.includes("youtu.be")) {
-      const validationError = createValidationError(
+          const validationError = createValidationError(
         "Invalid YouTube URL",
         "The video URL must be a valid YouTube link. Please check the URL and make sure it points to a YouTube video.",
         [
@@ -314,7 +324,7 @@ const VideoAnalyzer = () => {
         "Phase Not Selected",
         "You must select a Phase to proceed with the evaluation. Each phase has different evaluation criteria and requirements.",
         [
-          "Select a phase from the dropdown menu (Phase 1 through Phase 7)",
+            "Select a phase from the dropdown menu (Phase 1 through Phase 10)",
           "Each phase builds on previous concepts with increasing complexity",
           "Phase 1-2 focus on HTML and CSS fundamentals, Phase 3-6 cover advanced topics",
           "Switch between phases if your project covers different curriculum stages"
@@ -715,6 +725,15 @@ const VideoAnalyzer = () => {
             case "Phase 7: Final Full-Stack Project with AI Integration":
               projectRubric = Phase7Rubric;
               break;
+            case "Phase 8: Python Basics":
+              projectRubric = Phase8Rubric;
+              break;
+            case "Phase 9: Foundations of AI AND Machine Learning":
+              projectRubric = Phase9Rubric;
+              break;
+            case "Phase 10: Prod-level AI Full stack with STS integration":
+              projectRubric = Phase10Rubric;
+              break;
             default:
               projectRubric = Phase1Rubric; // Default to Phase1 rubric
           }
@@ -951,6 +970,7 @@ const VideoAnalyzer = () => {
                     setError("");
                     setErrorInfo(null);
                   }}
+                  disabled={selectedPhaseIsProjectOnly}
                   className="flex-1 w-full sm:w-auto"
                 >
                   Concept Explanation
@@ -989,7 +1009,15 @@ const VideoAnalyzer = () => {
                   <Code className="w-6 h-6" />
                   Select Phase
                 </Label>
-                <Select onValueChange={setSelectedPhase} value={selectedPhase}>
+                <Select
+                  onValueChange={(phase) => {
+                    setSelectedPhase(phase);
+                    if (isProjectOnlyPhase(phase)) {
+                      setVideoType("project");
+                    }
+                  }}
+                  value={selectedPhase}
+                >
                   <SelectTrigger className="w-full text-lg h-12">
                     <SelectValue placeholder="Select a Phase" />
                   </SelectTrigger>

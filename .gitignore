@@ -22,3 +22,4 @@ docs/report_doc.xml
 .gitignore
 docs/YT_Manual_vs_Tool_Evaluation_Comparison_Report.xlsx
 docs/YT_Manual_vs_Tool_Evaluation_Comparison_Report.docx
+/server/scripts/

@@ -339,3 +339,63 @@ export const Phase7Rubric = [
     ]
   }
 ];
+
+// Phase 8 Rubric - Python Basics Project Evaluation
+export const Phase8Rubric = [
+  {
+    "Parameter": "Understanding the Problem & System Architecture Awareness (e.g., Why use Python? What is FastAPI? How do API routes, validation, services, CSV storage, and analytics work together?)",
+    "Weight": 0.15,
+    "Beginner": "Cannot clearly explain the purpose of the Expense Tracker API or the role of Python and FastAPI. Has limited understanding of REST APIs, HTTP methods, or how expense data is stored and retrieved.",
+    "Intermediate": "Understands basic Python syntax, REST APIs, and FastAPI routes but struggles to explain the overall project architecture, separation of responsibilities, or the role of Pandas and NumPy.",
+    "Advanced": "Clearly explains the purpose of the Expense Tracker API, REST architecture, request/response cycle, project structure, CSV storage, Pydantic validation, and the use of Pandas and NumPy for analytics. Can explain key differences between Python and JavaScript and identify suitable use cases for each.",
+    "Expert": "Demonstrates strong system-level understanding, explaining modular backend architecture, separation of API, service, and analytics layers, data handling decisions, API design, and the trade-offs of CSV versus database storage. Clearly justifies technology choices and identifies practical opportunities for scalability and future improvements."
+  },
+  {
+    "Parameter": "Solution Explanation (API Request Flow & Data Lifecycle Understanding) (e.g., What happens when an expense is created? How is it validated, stored, updated, deleted, and included in analytics?)",
+    "Weight": 0.15,
+    "Beginner": "Cannot explain the complete request-to-response flow. Struggles to describe how data reaches an endpoint, how an expense is stored, or how the API returns results and errors.",
+    "Intermediate": "Explains a basic API request/response cycle and some CRUD operations but cannot consistently describe validation, service-layer logic, CSV updates, or analytics processing.",
+    "Advanced": "Clearly explains the complete flow: client request → FastAPI route → Pydantic validation → service/business logic → CSV read/write → JSON response. Explains how Pandas and NumPy are used to calculate reports and how errors are returned for invalid input or missing expenses.",
+    "Expert": "Demonstrates a thorough understanding of the complete application lifecycle, including request parsing, validation, routing, service-layer execution, file persistence, data aggregation, response serialization, HTTP status codes, and exception handling. Can trace a request through the relevant files, explain failure scenarios, and identify improvements to reliability, maintainability, and performance."
+  }
+];
+
+// Phase 9 Rubric - Foundations of AI and Machine Learning Project Evaluation
+export const Phase9Rubric = [
+  {
+    "Parameter": "Understanding the Problem & System Architecture Awareness (e.g., What is AI/ML? Why is AI integrated into OpsLens? How do incident data, backend APIs, ML models or LLMs, and the frontend interact?)",
+    "Weight": 0.15,
+    "Beginner": "Cannot clearly explain the purpose of OpsLens or the difference between artificial intelligence and machine learning. Has limited understanding of how incident data flows through the application or how AI is used to analyze technical incidents.",
+    "Intermediate": "Understands basic AI/ML concepts and the overall application structure but struggles to explain the selected project's AI workflow, data preprocessing, model training, LLM integration, or the relationship between frontend, backend, and AI components.",
+    "Advanced": "Clearly explains AI/ML fundamentals, the chosen project's architecture, incident data flow, and the role of the selected AI approach. Understands how authentication, APIs, data processing, AI inference, and frontend rendering work together. Can explain the difference between traditional ML models and LLM-based solutions.",
+    "Expert": "Demonstrates strong architectural understanding, explaining the complete AI/ML pipeline, technology choices, model or LLM integration, data flow, evaluation strategy, and deployment-ready architecture. Can justify design decisions and discuss practical trade-offs involving accuracy, latency, cost, scalability, privacy, and reliability."
+  },
+  {
+    "Parameter": "Solution Explanation (Project Flow & AI/Data Lifecycle Understanding) (e.g., What happens when a user submits an incident? How does the system process it, invoke AI, and return a result?)",
+    "Weight": 0.15,
+    "Beginner": "Cannot explain the complete application workflow or how incident information moves from the user interface to the backend and AI component. Struggles to describe how the system generates or displays an analysis result.",
+    "Intermediate": "Explains the basic request-response cycle and some application features but struggles to describe the complete processing pipeline, data storage, model inference or LLM requests, and how results reach the frontend.",
+    "Advanced": "Clearly explains the complete workflow: user login → dashboard → incident submission → backend processing → selected AI pipeline → result generation → result display. Can explain relevant API endpoints, data storage, error handling, and how the selected AI output is generated.",
+    "Expert": "Demonstrates a thorough understanding of the complete application and AI lifecycle, including request validation, incident persistence, data preprocessing, model inference or LLM invocation, result processing, response serialization, and frontend rendering. Can trace a request through the code, explain how failures are handled, interpret the results produced by the selected AI technique, and discuss the reliability and limitations of the solution."
+  }
+];
+
+// Phase 10 Rubric - Production AI Full-Stack Project Evaluation
+export const Phase10Rubric = [
+  {
+    "Parameter": "Understanding the Problem & System Architecture Awareness (e.g., Why is Rozgar needed? How do authentication, location matching, job management, ratings, RAG, and voice AI work together?)",
+    "Weight": 0.15,
+    "Beginner": "Cannot clearly explain the problem Rozgar solves or how workers and recruiters use the platform. Has limited understanding of the MERN architecture, authentication, location-based matching, or the purpose of the voice assistant.",
+    "Intermediate": "Understands the basic frontend, backend, and database architecture but struggles to explain role-based access, geospatial queries, the relationship between jobs and applications, or how RAG and voice technologies support Ask Rozgar.",
+    "Advanced": "Clearly explains the end-to-end architecture, including React, Express, MongoDB, phone OTP authentication, JWT authorization, geospatial job matching, application management, two-way ratings, and the RAG-based voice assistant. Explains how the application components communicate and why embeddings, vector search, speech-to-text, and text-to-speech are used.",
+    "Expert": "Demonstrates strong architectural understanding, explaining modular backend design, data relationships, geospatial indexing, authentication and authorization boundaries, embedding and retrieval pipelines, LLM integration, and voice processing. Can justify technology choices and discuss scalability, latency, cost, privacy, reliability, and the needs of users with limited literacy."
+  },
+  {
+    "Parameter": "Solution Explanation (Project Flow & AI/Data Lifecycle Understanding) (e.g., What happens when a recruiter posts a job? How does a worker apply? How does a spoken question become an answer based on that worker's actual data?)",
+    "Weight": 0.15,
+    "Beginner": "Cannot explain the complete job lifecycle or the request-response flow. Struggles to describe how jobs are stored, how workers discover nearby jobs, or how Ask Rozgar processes questions.",
+    "Intermediate": "Explains basic CRUD operations and frontend-backend communication but cannot consistently trace role-based authorization, the application and rating workflows, or the complete voice and retrieval pipeline.",
+    "Advanced": "Clearly explains the complete platform workflow: recruiter signup → job posting → geospatial indexing → nearby job discovery → application → shortlisting/hiring → completion → two-way ratings. Can also explain the AI workflow from voice capture through transcription, embedding, user-filtered retrieval, reranking, LLM response generation, and spoken output.",
+    "Expert": "Demonstrates a thorough understanding of the entire application lifecycle and can trace requests across frontend components, backend routes, controllers, MongoDB models, and AI services. Explains how job and application updates affect searchable records, how JWT-derived identity restricts retrieval, how retrieved chunks and scores can be inspected, and how missing or irrelevant information is handled. Can demonstrate that two workers receive answers grounded only in their own data and explain the failure scenarios, security controls, and architectural trade-offs."
+  }
+];
