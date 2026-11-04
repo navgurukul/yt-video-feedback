@@ -107,10 +107,10 @@ const RubricComparisonTable = ({ kind, rubric }: RubricComparisonTableProps) => 
     <div className="space-y-6">
       {rubric.map((item, index) => {
         const levelCells = [
-          { label: "Beginner (1)", value: item["Beginner (1)"] },
-          { label: "Intermediate (2)", value: item["Intermediate (2)"] },
-          { label: "Advanced (3)", value: item["Advanced (3)"] },
-          { label: "Expert (4)", value: item["Expert (4)"] },
+          { label: "Beginner (1)", value: item["Beginner (1)"] ?? item.Beginner },
+          { label: "Intermediate (2)", value: item["Intermediate (2)"] ?? item.Intermediate },
+          { label: "Advanced (3)", value: item["Advanced (3)"] ?? item.Advanced },
+          { label: "Expert (4)", value: item["Expert (4)"] ?? item.Expert },
         ];
 
         return (

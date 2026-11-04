@@ -6,6 +6,9 @@ import {
   Phase5Rubric,
   Phase6Rubric,
   Phase7Rubric,
+  Phase8Rubric,
+  Phase9Rubric,
+  Phase10Rubric,
 } from "../RubricData";
 
 export {
@@ -16,6 +19,9 @@ export {
   Phase5Rubric,
   Phase6Rubric,
   Phase7Rubric,
+  Phase8Rubric,
+  Phase9Rubric,
+  Phase10Rubric,
 };
 
 export const projectRubricCatalog = {
@@ -46,5 +52,17 @@ export const projectRubricCatalog = {
   "Phase 7: Final Full-Stack Project with AI Integration": {
     title: "Phase 7 — CollabSphere Full-Stack Capstone Project Evaluation",
     rubric: Phase7Rubric,
+  },
+  "Phase 8: Python Basics": {
+    title: "Phase 8 — Python Basics and Expense Tracker API Evaluation",
+    rubric: Phase8Rubric,
+  },
+  "Phase 9: Foundations of AI AND Machine Learning": {
+    title: "Phase 9 — Foundations of AI and Machine Learning Project Evaluation",
+    rubric: Phase9Rubric,
+  },
+  "Phase 10: Prod-level AI Full stack with STS integration": {
+    title: "Phase 10 — Rozgar Production AI Full-Stack Project Evaluation",
+    rubric: Phase10Rubric,
   },
 } as const;
