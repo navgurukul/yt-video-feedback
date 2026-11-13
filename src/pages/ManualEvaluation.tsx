@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric, Phase5Rubric, Phase6Rubric, Phase7Rubric } from "@/data/RubricData";
 import { apiFetch } from "@/lib/api";
 import { useRubric } from "@/hooks/useInstitutionConfig";
+import { projectRubricCatalog } from "@/data/projectRubrics";
 
 interface ProjectVideoRecord {
   id: number;
@@ -41,6 +42,8 @@ const getYouTubeEmbedUrl = (url: string) => {
 
 const getRubricForProject = (projectName: string) => {
   if (!projectName) return Phase1Rubric;
+  const catalogEntry = projectRubricCatalog[projectName as keyof typeof projectRubricCatalog];
+  if (catalogEntry) return catalogEntry.rubric;
   const normalized = projectName.toLowerCase();
   if (normalized.includes("phase 1")) return Phase1Rubric;
   if (normalized.includes("phase 2")) return Phase2Rubric;
