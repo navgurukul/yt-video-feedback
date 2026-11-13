@@ -103,7 +103,11 @@ const RubricIn = z.object({
   levels: z.array(z.string().trim().min(1)).min(2).max(10),
   criteria: z.array(z.record(z.string(), z.any())).min(1).max(50),
 });
-const RubricVersionIn = z.object({ levels: z.array(z.string().trim().min(1)).min(2).max(10).optional(), criteria: z.array(z.record(z.string(), z.any())).min(1).max(50) });
+const RubricVersionIn = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  levels: z.array(z.string().trim().min(1)).min(2).max(10).optional(),
+  criteria: z.array(z.record(z.string(), z.any())).min(1).max(50),
+});
 const PromptIn = z.object({
   kind: z.enum(['accuracy', 'ability_to_explain', 'project', 'custom']),
   name: z.string().trim().min(1).max(200),
@@ -301,18 +305,19 @@ export function registerAdminRoutes(app) {
     const base = await one(`SELECT * FROM rubrics WHERE id = $1 AND institution_id = $2 AND rubric_type <> 'project_analysis'`, [id, inst(req)]);
     if (!base) throw new HttpError(404, 'Rubric not found');
     const b = RubricVersionIn.parse(req.body);
+    const name = b.name || base.name;
     const levels = b.levels || base.levels;
     const { errors, warnings } = validateRubric({ rubric_type: base.rubric_type, levels, criteria: b.criteria });
     if (errors.length) throw new HttpError(400, 'Rubric is not valid', errors);
     const c = await pgPool.connect();
     try {
       await c.query('BEGIN');
-      const next = (await c.query(`SELECT COALESCE(MAX(version),0)+1 AS v FROM rubrics WHERE institution_id = $1 AND name = $2`, [inst(req), base.name])).rows[0].v;
+      const next = (await c.query(`SELECT COALESCE(MAX(version),0)+1 AS v FROM rubrics WHERE institution_id = $1 AND name = $2`, [inst(req), name])).rows[0].v;
       const row = (await c.query(
         `INSERT INTO rubrics (institution_id, name, rubric_type, levels, criteria, version, created_by)
          VALUES ($1,$2,$3,$4,$5::text::json,$6,$7) RETURNING *`,
-        [inst(req), base.name, base.rubric_type, JSON.stringify(levels), JSON.stringify(b.criteria), next, req.user.email])).rows[0];
-      const old = (await c.query(`UPDATE rubrics SET is_active = FALSE WHERE institution_id = $1 AND name = $2 AND id <> $3 RETURNING id`, [inst(req), base.name, row.id])).rows.map((r) => r.id);
+          [inst(req), name, base.rubric_type, JSON.stringify(levels), JSON.stringify(b.criteria), next, req.user.email])).rows[0];
+      const old = (await c.query(`UPDATE rubrics SET is_active = FALSE WHERE institution_id = $1 AND (name = $2 OR name = $3) AND id <> $4 RETURNING id`, [inst(req), base.name, name, row.id])).rows.map((r) => r.id);
       const moved = (await c.query(
         `UPDATE video_assignments SET
             rubric_id = CASE WHEN rubric_id = ANY($1) THEN $2 ELSE rubric_id END,
@@ -320,7 +325,7 @@ export function registerAdminRoutes(app) {
             updated_at = NOW()
           WHERE rubric_id = ANY($1) OR ability_rubric_id = ANY($1)`, [old, row.id])).rowCount;
       await c.query('COMMIT');
-      invalidateConfig(inst(req)); await audit(req, 'new_version', 'rubric', row.id, { name: base.name, version: next, from: id, videosMoved: moved });
+      invalidateConfig(inst(req)); await audit(req, 'new_version', 'rubric', row.id, { name, previousName: base.name, version: next, from: id, videosMoved: moved });
       res.status(201).json({ ...camelRubric(row), warnings, videosUpdated: moved });
     } catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
   }));

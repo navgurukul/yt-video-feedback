@@ -49,6 +49,11 @@ export interface Rubric {
   levels: string[]; criteria: Record<string, unknown>[]; version: number; isActive: boolean;
   createdBy: string | null; createdAt: string; versions?: number; warnings?: string[];
 }
+// ---- types returned by the super admin API ----------------------------------------------
+export interface YtRubricDraft {
+  assignmentTitle: string; name: string; rubricType: "project";
+  levels: string[]; criteria: Record<string, unknown>[];
+}
 export interface PromptTemplate {
   id: string; kind: "accuracy" | "ability_to_explain" | "project" | "custom"; name: string;
   promptText: string; generationConfig: Record<string, unknown>; version: number; isActive: boolean;
