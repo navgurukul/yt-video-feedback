@@ -8,7 +8,13 @@
     "start": "node index.js",
     "dev": "node --watch index.js"
   },
-  "keywords": ["youtube", "feedback", "gemini", "ai", "education"],
+  "keywords": [
+    "youtube",
+    "feedback",
+    "gemini",
+    "ai",
+    "education"
+  ],
   "author": "Navgurukul",
   "license": "MIT",
   "dependencies": {
@@ -17,6 +23,7 @@
     "dotenv": "^16.6.1",
     "express": "^4.22.3",
     "node-fetch": "^3.3.2",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "zod": "^3.25.76"
   }
 }

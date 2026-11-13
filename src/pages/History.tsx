@@ -13,6 +13,7 @@ import { AuthModal } from "@/components/AuthModal";
 import { FailedRequestCard, FailedRequestItem } from "@/components/FailedRequestCard";
 import { format } from "date-fns";
 import { ApiKeyContext } from "@/App";
+import { apiFetch } from "@/lib/api";
 
 interface ConceptEvaluation {
   id: string;
@@ -87,7 +88,7 @@ const History = () => {
 
   const fetchHistory = async (email: string) => {
     try {
-      const conceptResponse = await fetch(`${API_BASE_URL}/concept-history?email=${encodeURIComponent(email)}`);
+      const conceptResponse = await apiFetch(`${API_BASE_URL}/concept-history`);
       let conceptData = { data: [] };
       
       if (conceptResponse.ok) {
@@ -96,7 +97,7 @@ const History = () => {
         console.error('Concept history fetch failed:', conceptResponse.status, conceptResponse.statusText);
       }
       
-      const projectResponse = await fetch(`${API_BASE_URL}/project-history?email=${encodeURIComponent(email)}`);
+      const projectResponse = await apiFetch(`${API_BASE_URL}/project-history`);
       let projectData = { data: [] };
       
       if (projectResponse.ok) {
@@ -105,7 +106,7 @@ const History = () => {
         console.error('Project history fetch failed:', projectResponse.status, projectResponse.statusText);
       }
       
-      const customResponse = await fetch(`${API_BASE_URL}/custom-history?email=${encodeURIComponent(email)}`);
+      const customResponse = await apiFetch(`${API_BASE_URL}/custom-history`);
       let customData = { data: [] };
       
       if (customResponse.ok) {
@@ -114,7 +115,7 @@ const History = () => {
         console.error('Custom history fetch failed:', customResponse.status, customResponse.statusText);
       }
 
-      const failedResponse = await fetch(`${API_BASE_URL}/failed-requests?email=${encodeURIComponent(email)}`);
+      const failedResponse = await apiFetch(`${API_BASE_URL}/failed-requests`);
       let failedData = { data: [] };
 
       if (failedResponse.ok) {
@@ -167,7 +168,7 @@ const History = () => {
         ? `${API_URL}/project-evaluation/${id}`
         : `${API_URL}/custom-evaluation/${id}`;
       
-      const response = await fetch(endpoint, {
+      const response = await apiFetch(endpoint, {
         method: 'DELETE'
       });
       
@@ -194,7 +195,7 @@ const History = () => {
 
   const handleFailedDelete = async (id: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/failed-requests/${id}?email=${encodeURIComponent(user?.email || '')}`, {
+      const response = await apiFetch(`${API_BASE_URL}/failed-requests/${id}`, {
         method: 'DELETE'
       });
 
@@ -219,7 +220,7 @@ const History = () => {
 
   const handleFailedRetry = async (request: FailedRequestItem) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/failed-requests/${request.id}/retry`, {
+      const response = await apiFetch(`${API_BASE_URL}/failed-requests/${request.id}/retry`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userEmail: user?.email, userId: request.user_id, apiKey })

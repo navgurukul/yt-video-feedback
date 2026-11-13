@@ -1,3 +1,5 @@
+> **Note (multi-tenant branch):** syllabus, rubrics and prompts now live in the database per institution; `src/data/*` is only a fallback. Auth is verified on the server (`server/middleware/auth.js`); every query is scoped by `institution_id`. See `docs/MULTI_TENANT_PLAN.md` and `docs/API.md`. Sections below describe the original single-tenant design.
+
 # YouTube Video Feedback AI Instructions
 
 ## Project Overview

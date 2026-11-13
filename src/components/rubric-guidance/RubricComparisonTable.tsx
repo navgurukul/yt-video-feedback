@@ -3,7 +3,11 @@ import { cn } from "@/lib/utils";
 interface RubricComparisonTableProps {
   kind: "concept" | "project";
   rubric: any[];
+  /** Level column names (from the institution's rubric). Defaults to the Navgurukul 4 levels. */
+  levels?: string[];
 }
+
+const DEFAULT_LEVELS = ["Beginner (1)", "Intermediate (2)", "Advanced (3)", "Expert (4)"];
 
 const formatHeadingText = (value: unknown) => {
   if (value === null || value === undefined) return "";
@@ -67,7 +71,7 @@ const cleanDescription = (value: unknown) => {
   return text || String(value ?? "").trim();
 };
 
-const RubricComparisonTable = ({ kind, rubric }: RubricComparisonTableProps) => {
+const RubricComparisonTable = ({ kind, rubric, levels = DEFAULT_LEVELS }: RubricComparisonTableProps) => {
   if (kind === "concept") {
     return (
       <div className="overflow-hidden border border-foreground bg-card">
@@ -106,12 +110,12 @@ const RubricComparisonTable = ({ kind, rubric }: RubricComparisonTableProps) => 
   return (
     <div className="space-y-6">
       {rubric.map((item, index) => {
-        const levelCells = [
-          { label: "Beginner (1)", value: item["Beginner (1)"] ?? item.Beginner },
-          { label: "Intermediate (2)", value: item["Intermediate (2)"] ?? item.Intermediate },
-          { label: "Advanced (3)", value: item["Advanced (3)"] ?? item.Advanced },
-          { label: "Expert (4)", value: item["Expert (4)"] ?? item.Expert },
-        ];
+        const levelCellsBase = levels.map((label) => ({ label, value: item[label] }));
+        const legacyFallback = [item.Beginner, item.Intermediate, item.Advanced, item.Expert];
+        const levelCells = levelCellsBase.map((cell, idx) => ({
+          label: cell.label,
+          value: cell.value ?? legacyFallback[idx],
+        }));
 
         return (
           <section key={`${formatHeadingText(item.Parameter)}-${index}`} className="overflow-hidden border border-foreground bg-card">

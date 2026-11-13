@@ -16,12 +16,13 @@ import { CelebrationEffect } from "@/components/CelebrationEffect";
 import { ErrorPanel } from "@/components/ErrorPanel";
 import { RubricGuidanceButton, RubricGuidanceModal } from "@/components/rubric-guidance";
 import { motion } from "framer-motion";
-import { getPhaseNames, getVideoTitlesForPhase, getVideoDetailsForTitle } from "@/data/videoData";
-import { getProjectVideoForPhase, projectOnlyPhaseNames } from "@/data/phasevideodata";
+import { useInstitutionConfig, useRubric } from "@/hooks/useInstitutionConfig";
+import { projectOnlyPhaseNames } from "@/data/phasevideodata";
 import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric, Phase5Rubric, Phase6Rubric, Phase7Rubric, Phase8Rubric, Phase9Rubric, Phase10Rubric } from "@/data/RubricData";
 import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig, CustomPrompt, CustomConfig} from '@/data/prompt'
 import { ApiKeyContext } from "@/App";
 import { formatErrorInfo, ErrorInfo, isGeminiRetryLaterError } from "@/lib/errorMessages";
+import { apiFetch } from "@/lib/api";
 
 const GEMINI_MODELS = [
   "gemini-3.5-flash-lite",
@@ -58,7 +59,7 @@ const evaluateWithModelFallback = async (
       let data: any;
 
       try {
-        response = await fetch(`${API_BASE_URL}/evaluate`, {
+        response = await apiFetch(`${API_BASE_URL}/evaluate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...payload, model }),
@@ -149,8 +150,38 @@ const VideoAnalyzer = () => {
   const [analysisStatus, setAnalysisStatus] = useState("");
   const [isRubricGuideOpen, setIsRubricGuideOpen] = useState(false);
   
-  const phaseNames = getPhaseNames();
-  const availableVideoTitles = selectedPhase ? getVideoTitlesForPhase(selectedPhase) : [];
+  // Syllabus for the signed-in user's institution (falls back to the built-in data if unavailable)
+  const { config: syllabus, source: configSource, isLoading: configLoading } = useInstitutionConfig();
+  const useServerPrompts = configSource === "db";
+  const [selectedProgramId, setSelectedProgramId] = useState<string>("");
+  const programs = syllabus?.programs ?? [];
+  const activeProgram = programs.find((p) => p.id === selectedProgramId) ?? programs[0];
+  const phasesForProgram = activeProgram?.phases ?? [];
+  const phaseNames = phasesForProgram.map((p) => p.name);
+  const currentPhase = phasesForProgram.find((p) => p.name === selectedPhase);
+  const availableVideoTitles = currentPhase
+    ? currentPhase.videos.filter((v) => v.videoType === "concept").map((v) => v.title)
+    : [];
+  const selectedConceptVideo = currentPhase?.videos.find((v) => v.videoType === "concept" && v.title === selectedVideoTitle);
+  const selectedProjectVideo = currentPhase?.videos.find((v) => v.videoType === "project");
+
+  // Rubric guide ("What makes a good video?") uses the institution's own rubric when available
+  const guideRubricId = videoType === "project"
+    ? selectedProjectVideo?.rubricId
+    : (selectedConceptVideo ?? currentPhase?.videos.find((v) => v.videoType === "concept"))?.abilityRubricId;
+  const { data: guideRubric } = useRubric(useServerPrompts ? guideRubricId : null);
+  const guideOverride = useServerPrompts && guideRubric && videoType !== "other"
+    ? {
+        kind: (videoType === "project" ? "project" : "concept") as "project" | "concept",
+        title: videoType === "project" ? `${selectedPhase}: Project Rubric` : "Concept Explanation: Rubric Guide",
+        description: videoType === "project"
+          ? "Study the levels for each parameter to understand what is expected before you record or submit your project video."
+          : "Study the rubric levels to understand what is expected before you record or submit your concept explanation video.",
+        rubric: guideRubric.criteria as any[], // eslint-disable-line @typescript-eslint/no-explicit-any
+        levels: guideRubric.levels,
+        selectedPhaseLabel: selectedPhase || undefined,
+      }
+    : null;
   const selectedPhaseIsProjectOnly = isProjectOnlyPhase(selectedPhase);
 
   // Video details mapping
@@ -159,7 +190,9 @@ const VideoAnalyzer = () => {
     
     if (videoType === "concept") {
       details += `Video Title: ${selectedVideoTitle}\n\n`;
-      const videoData = getVideoDetailsForTitle(selectedPhase, selectedVideoTitle);
+      const videoData = selectedConceptVideo
+        ? { whatToCover: selectedConceptVideo.whatToCover ?? "", questionsToAnswer: selectedConceptVideo.questionsToAnswer ?? [] }
+        : null;
       if (videoData) {
         details += `What to cover:\n${videoData.whatToCover}\n\n`;
         details += `Ensure these are answered:\n`;
@@ -169,7 +202,14 @@ const VideoAnalyzer = () => {
       }
     } else if (videoType === "project") {
       // For project videos, get details from phasevideodata
-      const projectVideo = getProjectVideoForPhase(selectedPhase);
+      const projectVideo = selectedProjectVideo
+        ? {
+            title: selectedProjectVideo.title,
+            description: selectedProjectVideo.description ?? "",
+            whatToCover: selectedProjectVideo.whatToCover ?? "",
+            keyTopics: selectedProjectVideo.keyTopics ?? [],
+          }
+        : null;
       if (projectVideo) {
         details += `Project Video Title: ${projectVideo.title}\n\n`;
         details += `Description: ${projectVideo.description}\n\n`;
@@ -213,7 +253,7 @@ const VideoAnalyzer = () => {
     } else if (videoType === "other" && customPrompt) {
       setVideoDetailsText(getVideoDetails());
     }
-  }, [videoType, selectedPhase, selectedVideoTitle, customPrompt, customContext]);
+  }, [videoType, selectedPhase, selectedVideoTitle, customPrompt, customContext, syllabus]);
 
   useEffect(() => {
     setIsRubricGuideOpen(false);
@@ -261,6 +301,26 @@ const VideoAnalyzer = () => {
         return false;
       }
 
+      // With the institution syllabus, a retry is replayed through the server-side prompt path:
+      // store the video id + evaluation kind instead of the client-built prompt.
+      const retryPayload: Record<string, unknown> = useServerPrompts
+        ? {
+            ...failedPayload,
+            promptbegining: null,
+            rubric: null,
+            structuredreturnedconfig: null,
+            videoAssignmentId:
+              videoType === "concept" ? selectedConceptVideo?.id ?? null
+              : videoType === "project" ? selectedProjectVideo?.id ?? null
+              : null,
+            evaluationKind:
+              videoType === "concept"
+                ? (failedPayload.promptbegining === AbilityToExplainPrompt ? "ability_to_explain" : "accuracy")
+                : videoType === "project" ? "project" : "custom",
+          }
+        : failedPayload;
+      failedPayload = retryPayload;
+
       const requestBody = {
         userId: activeUser.id,
         userEmail: activeUser.email,
@@ -274,7 +334,7 @@ const VideoAnalyzer = () => {
         }
       };
 
-      const response = await fetch(`${API_BASE_URL}/failed-requests`, {
+      const response = await apiFetch(`${API_BASE_URL}/failed-requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
@@ -325,9 +385,8 @@ const VideoAnalyzer = () => {
         "Phase Not Selected",
         "You must select a Phase to proceed with the evaluation. Each phase has different evaluation criteria and requirements.",
         [
-            "Select a phase from the dropdown menu (Phase 1 through Phase 10)",
-          "Each phase builds on previous concepts with increasing complexity",
-          "Phase 1-2 focus on HTML and CSS fundamentals, Phase 3-6 cover advanced topics",
+          "Select a phase from the dropdown menu",
+          "Each phase has its own videos and evaluation criteria",
           "Switch between phases if your project covers different curriculum stages"
         ],
         "PHASE"
@@ -347,9 +406,25 @@ const VideoAnalyzer = () => {
           "Select a topic from the 'Video Title' dropdown menu",
           "Choose the specific concept your video explains",
           "Make sure your video matches the selected concept",
-            "Ensure you selected a Phase first (from Phase 1 through Phase 7)"
+            "Ensure you selected a Phase first"
         ],
         "VIDEO_TITLE"
+      );
+      setErrorInfo(validationError);
+      setError(validationError.message);
+      setIsAnalyzing(false);
+      return;
+    }
+
+    // With the institution's syllabus, the selected video must exist in it
+    if (useServerPrompts && ((videoType === "concept" && !selectedConceptVideo?.id) || (videoType === "project" && !selectedProjectVideo?.id))) {
+      const validationError = createValidationError(
+        videoType === "project" ? "No Project Video For This Phase" : "Video Not Found",
+        videoType === "project"
+          ? "This phase doesn't have a project video set up yet. Please contact your admin."
+          : "The selected video isn't available any more. Please pick it again.",
+        ["Select the phase again", "Ask your admin to check the syllabus setup"],
+        "VIDEO_ASSIGNMENT"
       );
       setErrorInfo(validationError);
       setError(validationError.message);
@@ -411,7 +486,9 @@ const VideoAnalyzer = () => {
           const issues = [];
           
           // First, get the accuracy evaluation
-          const accuracyPayload = {  
+          const accuracyPayload = useServerPrompts
+            ? { videoUrl, videoAssignmentId: selectedConceptVideo?.id, evaluationKind: "accuracy", evaluationType: "accuracy", apiKey }
+            : {  
           ...payload, 
           promptbegining: AccuracyPrompt,
           structuredreturnedconfig: AccuracyConfig,
@@ -504,7 +581,9 @@ const VideoAnalyzer = () => {
           }
 
           // Second, get the ability to explain evaluation
-          const abilityPayload = {
+          const abilityPayload = useServerPrompts
+            ? { videoUrl, videoAssignmentId: selectedConceptVideo?.id, evaluationKind: "ability_to_explain", evaluationType: "ability", apiKey }
+            : {
             ...payload,
             rubric: abilityToExplainRubric,
             promptbegining: AbilityToExplainPrompt,
@@ -601,7 +680,9 @@ const VideoAnalyzer = () => {
           const apiCalls = [];
           const issues = [];
           
-          const customPayload = {
+          const customPayload = useServerPrompts
+            ? { videoUrl, evaluationKind: "custom", customPrompt, customContext, evaluationType: "custom", apiKey }
+            : {
             ...payload,
             promptbegining: CustomPrompt,
             structuredreturnedconfig: CustomConfig,
@@ -704,7 +785,8 @@ const VideoAnalyzer = () => {
           const apiCalls = [];
           const issues = [];
 
-          switch (selectedPhase) {
+          // Legacy mode only: with the institution syllabus the server picks the rubric.
+          if (!useServerPrompts) switch (selectedPhase) {
             case "Phase 1: Student Profile & Course Portal (HTML Only)":
               projectRubric = Phase1Rubric;
               break;
@@ -739,7 +821,9 @@ const VideoAnalyzer = () => {
               projectRubric = Phase1Rubric; // Default to Phase1 rubric
           }
 
-          const projectPayload = {
+          const projectPayload = useServerPrompts
+            ? { videoUrl, videoAssignmentId: selectedProjectVideo?.id, evaluationKind: "project", evaluationType: "project", apiKey }
+            : {
             ...payload,
             rubric: projectRubric,
             promptbegining: ProjectPrompt,
@@ -857,12 +941,15 @@ const VideoAnalyzer = () => {
               selectedPhase: videoType !== "other" ? selectedPhase : null,
               selectedVideoTitle: videoType === "concept" ? selectedVideoTitle : null,
               customPrompt: videoType === "other" ? customPrompt : null,
-              customContext: videoType === "other" ? customContext : null
+              customContext: videoType === "other" ? customContext : null,
+              videoAssignmentId: useServerPrompts
+                ? (videoType === "concept" ? selectedConceptVideo?.id : videoType === "project" ? selectedProjectVideo?.id : null) ?? null
+                : null
             };
             
             const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/store-evaluation';
             
-            const response = await fetch(apiUrl, {
+            const response = await apiFetch(apiUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(requestData)
@@ -1003,6 +1090,29 @@ const VideoAnalyzer = () => {
               </div>
             </div>
 
+            {/* Program Selection (only when the institution has more than one) */}
+            {videoType !== "other" && programs.length > 1 && (
+              <div className="space-y-3">
+                <Label className="text-xl font-black uppercase flex items-center gap-2">
+                  <Layout className="w-6 h-6" />
+                  Select Program
+                </Label>
+                <Select
+                  onValueChange={(id) => { setSelectedProgramId(id); setSelectedPhase(""); setSelectedVideoTitle(""); }}
+                  value={activeProgram?.id ?? ""}
+                >
+                  <SelectTrigger className="w-full text-lg h-12">
+                    <SelectValue placeholder="Select a Program" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {programs.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Phase Selection Dropdown (hidden for other type) */}
             {videoType !== "other" && (
               <div className="space-y-3">
@@ -1020,7 +1130,7 @@ const VideoAnalyzer = () => {
                   value={selectedPhase}
                 >
                   <SelectTrigger className="w-full text-lg h-12">
-                    <SelectValue placeholder="Select a Phase" />
+                    <SelectValue placeholder={configLoading ? "Loading your syllabus…" : phaseNames.length ? "Select a Phase" : "No phases set up yet"} />
                   </SelectTrigger>
                   <SelectContent>
                     {phaseNames.map((phase) => (
@@ -1033,7 +1143,7 @@ const VideoAnalyzer = () => {
               </div>
             )}
 
-            {videoType !== "other" && selectedPhase && (
+            {videoType !== "other" && selectedPhase && (!useServerPrompts || guideOverride) && (
               <div className="space-y-2">
                 <RubricGuidanceButton
                   onClick={() => setIsRubricGuideOpen(true)}
@@ -1173,6 +1283,7 @@ const VideoAnalyzer = () => {
         onOpenChange={setIsRubricGuideOpen}
         videoType={videoType}
         selectedPhase={selectedPhase}
+        override={useServerPrompts ? guideOverride : undefined}
       />
 
       <Footer />
