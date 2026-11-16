@@ -4,6 +4,7 @@
  */
 
 import { Github, Twitter, Linkedin } from "lucide-react";
+import { useTenant } from "@/lib/tenant";
 
 /**
  * Footer Component
@@ -14,14 +15,18 @@ import { Github, Twitter, Linkedin } from "lucide-react";
  * @returns {JSX.Element} Application footer component
  */
 export const Footer = () => {
+  const { me } = useTenant();
+  const institution = me?.activeInstitution;
+  // Navgurukul's social links are only shown to Navgurukul users
+  const showNavgurukulLinks = !institution || institution.slug === "navgurukul";
   return (
     <footer className="border-t-4 border-foreground bg-card mt-20">
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="font-bold">
-            © 2026 NG YT VIDEO FEEDBACK. All rights reserved.
+            © 2026 {institution ? `${institution.name} · ` : ""}YT VIDEO FEEDBACK. All rights reserved.
           </p>
-          <div className="flex gap-4">
+          {showNavgurukulLinks && <div className="flex gap-4">
             <a
               href="https://github.com/navgurukul"
               target="_blank"
@@ -46,7 +51,7 @@ export const Footer = () => {
             >
               <Linkedin className="w-5 h-5" />
             </a>
-          </div>
+          </div>}
         </div>
       </div>
     </footer>

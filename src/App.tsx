@@ -8,6 +8,8 @@ import History from "./pages/History";
 import AllEvaluations from "./pages/AllEvaluations";
 import ManualEvaluation from "./pages/ManualEvaluation";
 import NotFound from "./pages/NotFound";
+import AdminPage from "./pages/admin/AdminPage";
+import SuperAdminPage from "./pages/admin/SuperAdminPage";
 import { useEffect, useState, createContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AuthGate from "@/components/AuthGate";
@@ -92,6 +94,8 @@ const App = () => {
               <Route path="/manual-evaluation" element={<ManualEvaluation />} />
               <Route path="/analysis-results" element={<AnalysisResults />} />
               <Route path="/yt-feedback" element={<YoutubeFeedback />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/super-admin" element={<SuperAdminPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

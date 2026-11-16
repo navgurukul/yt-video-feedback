@@ -1,0 +1,1501 @@
+{
+  "generated_from": [
+    "src/data/videoData.ts",
+    "src/data/phasevideodata.ts",
+    "src/data/RubricData.ts",
+    "src/data/prompt.ts"
+  ],
+  "videoDataStructure": [
+    {
+      "phase": "Phase 1: Student Profile & Course Portal (HTML Only)",
+      "videos": [
+        {
+          "title": "Let's Build Your First Website: The Home Page",
+          "whatToCover": "Walk through the process of creating a basic homepage using only HTML. Add a title, heading, some paragraph text, and navigation links.",
+          "questionsToAnswer": [
+            "What is the purpose of the <head>, <body>, and <title> tags?",
+            "How do we add links to other pages using <a> tags?",
+            "What tags are necessary for structuring a home page?",
+            "How do you create headings (<h1>, <h2>, etc.) and paragraphs (<p>)?"
+          ]
+        },
+        {
+          "title": "Creating Your Personal Profile Page with HTML",
+          "whatToCover": "Build a student profile page with an image, an \"about me\" section, and a list of hobbies.",
+          "questionsToAnswer": [
+            "How do we embed an image with <img> and what are the essential attributes (src, alt)?",
+            "What tags help organize sections like hobbies or personal details (e.g., <section>, <div>)?",
+            "How do unordered lists <ul> and ordered lists <ol> work, and when would you use each?",
+            "How can you add a line break (<br>) or a horizontal rule (<hr>)?"
+          ]
+        },
+        {
+          "title": "Listing Your Courses: The Course Page",
+          "whatToCover": "Create a \"My Courses\" page that lists all the courses a student is enrolled in, with links to each course's specific page (even if those pages don't exist yet).",
+          "questionsToAnswer": [
+            "How do you structure a list of items that each have a title and a short description?",
+            "How can you use <a> tags to create placeholder links for future pages?",
+            "What is the difference between an absolute URL and a relative URL in a link's href attribute?",
+            "How can you use heading tags to create a clear hierarchy on the page?"
+          ]
+        },
+        {
+          "title": "How to Make a Simple Feedback Form in HTML",
+          "whatToCover": "Build an HTML form that allows students to submit feedback. Include a text area for comments and a submit button.",
+          "questionsToAnswer": [
+            "What is the purpose of the <form> tag and what are the action and method attributes?",
+            "How do you create a multi-line text input using <textarea>?",
+            "What are the different types of <input> tags (e.g., text, email, submit)?",
+            "How does the <label> tag improve accessibility and user experience?"
+          ]
+        },
+        {
+          "title": "Displaying Your Grades with HTML Tables",
+          "whatToCover": "Create a \"Grades\" page that displays course grades in a structured table format with columns for Course Name, Grade, and Comments.",
+          "questionsToAnswer": [
+            "What are the essential tags for creating a table (<table>, <tr>, <th>, <td>)?",
+            "What is the difference between <th> (table header) and <td> (table data)?",
+            "How do you define the header row of a table?",
+            "How does the scope attribute (col or row) in a <th> tag help with accessibility?"
+          ]
+        },
+        {
+          "title": "Building a 'Contact Us' Page",
+          "whatToCover": "Create a simple \"Contact Us\" page with an address, a \"mailto\" link for email, and a \"tel\" link for a phone number.",
+          "questionsToAnswer": [
+            "How do you create a link that opens the user's default email client using mailto:?",
+            "How do you create a clickable phone number link using tel:?",
+            "What is the best way to format a physical address in HTML for readability?",
+            "How can you use the <address> tag semantically?"
+          ]
+        },
+        {
+          "title": "Linking It All Together: Website Navigation",
+          "whatToCover": "Create a consistent navigation bar using an unordered list within a <nav> tag that appears on every page of the student portal.",
+          "questionsToAnswer": [
+            "Why should you use the <nav> tag for your main navigation?",
+            "How do you create a list of links for a navigation menu?",
+            "How do you ensure the navigation links work correctly from any page in your site (relative paths)?",
+            "How can you create a \"Home\" link that always takes the user back to the main page?"
+          ]
+        },
+        {
+          "title": "HTML Mini-Project: A Simple Recipe Page",
+          "whatToCover": "Build a single-page recipe website. Include a title, an image of the dish, an unordered list for ingredients, and an ordered list for the steps.",
+          "questionsToAnswer": [
+            "How do you semantically structure a recipe with headings, paragraphs, and lists?",
+            "Why is an <ul> better for ingredients and an <ol> better for instructions?",
+            "How can you add emphasis to certain words using <strong> or <em>?"
+          ]
+        },
+        {
+          "title": "HTML Mini-Project: Your First Blog Post",
+          "whatToCover": "Create a webpage that looks like a blog post. It should have a main title, a publication date, and several paragraphs of text.",
+          "questionsToAnswer": [
+            "What is the purpose of the <article> tag in structuring a blog post?",
+            "How can you use <header> and <footer> tags within an <article>?",
+            "How do you represent the publication date and time using the <time> tag?"
+          ]
+        },
+        {
+          "title": "HTML Mini-Project: An Event Announcement Page",
+          "whatToCover": "Design a page for a college event. Include the event title, a banner image, date, time, location, and a short description.",
+          "questionsToAnswer": [
+            "How do you structure event details for clarity?",
+            "What HTML tags are best for displaying key information like date, time, and location?",
+            "How can you use headings and paragraphs to separate different pieces of information effectively?"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "Phase 2: Dressing Up Your Websites with CSS",
+      "videos": [
+        {
+          "title": "Your First Stylesheet: Global CSS for Your Website",
+          "whatToCover": "Create a style.css file and link it to all HTML pages. Apply basic resets and body-level styling like font and background color.",
+          "questionsToAnswer": [
+            "How do you link an external CSS file to an HTML document using the <link> tag?",
+            "What is box-sizing: border-box; and why is it a best practice to apply it to all elements?",
+            "Why do developers often apply margin: 0 and padding: 0 to the * selector (universal selector)?",
+            "How do you set a default font-family and background-color for the entire website on the body tag?"
+          ]
+        },
+        {
+          "title": "Styling Your Profile Page: Images and Text",
+          "whatToCover": "Style the student profile page. Make the profile image circular, center the text, and change font sizes and colors.",
+          "questionsToAnswer": [
+            "How do you target specific HTML elements with CSS selectors (e.g., element, class, ID)?",
+            "How can you make a square image appear as a circle using border-radius?",
+            "What are the common CSS properties for changing text appearance (color, font-size, font-weight, text-align)?",
+            "What is the difference between a class selector (.) and an ID selector (#), and when should you use each?"
+          ]
+        },
+        {
+          "title": "Creating Course 'Cards' with Flexbox",
+          "whatToCover": "Use Flexbox to arrange the course listings on the \"My Courses\" page into a flexible grid of \"cards.\"",
+          "questionsToAnswer": [
+            "What is the display: flex; property and what does it do to the child elements of a container?",
+            "How do you use justify-content and align-items to position items along the main and cross axes?",
+            "What is the purpose of the flex-wrap property?",
+            "How can you give each \"card\" a border, padding, and a box shadow to make it stand out?"
+          ]
+        },
+        {
+          "title": "Making Forms Look Good: Styling the Feedback Page",
+          "whatToCover": "Apply CSS to the feedback form to make it user-friendly. Style the input fields, textarea, and submit button.",
+          "questionsToAnswer": [
+            "How do you style <input> and <textarea> elements to have consistent width and padding?",
+            "How can you change the appearance of a button, including its background color, text color, and border?",
+            "What are the :hover and :focus pseudo-classes, and how can they improve form usability?",
+            "How do you use display: block; on labels to place them on their own line above the input fields?"
+          ]
+        },
+        {
+          "title": "How to Style Tables for Readability",
+          "whatToCover": "Style the grades table to be clean and easy to read. Add borders, padding, and alternating row colors.",
+          "questionsToAnswer": [
+            "How do you add borders to a table and its cells using the border property?",
+            "What is the border-collapse property and why is it useful for tables?",
+            "How do you use the :nth-child(even) or :nth-child(odd) pseudo-class to create \"zebra stripes\" on table rows?",
+            "How can you align text within table cells using text-align?"
+          ]
+        },
+        {
+          "title": "Responsive Design 101: Media Queries",
+          "whatToCover": "Introduce media queries to make the student portal layout adapt to different screen sizes, like mobile phones.",
+          "questionsToAnswer": [
+            "What is a media query and what is its syntax (@media)?",
+            "How do you define a \"breakpoint\" for a specific screen width (e.g., max-width: 600px)?",
+            "How would you change the flexbox direction from row to column on smaller screens?",
+            "Why is it important to include the viewport meta tag (<meta name=\"viewport\" ...>) in your HTML?"
+          ]
+        },
+        {
+          "title": "CSS Mini-Project: A Stylish Online Resume",
+          "whatToCover": "Build and style a one-page online resume. Use CSS to create a two-column layout, with personal info on one side and professional experience on the other.",
+          "questionsToAnswer": [
+            "How can you create a two-column layout using Flexbox or CSS Grid?",
+            "How do you use CSS to create visual separation between different sections of the resume?",
+            "What are some good font choices for a professional resume and how do you apply them?",
+            "How can you use padding and margin to create white space and improve readability?"
+          ]
+        },
+        {
+          "title": "Understanding the CSS Box Model",
+          "whatToCover": "A focused explanation of the CSS box model: content, padding, border, and margin. Visually demonstrate how each property affects an element's size and position.",
+          "questionsToAnswer": [
+            "What are the four parts of the CSS box model?",
+            "What is the difference between padding and margin?",
+            "How does the border property add to the total size of an element?",
+            "How does box-sizing: border-box; change the way the box model is calculated?"
+          ]
+        },
+        {
+          "title": "Flexbox vs. Grid: Which One to Use?",
+          "whatToCover": "Compare and contrast CSS Flexbox and CSS Grid with practical examples. Explain the ideal use cases for each.",
+          "questionsToAnswer": [
+            "What is the main difference between Flexbox (one-dimensional) and Grid (two-dimensional)?",
+            "When is Flexbox the better choice for layout? (e.g., distributing items in a line, navigation bars)",
+            "When is Grid the better choice for layout? (e.g., overall page structure, complex grids)",
+            "Show a simple layout created with both Flexbox and Grid to highlight the differences."
+          ]
+        },
+        {
+          "title": "CSS Transitions and Animations for Beginners",
+          "whatToCover": "Add simple, tasteful animations to the UI. Make buttons change color smoothly on hover and have elements fade in.",
+          "questionsToAnswer": [
+            "What is the transition property and how does it work?",
+            "How do you specify which CSS property to animate and the duration of the animation?",
+            "What is the difference between a transition and a @keyframes animation?",
+            "How can you create a simple \"fade-in\" effect using @keyframes and opacity?"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "Phase 3: Bringing Your Websites to Life with JavaScript!",
+      "videos": [
+        {
+          "title": "Your First JavaScript Project: A Simple Quiz App",
+          "whatToCover": "Set up the HTML and CSS for a simple quiz and write the first lines of JavaScript to select elements from the DOM.",
+          "questionsToAnswer": [
+            "How do you link a JavaScript file to your HTML using the <script> tag?",
+            "What is the Document Object Model (DOM)?",
+            "How do you select an HTML element by its ID using document.getElementById()?",
+            "How can you test if your JavaScript is working using console.log()?"
+          ]
+        },
+        {
+          "title": "Storing Quiz Questions with JavaScript Arrays and Objects",
+          "whatToCover": "Create a JavaScript array of objects, where each object represents a quiz question with its text and a list of possible answers.",
+          "questionsToAnswer": [
+            "How do you declare an array in JavaScript?",
+            "How do you create an object with key-value pairs?",
+            "How can you store multiple question objects inside a single array?",
+            "How do you access a specific question or answer from your data structure?"
+          ]
+        },
+        {
+          "title": "Dynamically Displaying Questions with JavaScript",
+          "whatToCover": "Write a function that takes a question object from your array and displays its text and answer choices on the webpage.",
+          "questionsToAnswer": [
+            "How do you create a function in JavaScript?",
+            "How do you change the text content of an HTML element using the .innerText or .textContent property?",
+            "How can you loop through an array of answers to display them?",
+            "How do you call a function to make it run?"
+          ]
+        },
+        {
+          "title": "Checking User Answers and Keeping Score",
+          "whatToCover": "Add event listeners to the answer buttons. When a user clicks, check if their answer is correct and update a score variable.",
+          "questionsToAnswer": [
+            "How do you add a click event listener to a button using .addEventListener()?",
+            "How do you use an if/else statement to check if an answer is correct?",
+            "How do you declare and update a variable to keep track of the score?",
+            "How can you give the user visual feedback (e.g., changing the button color) based on their answer?"
+          ]
+        },
+        {
+          "title": "Calculating and Displaying Final Quiz Results",
+          "whatToCover": "After the last question, hide the quiz section and display a results section showing the user's final score.",
+          "questionsToAnswer": [
+            "How do you keep track of which question the user is on?",
+            "How can you change the CSS display property with JavaScript to show and hide elements?",
+            "How do you display the final score on the page?",
+            "How can you add a \"Try Again\" button to reload the page and restart the quiz?"
+          ]
+        },
+        {
+          "title": "JavaScript Events: Making Your Website Interactive",
+          "whatToCover": "A focused look at different types of events beyond 'click', such as 'mouseover', 'mouseout', and 'submit'.",
+          "questionsToAnswer": [
+            "What is an event listener and how does it work?",
+            "What is the difference between a 'click' event and a 'submit' event on a form?",
+            "How can you use 'mouseover' to change an element's style when the user's mouse hovers over it?",
+            "What is the event object that gets passed to an event listener function?"
+          ]
+        },
+        {
+          "title": "DOM Manipulation: Changing Your Web Page with Code",
+          "whatToCover": "Go deeper into DOM manipulation. Create new HTML elements from scratch in JavaScript and add them to the page.",
+          "questionsToAnswer": [
+            "How do you create a new element using document.createElement()?",
+            "How do you add a newly created element to the DOM using .append() or .appendChild()?",
+            "How can you add or remove CSS classes from an element using .classList.add() and .classList.remove()?",
+            "How do you remove an element from the DOM?"
+          ]
+        },
+        {
+          "title": "JavaScript Mini-Project: A To-Do List App",
+          "whatToCover": "Build a functional to-do list. Users can type a task into an input field, press a button, and see the task added to a list on the page.",
+          "questionsToAnswer": [
+            "How do you get the value from an input field when a form is submitted?",
+            "How do you prevent a form from refreshing the page on submission? (event.preventDefault())",
+            "How do you create a new list item (<li>) with the user's text and add it to the <ul>?",
+            "How can you add a \"delete\" button next to each task?"
+          ]
+        },
+        {
+          "title": "Understanding JavaScript Functions",
+          "whatToCover": "A clear explanation of functions, including parameters, arguments, and return values. Show how to write reusable code.",
+          "questionsToAnswer": [
+            "What is the difference between a function parameter and an argument?",
+            "How does the return keyword work and what does it do?",
+            "How can you write a function that performs a calculation and returns the result?",
+            "What is the benefit of putting reusable code into a function?"
+          ]
+        },
+        {
+          "title": "How to Debug Your JavaScript Code",
+          "whatToCover": "Teach students how to use the browser's developer tools to find and fix common JavaScript errors.",
+          "questionsToAnswer": [
+            "How do you open the developer console in your browser?",
+            "What are some common types of errors you'll see in the console (e.g., ReferenceError, TypeError)?",
+            "How can you use console.log() to check the value of variables at different points in your code?",
+            "What is a breakpoint and how can you use the \"Sources\" tab to step through your code line by line?"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "Phase 4: Building an AI-Powered Content Generator with Modern JavaScript & Gemini API",
+      "videos": [
+        {
+          "title": "What is an API? Your First Gemini API Call",
+          "whatToCover": "Explain what an API is in simple terms. Guide the student through getting a Gemini API key and making their first successful API request using the fetch() method.",
+          "questionsToAnswer": [
+            "What is an API and why is it useful?",
+            "What is an API key and why do you need one?",
+            "What is the basic syntax of a fetch() request?",
+            "How do you handle the response from an API call?"
+          ]
+        },
+        {
+          "title": "Building an AI-Powered 'Ask Me Anything' App",
+          "whatToCover": "Create a simple web app with a text input where a user can ask a question, send it to the Gemini API, and display the answer on the page.",
+          "questionsToAnswer": [
+            "How do you send user input to an API?",
+            "How do you parse the JSON response from the Gemini API?",
+            "How do you display the API's response on your webpage?",
+            "How can you show a \"loading\" message while waiting for the API response?"
+          ]
+        },
+        {
+          "title": "Creating a Quick Summarizer with the Gemini API",
+          "whatToCover": "Build a tool where a user can paste a long piece of text into a <textarea>, and the Gemini API will return a concise summary.",
+          "questionsToAnswer": [
+            "How do you structure a prompt for the Gemini API to request a summary?",
+            "How do you handle larger amounts of text being sent to the API?",
+            "What are some ways to display the summarized text clearly to the user?",
+            "How can you add a button to copy the summary to the clipboard?"
+          ]
+        },
+        {
+          "title": "Let's Build an 'Idea Spark' App with Gemini",
+          "whatToCover": "Create an \"Idea Spark\" app. The user inputs a topic (e.g., \"healthy breakfast\"), and Gemini provides a list of related ideas (e.g., recipes, ingredients).",
+          "questionsToAnswer": [
+            "How do you design a prompt that asks for creative ideas in a list format?",
+            "How can you parse the API response to display the ideas as an HTML list?",
+            "How can you add a feature to get new ideas on the same topic?",
+            "What are the key components of the request body for the Gemini API?"
+          ]
+        },
+        {
+          "title": "ES6+ Features You Need to Know: let, const, and Arrow Functions",
+          "whatToCover": "Explain the difference between var, let, and const. Introduce the modern, cleaner syntax of arrow functions.",
+          "questionsToAnswer": [
+            "What is the difference in scope between var, let, and const?",
+            "When should you use let vs. const?",
+            "How do you convert a regular function into an arrow function?",
+            "What is the \"implicit return\" feature of arrow functions?"
+          ]
+        },
+        {
+          "title": "Working with API Data: JavaScript fetch() and Promises",
+          "whatToCover": "A deeper dive into fetch(). Explain what Promises are and how .then() and .catch() are used to handle asynchronous operations.",
+          "questionsToAnswer": [
+            "What does it mean for code to be \"asynchronous\"?",
+            "What is a Promise in JavaScript?",
+            "How do you chain multiple .then() blocks to process a fetch response?",
+            "How does .catch() help you handle errors when an API call fails?"
+          ]
+        },
+        {
+          "title": "ES6 Mini-Project: Daily Affirmation Generator",
+          "whatToCover": "Build a simple page that displays a new positive affirmation each time a button is clicked. Use an array of strings and modern JS syntax.",
+          "questionsToAnswer": [
+            "How can you use const to store an array of affirmations?",
+            "How do you write an arrow function for your event listener?",
+            "How do you select a random item from an array?",
+            "How can you use template literals to display the affirmation in a sentence?"
+          ]
+        },
+        {
+          "title": "Template Literals and Destructuring in JavaScript",
+          "whatToCover": "Show how to use template literals (backticks) to create strings with embedded variables. Explain how to use destructuring to extract values from objects and arrays.",
+          "questionsToAnswer": [
+            "What is the syntax for template literals and how do you embed variables in them?",
+            "How does destructuring make it easier to access properties from an object?",
+            "How can you destructure an array?",
+            "Provide a practical example of using both to format an API response for display."
+          ]
+        },
+        {
+          "title": "How to Use map, filter, and reduce in JavaScript",
+          "whatToCover": "Explain and demonstrate the three most common and powerful array methods: map, filter, and reduce.",
+          "questionsToAnswer": [
+            "What is the purpose of .map()? (Transforming each item in an array).",
+            "What is the purpose of .filter()? (Creating a new array with items that pass a test).",
+            "What is the purpose of .reduce()? (Calculating a single value from an array).",
+            "Show a real-world example for each, like transforming API data."
+          ]
+        },
+        {
+          "title": "Building a Simple Weather App with a Public API",
+          "whatToCover": "Use a free public weather API to build an app where a user can enter a city and get the current temperature and weather conditions.",
+          "questionsToAnswer": [
+            "How do you find and sign up for a free public API?",
+            "How do you include an API key in your request securely? (Mention environment variables, but use a simple variable for the demo).",
+            "How do you parse the weather data to find the information you need?",
+            "How do you display the weather information, including a weather icon?"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "Phase 5: Your First Backend with Node.js, Express & Gemini AI",
+      "videos": [
+        {
+          "title": "Your First Backend Server with Node.js and Express",
+          "whatToCover": "Explain what Node.js and Express are. Guide students through setting up a new project (npm init), installing Express, and creating a basic \"Hello World\" server.",
+          "questionsToAnswer": [
+            "What is Node.js? What is Express?",
+            "How do you initialize a Node.js project using npm init -y?",
+            "How do you install a package like Express using npm install express?",
+            "How do you create a simple Express server and make it listen on a port?"
+          ]
+        },
+        {
+          "title": "Creating Your First API Endpoint",
+          "whatToCover": "Create a simple API endpoint that sends back a JSON object when a user visits a specific URL (e.g., /api/courses).",
+          "questionsToAnswer": [
+            "What is an API endpoint (or route)?",
+            "How do you define a GET route in Express using app.get()?",
+            "How do you send a JSON response from an Express route using res.json()?",
+            "How can you test your new endpoint using a browser or a tool like Postman?"
+          ]
+        },
+        {
+          "title": "Connecting Your Frontend to Your Backend",
+          "whatToCover": "Modify the frontend JavaScript to fetch data from the new local Express backend server instead of a public API.",
+          "questionsToAnswer": [
+            "How do you use fetch() in your frontend code to call an endpoint on your own backend (e.g., http://localhost:3000/api/courses)?",
+            "What is CORS (Cross-Origin Resource Sharing) and why might you encounter a CORS error?",
+            "How do you enable CORS in your Express app using the cors middleware?",
+            "How do you display the data fetched from your backend on your frontend page?"
+          ]
+        },
+        {
+          "title": "Building an 'Ask Gemini' Web App with a Backend",
+          "whatToCover": "Move the Gemini API call from the frontend to the backend. The frontend will send a question to the Express server, which then calls the Gemini API and returns the result.",
+          "questionsToAnswer": [
+            "Why is it more secure to call external APIs (especially with secret keys) from the backend instead of the frontend?",
+            "How do you make a fetch request from within a Node.js/Express application?",
+            "How do you securely store your API key using environment variables (.env file)?",
+            "How do you set up a POST route in Express to receive data from your frontend?"
+          ]
+        },
+        {
+          "title": "How to Handle User Input on the Backend",
+          "whatToCover": "Show how to get data that the frontend sends to the backend. Specifically, how to read the request body from a POST request.",
+          "questionsToAnswer": [
+            "How do you configure your Express server to parse JSON request bodies (express.json() middleware)?",
+            "How do you access the data sent from the frontend using req.body?",
+            "How can you use the data from req.body to customize the logic in your route handler?",
+            "Show a complete flow: user types in a form, clicks submit, data goes to the backend, backend logs the data."
+          ]
+        },
+        {
+          "title": "Making API Calls from Your Node.js Server",
+          "whatToCover": "A more focused look at making fetch requests inside Node.js. Introduce node-fetch or discuss the built-in fetch in recent Node versions.",
+          "questionsToAnswer": [
+            "How does the syntax for fetch in Node.js compare to the browser?",
+            "How do you handle the asynchronous nature of API calls on the backend using async/await?",
+            "How do you properly handle potential errors from the external API call within your Express route?",
+            "How do you send the data received from the external API back to your own frontend?"
+          ]
+        },
+        {
+          "title": "Understanding Express Routes: GET and POST Requests",
+          "whatToCover": "A clear comparison between GET and POST requests. Explain when and why to use each one.",
+          "questionsToAnswer": [
+            "What is the fundamental difference between a GET and a POST request?",
+            "When should you use a GET request? (e.g., retrieving data)",
+            "When should you use a POST request? (e.g., creating new data, submitting a form)",
+            "What are URL parameters (e.g., /users/:id) and how do you access them in Express with req.params?"
+          ]
+        },
+        {
+          "title": "Introduction to Middleware in Express",
+          "whatToCover": "Explain the concept of middleware in Express. Show how to create a simple logger middleware that prints information about every incoming request to the console.",
+          "questionsToAnswer": [
+            "What is middleware in the context of Express?",
+            "What are the req, res, and next parameters in a middleware function?",
+            "How do you tell Express to use your middleware with app.use()?",
+            "What happens if you forget to call next() in a middleware function?"
+          ]
+        },
+        {
+          "title": "Serving Static Files (HTML, CSS, JS) with Express",
+          "whatToCover": "Configure the Express server to serve the static frontend files (HTML, CSS, JavaScript) directly.",
+          "questionsToAnswer": [
+            "What are \"static files\" in a web application?",
+            "How do you use the express.static() built-in middleware?",
+            "How do you specify the folder (e.g., 'public') where your static files are located?",
+            "How does this change the way you run your full-stack application (one server for both backend and frontend)?"
+          ]
+        },
+        {
+          "title": "Deploying Your First Node.js App",
+          "whatToCover": "A beginner's guide to deploying a simple Node.js application to a service like Render or Heroku.",
+          "questionsToAnswer": [
+            "What is deployment?",
+            "How do you prepare your app for deployment (e.g., specifying a start script in package.json)?",
+            "How do you handle port numbers in a deployed environment using process.env.PORT?",
+            "What are the basic steps to deploy an app on a platform like Render?"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "Phase 6: Your First Database with MongoDB & Mongoose",
+      "videos": [
+        {
+          "title": "What is MongoDB? Setting Up Your First Database",
+          "whatToCover": "Explain what a NoSQL database is and introduce MongoDB. Walk through the process of creating a free cloud database on MongoDB Atlas.",
+          "questionsToAnswer": [
+            "What is the difference between a SQL and a NoSQL database?",
+            "What is MongoDB Atlas?",
+            "How do you create a new project and cluster on MongoDB Atlas?",
+            "How do you get the connection string (URI) to connect your application to the database?"
+          ]
+        },
+        {
+          "title": "Introduction to Mongoose: Schemas and Models",
+          "whatToCover": "Introduce Mongoose as an ODM (Object Data Modeling) library for MongoDB. Explain how to define a Schema and create a Model for the student feedback data.",
+          "questionsToAnswer": [
+            "What is Mongoose and why is it useful?",
+            "How do you connect your Express app to your MongoDB database using Mongoose?",
+            "What is a Mongoose Schema and how do you define one?",
+            "What is a Mongoose Model and how do you create one from a schema?"
+          ]
+        },
+        {
+          "title": "Building a Feedback Manager: The Backend API",
+          "whatToCover": "Set up the basic Express routes (GET, POST, PUT, DELETE) for managing feedback, but without the database logic yet.",
+          "questionsToAnswer": [
+            "What are the four main operations in a CRUD application? (Create, Read, Update, Delete)",
+            "How do these CRUD operations map to HTTP methods? (POST, GET, PUT/PATCH, DELETE)",
+            "How do you structure your files to organize your routes?",
+            "What placeholder logic can you use before implementing the database functions?"
+          ]
+        },
+        {
+          "title": "Creating Feedback: The POST Request",
+          "whatToCover": "Implement the logic for the POST route. Take the feedback data from the request body, create a new document using the Mongoose model, and save it to the database.",
+          "questionsToAnswer": [
+            "How do you use a Mongoose model to create a new document?",
+            "How do you save a new document to the MongoDB database?",
+            "How do you use async/await to handle the asynchronous nature of database operations?",
+            "How do you send a confirmation response back to the client after successfully saving the data?"
+          ]
+        },
+        {
+          "title": "Reading Feedback: The GET Request",
+          "whatToCover": "Implement the logic for the GET route to fetch all the feedback documents from the database and send them back to the client.",
+          "questionsToAnswer": [
+            "How do you use a Mongoose model to find all documents in a collection (.find())?",
+            "How do you handle the case where there is no feedback in the database?",
+            "How do you send the array of feedback documents as a JSON response?",
+            "How do you test this endpoint to see the data from your database?"
+          ]
+        },
+        {
+          "title": "Updating and Deleting Feedback: PUT and DELETE Requests",
+          "whatToCover": "Implement the logic for the PUT (or PATCH) and DELETE routes. Use the document ID to find, update, or delete a specific piece of feedback.",
+          "questionsToAnswer": [
+            "How do you get the ID of a specific document from the URL parameters (req.params.id)?",
+            "How do you use Mongoose methods like .findByIdAndUpdate() and .findByIdAndDelete()?",
+            "How do you get the updated data from the request body for an update operation?",
+            "What kind of response should you send to the client to confirm an update or deletion?"
+          ]
+        },
+        {
+          "title": "Connecting Your Frontend to the Feedback API",
+          "whatToCover": "Modify the frontend JavaScript to make API calls to your new backend endpoints for creating, reading, updating, and deleting feedback.",
+          "questionsToAnswer": [
+            "How do you make a POST request with a JSON body using fetch?",
+            "How do you make DELETE and PUT requests using fetch?",
+            "How do you dynamically get the ID of a piece of feedback on the frontend to use in your API calls?",
+            "How can you organize your frontend code to handle these different API calls?"
+          ]
+        },
+        {
+          "title": "Displaying Feedback on Your Website",
+          "whatToCover": "When the page loads, fetch all the feedback from the backend and dynamically create HTML elements to display each piece of feedback.",
+          "questionsToAnswer": [
+            "How do you call your GET endpoint when the page first loads?",
+            "How do you loop through the array of feedback data received from the backend?",
+            "For each piece of feedback, how do you create the necessary HTML elements (e.g., a div or li)?",
+            "How do you add \"delete\" and \"edit\" buttons to each piece of feedback displayed on the page?"
+          ]
+        },
+        {
+          "title": "Submitting Feedback from Your Frontend Form",
+          "whatToCover": "Wire up the HTML form on the frontend so that when a user submits it, the data is sent to the POST endpoint and the new feedback appears on the page without a full refresh.",
+          "questionsToAnswer": [
+            "How do you add an event listener to the form's submit event?",
+            "How do you prevent the default form submission behavior (event.preventDefault())?",
+            "After successfully posting the new feedback, how do you update the UI to show it?",
+            "How can you clear the form fields after a successful submission?"
+          ]
+        },
+        {
+          "title": "Putting It All Together: A Full-Stack Feedback App",
+          "whatToCover": "A final review of the complete full-stack application. Walk through the entire data flow: from the user typing in the frontend, to the request hitting the backend, the database being updated, and the response updating the UI.",
+          "questionsToAnswer": [
+            "Can you trace a POST request from the browser's form all the way to the MongoDB database and back?",
+            "Can you trace a GET request from the page load event to the database and see how it populates the page?",
+            "What are the distinct roles of the frontend, the backend (Express), and the database (MongoDB)?",
+            "What are the next steps a student could take to improve this application?"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "Phase 7: Final Full-Stack Project with AI Integration",
+      "videos": [
+        {
+          "title": "User Authentication & Login with JWT & bcrypt",
+          "whatToCover": "Walk through your user authentication system. Explain how user registration works, how passwords are hashed with bcrypt, how JWT tokens are generated upon login, and how protected routes are secured with authentication middleware.",
+          "questionsToAnswer": [
+            "Why is it critical to hash passwords with bcrypt instead of storing them in plain text?",
+            "How does JWT work in protecting your API routes and managing user sessions?",
+            "Can you explain the complete flow: user registration → password hashing → database storage?",
+            "How does a user's JWT token prove they are authenticated when accessing protected routes?",
+            "What happens when a token expires and how would you handle token refresh?"
+          ]
+        },
+        {
+          "title": "Project Creation & Team Member Collaboration",
+          "whatToCover": "Demonstrate how users create new projects and invite team members. Explain the project data model, how member relationships are managed, and how permissions work when accessing shared projects.",
+          "questionsToAnswer": [
+            "How is project ownership determined and why is it important for authorization?",
+            "How do you structure the database to store project members and their roles?",
+            "Can you explain the process of inviting a user to a project and how they gain access?",
+            "How do you ensure that only authorized members can view or edit a project?",
+            "What database relationships (one-to-many, many-to-many) did you use and why?"
+          ]
+        },
+        {
+          "title": "Markdown Notes - Complete CRUD Operations",
+          "whatToCover": "Show how users create, read, update, and delete markdown notes within projects. Explain the note data model, how notes are linked to projects, and how the markdown editor integrates with your backend.",
+          "questionsToAnswer": [
+            "How are markdown notes stored in your database and linked to specific projects?",
+            "Can you walk through the complete create flow: user writes note → sends to backend → saves to database?",
+            "How do you implement the read operation to fetch notes for a specific project?",
+            "How do update and delete operations work, and how do you maintain data consistency?",
+            "How do you validate markdown content before storing it in the database?"
+          ]
+        },
+        {
+          "title": "Gemini AI Integration for Notes - Explain & Suggest Features",
+          "whatToCover": "Explain how you integrated Gemini API to provide 'Explain this note' and 'Suggest improvements' features. Show the prompts, how requests are sent securely from the backend, and how responses are displayed to users.",
+          "questionsToAnswer": [
+            "How do you structure prompts to send note content to Gemini for explanation or suggestions?",
+            "Why is it important to call the Gemini API from the backend instead of the frontend?",
+            "How do you handle Gemini API errors gracefully and provide fallback messages to users?",
+            "How does your system manage rate limits and API quotas when users request AI features?",
+            "Can you explain the entire flow: user clicks 'Explain' → backend calls Gemini → response displayed?"
+          ]
+        },
+        {
+          "title": "File Upload & Preview System",
+          "whatToCover": "Demonstrate the file upload feature where users can upload code files and design assets to projects. Explain how files are stored (server or cloud storage), how you validate file types and sizes, and how different file types are previewed.",
+          "questionsToAnswer": [
+            "What security measures do you implement to prevent malicious file uploads?",
+            "How do you validate file types and sizes on both the frontend and backend?",
+            "Where are uploaded files stored, and how do you manage storage efficiently?",
+            "How do you generate previews for different file types (images, code files, documents)?",
+            "How are uploaded files linked to projects and maintained in your database?"
+          ]
+        },
+        {
+          "title": "Gemini-Powered Code Explanation Feature",
+          "whatToCover": "Show how users can upload code files and request Gemini to explain the code. Explain how you read uploaded code files, send them to Gemini with appropriate context, and display the explanation to users.",
+          "questionsToAnswer": [
+            "How do you read and parse uploaded code files before sending them to Gemini?",
+            "What prompts do you use to ask Gemini to explain code effectively?",
+            "How do you handle large code files that might exceed API limits?",
+            "How does your system prevent sending sensitive information (API keys, passwords) to Gemini?",
+            "Can you explain the complete flow: user uploads code → Gemini analyzes → explanation displayed?"
+          ]
+        },
+        {
+          "title": "Contribution Analytics & Public Project Sharing",
+          "whatToCover": "Demonstrate the contribution analytics feature showing basic activity metrics (notes created, files uploaded by each member). Also explain how users can make projects publicly shareable via unique links and how public projects are accessed.",
+          "questionsToAnswer": [
+            "How do you track and store contribution data (who created/modified what and when)?",
+            "How do you query the database to generate analytics summaries for project dashboards?",
+            "How do you generate secure, unique public links for sharing projects?",
+            "How do you ensure public projects are read-only and prevent unauthorized modifications?",
+            "How do you handle analytics queries efficiently when dealing with large projects?"
+          ]
+        },
+        {
+          "title": "Mini Project 1: User Authentication System - Standalone Implementation",
+          "whatToCover": "Walk through your standalone user authentication system with Node.js and Express. Explain how you built user registration with email/password, implemented password hashing with bcrypt, created JWT-based login authentication, generated and managed JWT tokens, and secured routes with authentication middleware.",
+          "questionsToAnswer": [
+            "Can you explain the complete user registration flow: form submission → password hashing → database storage?",
+            "How did you implement bcrypt password hashing and why is it more secure than storing plain text passwords?",
+            "How does JWT token generation work upon successful login and what information does the token contain?",
+            "Can you demonstrate how a protected route uses authentication middleware to verify the JWT token?",
+            "What happens when a user tries to access a protected route without a valid token?",
+            "How would you implement token expiration and refresh mechanisms in a real application?"
+          ]
+        },
+        {
+          "title": "Mini Project 2: Collaborative Markdown Note App - Real-time Collaboration",
+          "whatToCover": "Demonstrate your collaborative markdown note-taking application. Explain how you integrated a markdown editor (like SimpleMDE), implemented save and retrieve functionality with MongoDB, allowed multiple users to view notes, and optionally implemented basic collaboration features like polling or real-time refresh.",
+          "questionsToAnswer": [
+            "How did you integrate SimpleMDE or another markdown editor into your application?",
+            "Can you walk through the complete flow: user writes markdown → saves to database → fetches for display?",
+            "How are notes stored in MongoDB and what data structure did you use?",
+            "How do you retrieve and display notes for multiple users accessing the same note?",
+            "If you implemented collaboration features, how do you handle simultaneous edits or conflicts?",
+            "How would you implement real-time updates when multiple users edit the same note?"
+          ]
+        },
+        {
+          "title": "Mini Project 3: Gemini-powered README Generator - AI Content Creation",
+          "whatToCover": "Showcase your AI-powered README generator that takes project details and uses Gemini API to generate professional README files. Explain how you collected user input (project name, description, features), structured prompts for Gemini, called the API from the backend, processed the generated content, and displayed it to users.",
+          "questionsToAnswer": [
+            "How did you structure your HTML form to collect project details from the user?",
+            "Can you explain how you created an effective prompt to send to Gemini for README generation?",
+            "Why is it important to call the Gemini API from the backend instead of directly from the frontend?",
+            "How do you handle the asynchronous nature of the API call using async/await?",
+            "How do you parse and process the Gemini API response to display the generated README?",
+            "What error handling did you implement if the Gemini API call fails or returns unexpected results?",
+            "How would you allow users to regenerate or refine the README with different inputs?"
+          ]
+        }
+      ]
+    }
+  ],
+  "projectVideoDataStructure": [
+    {
+      "phase": "Phase 1: Student Profile & Course Portal (HTML Only)",
+      "projectVideo": {
+        "title": "Student Profile & Course Portal - Complete Project Walkthrough",
+        "description": "A complete walkthrough of the HTML-only Student Profile & Course Portal project, explaining all pages, structure, and semantic HTML choices.",
+        "whatToCover": "Walk through your complete Student Profile & Course Portal website. Explain each page (Home, Profile, Courses, Feedback, Grades, Contact), how they connect through navigation, and why you chose specific HTML tags for structure and semantics.",
+        "keyTopics": [
+          "Overall project structure and page organization",
+          "Navigation and linking between pages",
+          "Semantic HTML usage (header, nav, main, footer, article, section)",
+          "Forms and input elements on the Feedback page",
+          "Tables for the Grades page",
+          "Lists and content organization",
+          "Accessibility considerations in HTML"
+        ]
+      }
+    },
+    {
+      "phase": "Phase 2: Dressing Up Your Websites with CSS",
+      "projectVideo": {
+        "title": "Design & Layout Fundamentals - Complete Project Walkthrough",
+        "description": "A complete walkthrough of the CSS-styled project demonstrating design and layout fundamentals, explaining layout techniques, responsive design, and styling principles.",
+        "whatToCover": "Walk through your complete CSS project demonstrating design and layout fundamentals. Explain your CSS organization, layout choices (Flexbox/Grid), color scheme, typography, responsive design with media queries, and how CSS enhances the user experience.",
+        "keyTopics": [
+          "CSS file organization and structure",
+          "Box model understanding and application",
+          "Flexbox and/or Grid layout implementations",
+          "Color scheme and typography choices",
+          "Responsive design with media queries",
+          "Hover states and transitions",
+          "CSS best practices and maintainability"
+        ]
+      }
+    },
+    {
+      "phase": "Phase 3: Bringing Your Websites to Life with JavaScript!",
+      "projectVideo": {
+        "title": "Interactive Quiz Master - Complete Project Walkthrough",
+        "description": "A complete walkthrough of the JavaScript-powered Interactive Quiz Master, explaining DOM manipulation, event handling, dynamic question display, and score calculation features.",
+        "whatToCover": "Walk through your Interactive Quiz Master project. Explain how JavaScript creates quiz interactivity, DOM manipulation for dynamic question display, event listeners for user interactions, data structures for storing questions and answers, and how the application manages quiz flow and score calculation.",
+        "keyTopics": [
+          "DOM selection and manipulation for quiz interface",
+          "Event listeners and handling user interactions",
+          "Arrays and objects for question and answer storage",
+          "Functions and code organization for quiz logic",
+          "Dynamic HTML creation for question display",
+          "Conditional statements for answer validation and scoring",
+          "Debugging techniques and testing quiz functionality"
+        ]
+      }
+    },
+    {
+      "phase": "Phase 4: Building an AI-Powered Content Generator with Modern JavaScript & Gemini API",
+      "projectVideo": {
+        "title": "AI-Powered Content Generator - Complete Project Walkthrough",
+        "description": "A complete walkthrough of the modern JavaScript project featuring an AI-Powered Content Generator with ES6+ features and Gemini API integration for intelligent content creation.",
+        "whatToCover": "Walk through your AI-Powered Content Generator project. Explain modern ES6+ features implementation, Gemini API integration using fetch(), async/await patterns, destructuring for API responses, and how different content generation features work together.",
+        "keyTopics": [
+          "ES6+ features (let/const, arrow functions, template literals)",
+          "Destructuring and spread/rest operators",
+          "Array methods for data processing (map, filter, reduce)",
+          "Fetch API and Promise handling for Gemini integration",
+          "Async/await patterns for API communication",
+          "Error handling and user feedback systems",
+          "Code organization and modern JavaScript best practices"
+        ]
+      }
+    },
+    {
+      "phase": "Phase 5: Your First Backend with Node.js, Express & Gemini AI",
+      "projectVideo": {
+        "title": "Ask Gemini Full-Stack Application - Complete Project Walkthrough",
+        "description": "A complete walkthrough of the full-stack Ask Gemini web application with Node.js/Express backend, covering server setup, API integration with Gemini AI, and secure frontend-backend communication.",
+        "whatToCover": "Walk through your Ask Gemini full-stack application. Explain your Node.js server setup, Express route configuration, secure Gemini API integration from the backend, middleware usage, environment variable management, and how data flows from frontend to backend to Gemini API and back.",
+        "keyTopics": [
+          "Node.js server initialization and Express app setup",
+          "Express routes and HTTP request handling (GET, POST)",
+          "Backend Gemini API integration and fetch requests",
+          "Environment variables and API key security (.env, dotenv)",
+          "Express middleware (JSON parsing, static file serving)",
+          "Frontend-backend communication and data flow",
+          "Error handling and debugging in backend applications"
+        ]
+      }
+    },
+    {
+      "phase": "Phase 6: Your First Database with MongoDB & Mongoose",
+      "projectVideo": {
+        "title": "Student Feedback Manager - Complete Project Walkthrough",
+        "description": "A complete walkthrough of the full-stack Student Feedback Manager application with MongoDB database integration, covering database connection, Mongoose schemas and models, CRUD operations, and persistent data storage.",
+        "whatToCover": "Walk through your Student Feedback Manager application. Explain your MongoDB Atlas setup and connection, Mongoose schema and model design for feedback data, CRUD operations implementation (create feedback, read all feedback), data validation, and the complete flow from frontend form submission to database storage and data retrieval.",
+        "keyTopics": [
+          "MongoDB Atlas setup and database connection (mongoose.connect)",
+          "Mongoose schemas and models for data structure definition",
+          "CRUD operations (Create with .save(), Read with .find())",
+          "Data validation and error handling in database operations",
+          "Environment variables for secure database credentials",
+          "Frontend to backend to database data flow",
+          "Express middleware for JSON parsing and database integration"
+        ]
+      }
+    },
+    {
+      "phase": "Phase 7: Final Full-Stack Project with AI Integration",
+      "projectVideo": {
+        "title": "CollabSphere - Complete Full-Stack Project Walkthrough",
+        "description": "A complete walkthrough of CollabSphere, an AI-powered full-stack developer collaboration platform integrating user authentication, project management, markdown notes, file uploads, Gemini AI features, and contribution analytics.",
+        "whatToCover": "Walk through your complete CollabSphere application. Explain your full-stack architecture (frontend, backend, database), secure user authentication with JWT and bcrypt, project collaboration features, Gemini AI integration for code explanation and documentation generation, file upload and storage handling, markdown notes management, contribution analytics, and the complete data flow across all features.",
+        "keyTopics": [
+          "Full-stack architecture: frontend, backend (Node.js/Express), MongoDB database, and AI integration",
+          "User authentication using JWT tokens and bcrypt password hashing",
+          "Project collaboration: creation, member management, and permission control",
+          "Markdown notes CRUD operations with rich text editing capabilities",
+          "Gemini API integration for code explanation and documentation features",
+          "Secure file upload, storage, and preview system",
+          "Contribution analytics and activity tracking",
+          "Public project sharing with unique shareable links",
+          "Environment variable management for secure API keys and credentials",
+          "Error handling and security best practices throughout the application",
+          "Database schema design for supporting complex relationships and queries",
+          "Frontend-backend-database-AI API data flow in a production-like application"
+        ]
+      }
+    }
+  ],
+  "rubrics": {
+    "abilityToExplainRubric": [
+      {
+        "Level": "Beginner",
+        "Explaination Points need to be present in the Video ": "• The explanation is vague, incomplete, or partially incorrect.• No clear structure; jumps around; hard to follow.• Uses heavy jargon instead of simple language.• No first-principles breakdown (only memorized or surface-level statements).• No examples or analogies to aid understanding.• Cannot simplify the idea or adapt to different audiences.• Cannot link the concept to real-world or practical use.• Does not recognize or address misconceptions; may introduce new ones.• Struggles with follow-up questions.• Contains factual inaccuracies or conceptual errors."
+      },
+      {
+        "Level": "Intermediate",
+        "Explaination Points need to be present in the Video ": "• Gives a generally correct definition in their own words.• Understandable but lacks strong flow or logical sequence.• Attempts a breakdown, but shallow or incomplete.• Provides one basic example or analogy.• Can answer simple follow-up questions only.• Minor inaccuracies, missing nuances.• Addresses only obvious misconceptions, misses deeper ones.• Can explain to peers, but not to someone outside the field.• Shows early but incomplete understanding of the concept's practical relevance."
+      },
+      {
+        "Level": "Advanced",
+        "Explaination Points need to be present in the Video ": "• Clear, accurate, logically structured explanation.• Breaks the concept into fundamental components (first principles).• Uses relevant analogies/examples that genuinely help understanding.• Connects the concept to meaningful, real-world applications.• Handles deeper or unexpected follow-up questions confidently.• Shows nuanced understanding with very few gaps.• Recognizes common misconceptions and proactively clarifies them.• Uses mostly simple language but may occasionally use technical terms appropriately.• Demonstrates strong internal understanding of the \"why\" behind the concept."
+      },
+      {
+        "Level": "Expert (Feynman Level)",
+        "Explaination Points need to be present in the Video ": "• Can explain the concept to anyone, regardless of background or age.• Builds understanding from first principles step-by-step (foundations → structure → full idea).• Uses multiple well-chosen analogies/examples, making even complex ideas intuitive.• Removes unnecessary complexity while maintaining accuracy — never oversimplifies.• Shows deep nuance (limitations, variations, edge cases, implications).• Anticipates misconceptions before they arise and resolves them clearly.• Offers layered clarity (simple version → deeper version → expert version).• 100% accuracy; no misconceptions or hidden gaps.• Leaves the listener thinking: \"This is so easy — why didn't anyone explain it like this before?\""
+      }
+    ],
+    "Phase1Rubric": [
+      {
+        "Parameter": "Understanding the Problem / Problem Articulation (e.g., “What is the purpose of this website?” “How do your pages connect?” “Why are we using only HTML?”)",
+        "Weightage (%)": 15,
+        "Beginner (1)": "Cannot clearly describe the purpose of the website; can name 1–2 pages but cannot explain their use or how they link. Example: “I made a homepage and a profile page… not sure why we need the others.”",
+        "Intermediate (2)": "Explains some pages and their purpose, but misses the connections or overall goal; partial awareness of the HTML-only rule. Example: “I made Home, Profile, and Courses… I think HTML-only means no colors.”",
+        "Advanced (3)": "Explains all pages with purpose and basic connections; understands the goal of focusing on HTML structure. Example: “Home introduces the portal; Profile shows personal info; Courses lists subjects. HTML-only lets us focus on structure first.”",
+        "Expert (4)": "Clearly explains all pages, their connections, and why HTML-only is used; shows complete understanding and ownership. Example: “Each page has a role: Home welcomes, Profile shows info, Courses lists subjects, Feedback collects messages, Grades uses a table, Contact gives info. HTML-only helps me learn structure before styling or interactivity.”",
+        "": "",
+        "Checklist": [
+          "Names all required pages for this phase's project",
+          "States the specific purpose of at least 4 individual pages (not just a list)",
+          "Explains how the pages connect/link to each other via navigation",
+          "States the overall goal/purpose of the website as a whole",
+          "Explains why the project uses HTML only at this stage (no CSS/JS)",
+          "Uses specific page names when explaining (not just \"the pages\")",
+          "Shows ownership/reflection (\"I structured it this way because...\") rather than reading a script"
+        ]
+      },
+      {
+        "Parameter": "Visual Appeal (Structure-only readability) (e.g., “Is content organized even without CSS?” “Are headings, lists, and paragraphs easy to read?”)",
+        "Weightage (%)": 20,
+        "Beginner (1)": "Layout confusing or cluttered; headings, lists, or paragraphs hard to follow. Example: All text appears in one block; lists mixed with paragraphs; hard to read.",
+        "Intermediate (2)": "Basic layout readable; some headings or lists misaligned; content visually uneven. Example: Courses listed in one paragraph instead of a or ; headings inconsistent.",
+        "Advanced (3)": "Layout clear and organized; headings, lists, and paragraphs structured for easy reading; consistent across pages. Example: Home page introduces portal with and ; Courses page lists subjects using cleanly.",
+        "Expert (4)": "Layout highly readable and intuitive; semantic tags improve flow; content balanced even without styling. Example: Feedback form sections separated clearly with ; Grades table easy to read; headings guide user naturally through all pages.",
+        "Checklist": [
+          "Headings are used to separate sections (not just plain paragraph text)",
+          "Lists (ul/ol) are used for list-type content instead of plain paragraphs",
+          "Content order/flow makes sense even with no CSS applied",
+          "Grades/data-heavy content uses a table, not free text",
+          "Forms/inputs (Feedback page) are structured with labels",
+          "Layout is visually consistent across pages, even unstyled",
+          "Explains a specific structural decision (e.g., why a heading level or list was used)"
+        ]
+      },
+      {
+        "Parameter": "Solution Explanation / Communication Skills (e.g., “Can you explain why you used ?” “Why for inputs?” “How would you describe your site to another student?”)",
+        "Weightage (%)": 20,
+        "Beginner (1)": "Cannot explain code or tag choices; struggles to describe purpose of pages. Example: “I don’t know why I used … it just works.”",
+        "Intermediate (2)": "Explains some tags and basic page flow but reasoning incomplete; communication unclear. Example: “I used for feedback… not sure why is needed.”",
+        "Advanced (3)": "Explains page flow and tag choices clearly; can describe most decisions and structure. Example: “I used for Grades; tags connect text to inputs for accessibility; navigation links use .”",
+        "Expert (4)": "Explains all pages, tag choices, and reasoning confidently; can teach others; reflects on best practices. Example: “I chose for contact info to be semantic; groups Feedback form logically; ensures consistent navigation. Can explain to another student why each tag is used.”",
+        "": "",
+        "Checklist": [
+          "Explains why at least 3 specific HTML tags were chosen (not just \"it works\")",
+          "Explains the purpose of form-related tags (label, input) if used",
+          "Describes page flow/navigation in their own words",
+          "Connects tag choices to accessibility or semantics",
+          "Can answer a follow-up \"why\" question about a specific tag",
+          "Explanation is fluent, not read verbatim from notes",
+          "Could describe the site clearly enough for another student to understand it"
+        ]
+      }
+    ],
+    "Phase2Rubric": [
+      {
+        "Parameter": "Understanding the problem\n\n\n(Sample prompts: 1. Why did you put your CSS like this (inside page, outside file, or in the tag)? 2. Why did you use Flexbox/Grid here instead of another way? \n3. If your project gets bigger, how will your CSS make it easy or hard to manage?)",
+        "Weightage (%)": 15,
+        "Beginner (1)": "The student added CSS but in a very basic or incorrect way e.g., mixing inline styles in HTML, repeating rules, or only changing colordls and fonts without structure. They cannot explain why CSS is separated from HTML.",
+        "Intermediate (2)": "The student used an external CSS file and applied some structured styles. The layout is partly consistent but still uses simple selectors. They know CSS is for design but can’t always explain conflicts (cascade/specificity).",
+        "Advanced (3)": "The student’s project shows good CSS structure: consistent classes, external file, and responsive design with media queries. They can clearly explain why they used a layout method (Flexbox/Grid) and how cascade/specificity affects their project.",
+        "Expert (4)": "The student’s CSS in the project is scalable and professional: clear naming, modular organization, hover/focus states for interactivity, and accessible styles (e.g., readable colors, spacing). They can link their choices to performance, maintainability, and teamwork.",
+        "": "",
+        "Checklist": [
+          "States where their CSS lives (external file vs inline vs style tag) and why",
+          "Explains at least one layout method used (Flexbox/Grid) and why chosen over alternatives",
+          "Mentions cascade or specificity when relevant, even briefly",
+          "Explains how their CSS would scale if the project got bigger",
+          "Uses an external stylesheet rather than only inline styles",
+          "Structured selectors (classes) rather than repeated inline rules",
+          "Discusses maintainability or organization of the CSS"
+        ]
+      },
+      {
+        "Parameter": "Visual Appeal\n\n(Sample prompts: 1. Why did you choose these colors? 2. How did you ensure consistency across pages (colors, buttons, headings, spacing? 3. How do users know what to click on? 4. How did you decide spacing, padding, and margins between elements?)",
+        "Weightage (%)": 30,
+        "Beginner (1)": "Design is messy. E.g., buttons blend into the background, headings the same size as body text, links hard to identify, colors clash. Cannot justify why red was used for headings or why spacing is inconsistent.",
+        "Intermediate (2)": "Design simple but functional. E.g., headings slightly larger than body, buttons a different color, sections somewhat separated, but spacing/alignment inconsistent. Can explain some choices like “made buttons stand out” but not fully.",
+        "Advanced (3)": "Design clean and professional. E.g., headings larger and bold, buttons colored and hover effect added, consistent margins/padding, readable fonts. Can explain how these choices improve readability and UX, e.g., “added 20px margin between sections for clarity.”",
+        "Expert (4)": "Design polished, thoughtful, and consistent. E.g., clear hierarchy (h1 > h2 > h3), consistent spacing (margin/padding uniform), accessible colors (contrast ratio meets standards), interactive elements intuitive (hover/focus states). Can explain how decisions solve user problems, enhance engagement, and improve overall learning experience.",
+        "": "",
+        "Checklist": [
+          "Headings and body text are visually distinguishable (size/weight)",
+          "Buttons/links are visually distinct from static text",
+          "Spacing (margin/padding) is consistent across sections/pages",
+          "Explains a specific color choice, not just \"I liked it\"",
+          "Explains a specific spacing/alignment decision",
+          "Hover or focus states are present on interactive elements",
+          "Layout remains usable if the browser window is narrowed (responsive awareness)"
+        ]
+      },
+      {
+        "Parameter": "Solution Explanation (Design & Visual)\n\n(Sample prompts: 1. Why did you choose these colors? 2. Explain the spacing choices. 3. How do users know what to click on?, 4. What would happen if we made the browser window really narrow?)",
+        "Weightage (%)": 15,
+        "Beginner (1)": "The design looks messy. Colors clash, spacing is uneven, and interactive elements don't work well. When asked about choices, they cannot explain why things look the way they do.",
+        "Intermediate (2)": "The design is simple but works. There's some attempt to organize things visually. They can give basic reasons for choices, like making important things bigger or more colorful.",
+        "Advanced (3)": "The design looks clean and professional. Colors, spacing, and typography work well together. Interactive elements feel responsive. They can clearly explain how their choices improve the user experience.",
+        "Expert (4)": "The design is polished and thoughtful. Everything works together consistently. They can explain how their design solves specific problems and works for different users, showing a deep understanding of design principles.",
+        "": "",
+        "Checklist": [
+          "Explains why specific colors were chosen",
+          "Explains spacing/layout choices with reasoning, not just description",
+          "Explains how users are guided to what's clickable",
+          "Addresses what happens on a narrow/small screen",
+          "Explanation is specific to their project, not generic CSS theory",
+          "Connects visual choices to user experience, not just aesthetics",
+          "Speaks confidently/fluently, not reading from a script"
+        ]
+      }
+    ],
+    "Phase3Rubric": [
+      {
+        "Parameter": "Understanding the Problem / Problem Articulation (e.g., “What is the goal of this project?” “Why is JS needed?” “How does JS make your quiz interactive?”)",
+        "Weightage (%)": 10,
+        "Beginner (1)": "Cannot clearly describe the project; mixes up quiz flow and features; cannot say why JS is needed.",
+        "Intermediate (2)": "States the main goal (quiz app) and mentions some role of JS (e.g., buttons, navigation) but misses finer details.",
+        "Advanced (3)": "Explains project goal and role of each feature; describes how JS makes pages interactive (questions load, score updates).",
+        "Expert (4)": "Connects project to bigger learning outcomes; explains why certain JS concepts were chosen; links interactivity to clarity, usability, and learning.",
+        "Checklist": [
+          "States the overall goal of the quiz app clearly",
+          "Explains why JavaScript specifically is needed (not CSS/HTML)",
+          "Describes at least 2 specific interactive features (e.g., button clicks, score update)",
+          "Explains how JS makes the page interactive, not just \"it works\"",
+          "Connects specific JS concepts to specific features (e.g., \"arrays store questions\")",
+          "Explains the quiz flow (Start to Quiz to Results) accurately",
+          "Reflects on why this project structure supports learning/usability"
+        ]
+      },
+      {
+        "Parameter": "Visual Appeal (“Is the Start Quiz button clearly visible and distinct?” “How easy is it for a user to read questions and options?”\n“Are colors, fonts, and spacing consistent across all pages?” “Does the layout help guide the user naturally from Start → Quiz → Results?”\n“Are interactive elements (buttons, answer options) easy to click and responsive?” “How would you improve the visual hierarchy or readability of your quiz?”)",
+        "Weightage (%)": 10,
+        "Beginner (1)": "Layout is confusing or cluttered; buttons and text hard to read; colors clash or are inconsistent; quiz sections not clearly separated; interactive elements (Start, Next, Restart) are difficult to identify.",
+        "Intermediate (2)": "Basic layout with some consistency; buttons or text may be misaligned; colors and fonts mostly readable but not polished; minor issues with spacing or section separation; some interactive elements may be slightly confusing.",
+        "Advanced (3)": "Layout is consistent and organized; buttons, text, and sections are clear and readable; colors and fonts are pleasant and uniform; spacing, alignment, and sectioning make navigation easy; interactive elements are easy to identify and use.",
+        "Expert (4)": "Layout is polished, intuitive, and visually engaging; buttons, text, and quiz sections are highly readable and well-aligned; color scheme, fonts, and spacing are consistent and enhance user experience; interactive elements are visually distinct and guide the user naturally; overall UI/UX demonstrates attention to detail, accessibility, and usability.",
+        "Checklist": [
+          "Start/Next/Restart buttons are clearly visible and distinct",
+          "Questions and answer options are easy to read",
+          "Colors and fonts are consistent across all quiz screens",
+          "Layout guides the user naturally from Start to Quiz to Results",
+          "Interactive elements are easy to click/tap and respond visibly",
+          "Explains a specific visual/UX decision, not just \"it looks fine\"",
+          "Can name a specific improvement they'd make to visual hierarchy"
+        ]
+      },
+      {
+        "Parameter": "Solution Explanation / Communication\n(e.g., “Can you explain what happens when the user clicks Start Quiz?” “How is the final score calculated and displayed?” “Which JS concepts did you use to make questions appear dynamically?” “How did you use Arrays and Objects to store questions and answers?” “Why did you choose this structure for your code?” “Did you encounter any errors while implementing the quiz? How did you debug them?” “How did you test that all edge cases are handled?” “Which part of this project helped you understand JavaScript concepts the most?”)",
+        "Weightage (%)": 10,
+        "Beginner (1)": "Can only read the code without explaining its functionality; struggles to describe the quiz flow; cannot identify which JS concepts are used; cannot justify any design or implementation choices.",
+        "Intermediate (2)": "Explains parts of the code and some JS concepts, such as variables or functions; describes basic flow of the quiz (Start, Next, Results) but reasoning is shallow; can provide limited justification for choices; partially explains debugging or handling skipped questions.",
+        "Advanced (3)": "Explains project flow clearly, including how Start, Next, Results, and Restart work; describes which JS concepts are applied (functions, arrays, objects, DOM, events, conditional statements) and why; can justify main design choices; explains how user interactions are handled and some edge cases; demonstrates understanding of debugging and problem-solving process; can summarize learning points from the project.",
+        "Expert (4)": "Explains the project comprehensively and confidently, as if teaching a peer; describes in-depth every feature, including quiz flow, score calculation, handling skipped/invalid answers, and restart mechanism; explains the purpose of each function, data structure, and DOM manipulation; reflects on why specific JS concepts were chosen and how they enhance interactivity; discusses design decisions, usability, and visual appeal; anticipates potential issues or edge cases and explains how they are addressed; reflects on learning outcomes and explains how the project deepened understanding of JS concepts.",
+        "Checklist": [
+          "Explains what happens when Start Quiz is clicked, step by step",
+          "Explains how the score is calculated and displayed",
+          "Names specific JS concepts used (arrays, objects, DOM, events, conditionals)",
+          "Explains why they structured their code the way they did",
+          "Describes at least one bug/error and how it was debugged",
+          "Explains how edge cases (skipped/invalid answers) are handled",
+          "Reflects on which JS concept helped them understand the most"
+        ]
+      }
+    ],
+    "Phase4Rubric": [
+      {
+        "Parameter": "Understanding the Problem\n\n\n1. Explain how your app sends a request to Gemini and receives the response.\n2. Why did you choose async/await here?\n3. How does user input flow through your system?\n4. What would break if Gemini returns an unexpected response?\n5. Why did you structure your code this way?",
+        "Weightage (%)": 20,
+        "Beginner (1)": "The student uses ES6 and fetch(), but in a basic or incorrect way. They cannot clearly explain how async code works, why APIs require Promises, or how data flows from request - response - UI. Their reasoning feels guess-based, and they mix old JavaScript patterns with ES6.",
+        "Intermediate (2)": "The student shows a partial understanding of modern JavaScript features and can describe the “general idea” behind API calls. They correctly use some ES6 (like let/const, template literals), but cannot fully justify their choices or explain async behavior deeply. Their understanding of the overall architecture is incomplete.",
+        "Advanced (3)": "The student demonstrates a clear understanding of ES6 and the request/response cycle. They explain how user inputs become prompts, how fetch() works, how async/await helps, and how responses are parsed and rendered. They justify their file structure, explain why they used specific ES6 techniques, and reason through API workflows with confidence.",
+        "Expert (4)": "The student deeply understands JavaScript architecture, async design patterns, and API communication. They explain trade-offs (Promises vs async/await), modular code organization, error handling strategies, scalability, and maintainability. They can predict failure cases, data inconsistencies, and performance implications like a professional engineer.",
+        "Checklist": [
+          "Explains how the app sends a request to Gemini and receives a response",
+          "Justifies why async/await is used, not just \"because we were told to\"",
+          "Traces how user input flows through the system to the API and back",
+          "Explains what would happen if Gemini returns an unexpected/error response",
+          "Justifies their file/code structure with reasoning",
+          "Uses ES6 features (let/const, template literals, destructuring) correctly and can name them",
+          "Ties the explanation to their actual code, not generic API theory"
+        ]
+      },
+      {
+        "Parameter": "Solution Explanation\n\n\n1. Why did you design your UI this way?\n2. How does the user understand what your app is doing?\n3. Explain why you placed this logic in a separate function.\n4. What would happen if the screen became very narrow?\n5. How does your design improve user experience?",
+        "Weightage (%)": 20,
+        "Beginner (1)": "The student cannot clearly explain why they wrote their code the way they did. Their reasoning is unclear or mixed up. They struggle to describe how their JS decisions affect user experience or API behavior.",
+        "Intermediate (2)": "The student provides a basic explanation of what they built and some reasoning behind their choices. They can describe their logic but not deeply justify it. Their explanation lacks flow or user-centered thinking.",
+        "Advanced (3)": "The student clearly explains their technical and design decisions, connecting ES6 choices, async logic, and UI behavior. They articulate how their structure improves readability, scalability, and user experience. Their reasoning is organized and confident.",
+        "Expert (4)": "The student offers thoughtful, precise, and intuitive explanations. They justify architectural choices, async handling, user flows, error handling, and UI design with clarity. They communicate like someone who deeply understands their project and could teach it to others.",
+        "Checklist": [
+          "Explains their specific UI design decisions",
+          "Explains how the user is informed of what the app is doing (loading/errors)",
+          "Justifies why logic was placed in a separate function/module",
+          "Addresses what happens on a narrow screen or with different input sizes",
+          "Connects design choices explicitly to user experience",
+          "Explains error-handling behavior for failed API calls",
+          "Speaks with specific, concrete detail rather than general statements"
+        ]
+      }
+    ],
+    "Phase5Rubric": [
+      {
+        "Parameter": "Understanding the Problem / Backend Architecture Awareness\n\n\n(e.g., “Why do we need a backend?” \n\n“What is client-server architecture?” \n\n“Why should API keys stay on the server?”)",
+        "Weightage (%)": 15,
+        "Beginner (1)": "Cannot clearly explain why backend exists; thinks it is just another JS file. Example: “Frontend sends data… backend gives response.”",
+        "Intermediate (2)": "Explains basic frontend → backend flow but lacks deeper reasoning. Example: “Backend processes request and sends it back.”",
+        "Advanced (3)": "Clearly explains how the client and server work together, why their responsibilities should be kept separate, and why sensitive information like API keys must be stored only on the backend for security.",
+        "Expert (4)": "Fully understands backend architecture; confidently explains scalability, security, API protection, and real-world server responsibility.",
+        "Checklist": [
+          "Explains why a backend is needed at all, not just \"it responds to requests\"",
+          "Describes client-server architecture in their own words",
+          "Explains why API keys must stay on the server, not the frontend",
+          "Describes the request-processing-response flow accurately",
+          "Distinguishes frontend responsibility from backend responsibility",
+          "Mentions a security or scalability consideration",
+          "Explanation reflects their actual project, not a generic definition"
+        ]
+      },
+      {
+        "Parameter": "Solution Explanation \n\n\n(e.g., “Walk me through your system.” \n\n“What happens when a user sends a request?” \n\n“How would you improve this system?”)",
+        "Weightage (%)": 15,
+        "Beginner (1)": "Struggles to explain system flow; explains code line-by-line without logic.",
+        "Intermediate (2)": "Explains basic request-response flow but lacks structured reasoning.",
+        "Advanced (3)": "Clearly explains full frontend → backend → external API → response cycle with confidence.",
+        "Expert (4)": "Explains system like a backend engineer; discusses improvements, scalability, deployment considerations, and future enhancements clearly and confidently.",
+        "Checklist": [
+          "Walks through the full system flow, not just isolated code lines",
+          "Explains what happens end-to-end when a user sends a request",
+          "Names specific Express routes/middleware used",
+          "Explains the role of environment variables / API key handling",
+          "Explains how the response is sent back to the frontend",
+          "Suggests at least one specific, real improvement to the system",
+          "Speaks with structured, logical flow rather than line-by-line narration"
+        ]
+      }
+    ],
+    "Phase6Rubric": [
+      {
+        "Parameter": "Understanding the Problem/Database Architecture Awareness\n\n\n(e.g., \n\n\n• Why do web applications need databases?\n\n\n• What is MongoDB, and how is it different from traditional databases?\n\n\n• What role does Mongoose play in Node.js applications?)",
+        "Weightage (%)": 15,
+        "Beginner (1)": "Cannot clearly explain the purpose of databases; thinks MongoDB is just a place to store random data, with a limited understanding of how the backend communicates with the database.",
+        "Intermediate (2)": "Explains that databases store application data, but lacks clarity on database structure or MongoDB concepts.",
+        "Advanced (3)": "Clearly explains why applications need databases, how MongoDB stores data as documents, and how Mongoose helps interact with the database.",
+        "Expert (4)": "Demonstrates a strong understanding of database architecture, explaining collections, documents, schemas, and how backend systems manage persistent data in real applications.",
+        "Checklist": [
+          "Explains why the application needs a database, not just \"to store data\"",
+          "Explains what MongoDB is and how it differs from a plain file/array",
+          "Explains Mongoose's role in connecting Node.js to MongoDB",
+          "Mentions collections/documents/schemas accurately",
+          "Explains how the backend communicates with the database",
+          "Distinguishes schema design from ad-hoc data storage",
+          "Explanation is specific to their own schema, not generic"
+        ]
+      },
+      {
+        "Parameter": "Solution Explanation(Database Operations & Data Flow Understanding)\n\n\n(e.g., \n\n\n• What happens when a user submits feedback?\n\n• How is data stored and retrieved from MongoDB?\n\n• How does data travel from the database to the frontend?\n\n)",
+        "Weightage (%)": 15,
+        "Beginner (1)": "Cannot clearly explain how data flows between frontend, backend, and database.",
+        "Intermediate (2)": "Understands basic data saving and retrieval but struggles to explain the full data lifecycle.",
+        "Advanced (3)": "Clearly explains data flow: frontend form → backend route → database storage → backend retrieval → frontend display.",
+        "Expert (4)": "Demonstrates strong understanding of data lifecycle, request handling, query execution, and structured response formatting for frontend display.",
+        "Checklist": [
+          "Explains what happens when a user submits feedback, end-to-end",
+          "Explains how data is saved to MongoDB (.save() or equivalent)",
+          "Explains how data is retrieved from MongoDB (.find() or equivalent)",
+          "Traces the full flow: frontend form to backend route to database to response",
+          "Mentions data validation or error handling",
+          "Explains how retrieved data is displayed back on the frontend",
+          "Speaks with an accurate, structured lifecycle explanation"
+        ]
+      }
+    ],
+    "Phase7Rubric": [
+      {
+        "Parameter": "Understanding the Problem & System Architecture Awareness (e.g., Why is authentication required? Why use AI integration? How do frontend, backend, database, and AI interact together?)",
+        "Weightage (%)": 15,
+        "Beginner (1)": "Cannot clearly explain system architecture or purpose of AI integration; limited understanding of how different parts of the application communicate.",
+        "Intermediate (2)": "Understands frontend/backend/database basics but struggles to explain scalability, AI workflows, or authentication flow clearly.",
+        "Advanced (3)": "Clearly explains architecture, authentication flow, API structure, database usage, and why AI is integrated into the application.",
+        "Expert (4)": "Demonstrates strong architectural understanding, explaining scalable application flow, AI request lifecycle, modular backend design, and production-level system thinking.",
+        "Checklist": [
+          "Explains why authentication is required for this application",
+          "Explains why AI integration was added and what problem it solves",
+          "Describes how frontend, backend, database, and AI service interact",
+          "Mentions security considerations (JWT, bcrypt, or equivalent)",
+          "Explains a specific architectural decision with reasoning",
+          "Distinguishes their explanation from a generic full-stack description",
+          "Shows awareness of scalability or production-readiness"
+        ]
+      },
+      {
+        "Parameter": "Solution Explanation (Project Flow & AI/Data Lifecycle Understanding) (e.g., What happens when a user logs in? How does AI generate responses? How does data move across the system?)",
+        "Weightage (%)": 15,
+        "Beginner (1)": "Cannot explain complete project flow or how requests move through the system.",
+        "Intermediate (2)": "Understands basic request-response cycle but struggles to explain AI flow or authentication lifecycle completely.",
+        "Advanced (3)": "Clearly explains frontend → backend → database → AI API → frontend lifecycle with proper request handling.",
+        "Expert (4)": "Demonstrates strong understanding of complete application lifecycle including authentication validation, middleware execution, database queries, AI request/response processing, and frontend rendering flow.",
+        "Checklist": [
+          "Explains what happens when a user logs in, step by step",
+          "Explains how the AI generates and returns a response",
+          "Traces how data moves across frontend to backend to database to AI to frontend",
+          "Explains authentication/middleware validation in the request flow",
+          "Mentions error handling for failed AI or database calls",
+          "Names specific project features tied to specific code, not generic",
+          "Reflects on a real limitation or improvement for the system"
+        ]
+      }
+    ]
+  },
+  "prompts": {
+    "accuracy": {
+      "text": "You are a STRICT and DETERMINISTIC evaluator LLM. Your task is to assess a student's concept-explanation video based ONLY on the requirements provided in the videoDetails section.\n\n**CRITICAL: CONSISTENCY RULES (FOLLOW EXACTLY)**\n1. You MUST evaluate ONLY what is spoken/shown in the video - never assume or infer content\n2. Use this EXACT scoring formula:\n   - Count total required concepts from VIDEO_DETAILS (call this TOTAL)\n   - Count concepts CORRECTLY explained with proper understanding (call this CORRECT)\n   - Count concepts with PARTIAL explanation (call this PARTIAL - worth 0.5 each)\n   - Accuracy = ((CORRECT + (PARTIAL * 0.5)) / TOTAL) * 100\n3. A concept is CORRECT only if: student explains WHAT it is, WHY it's used, and gives an example or shows it\n4. A concept is PARTIAL if: student mentions it but explanation is incomplete or missing context\n5. A concept is MISSING if: not mentioned at all or completely wrong\n\n**SCORING THRESHOLDS (USE EXACTLY):**\n- 90-100%: Expert level - all concepts covered accurately with examples\n- 70-89%: Advanced level - most concepts covered, minor gaps\n- 50-69%: Intermediate level - core concepts covered but significant gaps\n- 0-49%: Beginner level - major concepts missing or incorrect\n\n**VIDEO CONTENT VALIDATION (CRITICAL):**\n- FIRST, verify the video content matches the expected topic in VIDEO_DETAILS\n- If the video is about a DIFFERENT topic than expected, accuracy should be 0-20%\n- If the video is off-topic, irrelevant, or shows unrelated content, clearly state: \"Video content does not match expected topic. Expected: [topic from VIDEO_DETAILS]. Shown: [what video actually contains]\"\n- Do NOT give passing scores (>50%) to videos that don't demonstrate the required concepts\n\n**EVALUATION WORKFLOW:**\n1. First, LIST all required concepts from VIDEO_DETAILS (be explicit)\n2. Watch/analyze the video content\n3. For EACH required concept, mark: ✓ Correct (1.0), ◐ Partial (0.5), ✗ Missing/Wrong (0)\n4. Calculate accuracy using the formula: ((CORRECT + PARTIAL*0.5) / TOTAL) * 100\n5. Round to nearest whole number\n6. If video is off-topic, explain what was expected vs what was shown\n\nIMPORTANT: Write all feedback in simple, easy-to-understand English (A1 level). Avoid difficult words. Be friendly and helpful, treat the user as a second person - use words like \"you\" and \"I\".\n\nDo not give vague feedback. Provide clear, specific, detailed and accurate evaluation.\n\nInput Sections",
+      "config": {
+        "thinkingConfig": {
+          "thinkingBudget": -1
+        },
+        "temperature": 0,
+        "topK": 1,
+        "seed": 42,
+        "responseMimeType": "application/json",
+        "responseSchema": {
+          "type": "OBJECT",
+          "required": [
+            "Accuracy Level"
+          ],
+          "properties": {
+            "Accuracy Level": {
+              "type": "ARRAY",
+              "items": {
+                "type": "OBJECT",
+                "required": [
+                  "Accuracy Level",
+                  "Concepts Breakdown",
+                  "Feedback"
+                ],
+                "properties": {
+                  "Accuracy Level": {
+                    "type": "STRING",
+                    "description": "Accuracy percentage (0-100%) calculated using formula: ((CORRECT + PARTIAL*0.5) / TOTAL) * 100. Must be a number followed by %"
+                  },
+                  "Concepts Breakdown": {
+                    "type": "STRING",
+                    "description": "Brief summary showing: 'X/Y concepts correct, Z partial. Topics covered: [list]. Missing: [list].' This ensures transparent scoring."
+                  },
+                  "Feedback": {
+                    "type": "OBJECT",
+                    "required": [
+                      "What you did well.",
+                      "What could you do better.",
+                      "Suggestion for technical accuracy improvement."
+                    ],
+                    "properties": {
+                      "What you did well.": {
+                        "type": "ARRAY",
+                        "items": {
+                          "type": "STRING"
+                        },
+                        "description": "Array of 3-5 specific points highlighting major strengths from the video, where the student explained topics with proper clarity and examples. Quote specific things they said correctly."
+                      },
+                      "What could you do better.": {
+                        "type": "ARRAY",
+                        "items": {
+                          "type": "STRING"
+                        },
+                        "description": "Array of 3-5 specific points mentioning: (1) Missing concepts from VIDEO_DETAILS that were not explained, (2) Partial or incorrect explanations with what was wrong and correct information, (3) If video was off-topic, state what was expected vs shown."
+                      },
+                      "Suggestion for technical accuracy improvement.": {
+                        "type": "ARRAY",
+                        "items": {
+                          "type": "STRING"
+                        },
+                        "description": "Array of 3-5 actionable suggestions to improve ONE level up (e.g., beginner→intermediate). Include specific topics to study and how to explain them better."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ability_to_explain": {
+      "text": "You are a STRICT and DETERMINISTIC evaluator. Your task is to assess a student's Concept Explanation Video using the expected content defined in videoDetails and the scoring criteria defined in the rubric.\n\n**CRITICAL: DETERMINISTIC SCORING (FOLLOW THIS CHECKLIST EXACTLY)**\n\nYour evaluation MUST be based on OBSERVABLE evidence only. Use this scoring system:\n\n**STEP 1: VIDEO VALIDATION (DO THIS FIRST)**\n□ Does the video content match the expected topic in videoDetails?\n□ Is the student explaining the correct concept?\n→ If NO to either: Assign BEGINNER level and explain mismatch in feedback\n\n**STEP 2: COUNT OBSERVABLE EVIDENCE**\nFor each criteria below, mark YES (1 point) or NO (0 points):\n\nStructure & Clarity:\n□ Has clear introduction stating the topic (YES/NO)\n□ Explanation follows logical order (YES/NO)\n□ Has conclusion or summary (YES/NO)\n\nExamples & Analogies:\n□ Provides at least ONE concrete example (YES/NO)\n□ Uses at least ONE analogy or comparison (YES/NO)\n□ Examples are relevant and helpful (YES/NO)\n\nDepth of Understanding:\n□ Explains WHAT the concept is (YES/NO)\n□ Explains WHY it's used/important (YES/NO)\n□ Explains HOW it works (YES/NO)\n□ Mentions real-world applications (YES/NO)\n\nAccuracy:\n□ No major factual errors (YES/NO)\n□ Technical terms used correctly (YES/NO)\n\n**STEP 3: DETERMINE LEVEL (USE EXACTLY)**\n- 0-4 points: BEGINNER - Basic or incorrect understanding\n- 5-7 points: INTERMEDIATE - Decent explanation with gaps\n- 8-10 points: ADVANCED - Clear, accurate, well-structured\n- 11-12 points: EXPERT (Feynman Level) - Exceptional clarity, multiple examples, teaches at any level\n\n**ADDITIONAL RULES:**\n- If video is off-topic or doesn't match videoDetails → BEGINNER (max)\n- If major factual errors present → Cannot be above INTERMEDIATE\n- If no examples given → Cannot be above INTERMEDIATE\n- EXPERT requires: multiple examples, clear analogies, zero errors, logical flow\n\nIMPORTANT: Write all feedback in simple, easy-to-understand English (A1 level). Avoid difficult words. Be friendly and helpful, treat the user as a second person - use words like \"you\" and \"I\".\n\nYour output must be strict, accurate, and non-vague.\nIf explanations in the video are not related to the expected content in videoDetails, clearly state this in the feedback.\n\nInput Sections",
+      "config": {
+        "thinkingConfig": {
+          "thinkingBudget": -1
+        },
+        "temperature": 0,
+        "topK": 1,
+        "seed": 42,
+        "responseMimeType": "application/json",
+        "responseSchema": {
+          "type": "OBJECT",
+          "required": [
+            "Ability to explain"
+          ],
+          "properties": {
+            "Ability to explain": {
+              "type": "ARRAY",
+              "items": {
+                "type": "OBJECT",
+                "required": [
+                  "Ability to explain",
+                  "Evidence Score",
+                  "Structured Feedback"
+                ],
+                "properties": {
+                  "Ability to explain": {
+                    "type": "STRING",
+                    "description": "MUST be exactly one of: 'Beginner', 'Intermediate', 'Advanced', or 'Expert (Feynman Level)'. Determined by checklist score: 0-4=Beginner, 5-7=Intermediate, 8-10=Advanced, 11-12=Expert."
+                  },
+                  "Evidence Score": {
+                    "type": "STRING",
+                    "description": "Summary of checklist evaluation, e.g., 'Score: 7/12. Structure: 2/3, Examples: 2/3, Depth: 2/4, Accuracy: 1/2'. This ensures consistent scoring."
+                  },
+                  "Structured Feedback": {
+                    "type": "OBJECT",
+                    "required": [
+                      "What you did well.",
+                      "What could you do better.",
+                      "Suggestion for improving explanation."
+                    ],
+                    "properties": {
+                      "What you did well.": {
+                        "type": "ARRAY",
+                        "items": {
+                          "type": "STRING"
+                        },
+                        "description": "Array of 3-5 specific points highlighting communication strengths. Quote specific examples or analogies the student used that were effective."
+                      },
+                      "What could you do better.": {
+                        "type": "ARRAY",
+                        "items": {
+                          "type": "STRING"
+                        },
+                        "description": "Array of 3-5 specific points including: checklist items that scored NO, areas where clarity/structure could improve, missing examples or analogies, if off-topic explain what was expected."
+                      },
+                      "Suggestion for improving explanation.": {
+                        "type": "ARRAY",
+                        "items": {
+                          "type": "STRING"
+                        },
+                        "description": "Array of 3-5 actionable suggestions to move ONE level up. Be specific about what techniques to use (e.g., 'Try using an analogy like comparing X to Y')."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "project": {
+      "text": "TASK: You are a STRICT and DETERMINISTIC evaluator assessing a student's project explanation video. Your goal is to provide consistent, fair, and helpful feedback.\n\n**EVALUATION FRAMEWORK:**\n1. The **VIDEO DETAILS** section (expected content, key topics to cover)\n2. The **RUBRIC** (grading criteria and levels)\n\n**CRITICAL: DETERMINISTIC EVALUATION PROCESS**\n\n**STEP 1: VIDEO VALIDATION (DO THIS FIRST)**\n□ Does the video show/explain the expected project from VIDEO DETAILS?\n□ Is this the correct project type (Phase1 HTML / Phase2 CSS)?\n→ If video doesn't match: Assign BEGINNER for all parameters and explain mismatch\n\n**STEP 2: TOPIC COVERAGE CHECK (SUPPORTING EVIDENCE ONLY — NOT THE LEVEL DECISION)**\nCreate a checklist from \"Key Topics to explain\" in VIDEO DETAILS:\n□ For each topic: Covered ✓ / Partial ◐ / Missing ✗\nThis coverage checklist gives you context about the video and feeds the \"Missing topics\" feedback later. It does NOT by itself set the level — STEP 3's rubric Checklist is the only thing that decides the level. Do not compute or rely on a coverage percentage when assigning a level.\n\n**STEP 3: LEVEL DETERMINATION (PER RUBRIC PARAMETER) — CHECKLIST-BASED, RUBRIC IS AUTHORITATIVE**\nEach parameter in the RUBRIC includes a \"Checklist\" array of 7 specific, independently-checkable criteria. This checklist is the ONLY basis for the level. Do not estimate a concept-coverage percentage and do not match the video holistically against the Beginner/Intermediate/Advanced/Expert prose descriptions — those descriptions are reference context only; the Checklist is what you score against.\n\nFor each parameter:\n1. Go through the parameter's Checklist item by item. Mark an item YES only if the video gives clear, specific, verifiable evidence for that exact item. General impression, confident delivery, or partial/implied coverage does NOT count as YES — if in doubt, mark NO.\n2. Count the total number of YES items (0-7).\n3. Convert the count to a level using this fixed mapping:\n   □ 0-1 YES → BEGINNER\n   □ 2-4 YES → INTERMEDIATE\n   □ 5-6 YES → ADVANCED\n   □ 7 YES (ALL items) → EXPERT\n\n**HARD GATES — apply these AFTER counting. Gates only pull a level DOWN, never up, and override the count above when triggered:**\n□ If STEP 2 shows this parameter's related topics as mostly Missing (✗) → cap at BEGINNER regardless of checklist count.\n□ If you identify any factual/technical error for this parameter (the kind you will detail in STEP 4) → cap at INTERMEDIATE, even if the checklist count alone would suggest Advanced or Expert.\n□ If the student cannot answer at least one of the rubric's sample prompts for this parameter (sample prompts appear in the Parameter field) → cap at INTERMEDIATE.\n□ Ties/ambiguity rule: if you are unsure whether a checklist item should count as YES, or the count sits exactly on a mapping boundary, resolve it as NO / the LOWER level. Never round up.\n\nIn level_justification, state the checklist count (e.g., \"5/7 checklist items met\") and name which gate, if any, applied.\n\n**STEP 4: IDENTIFY AND CORRECT WRONG EXPLANATIONS**\nIf the student said something INCORRECT, you MUST:\n1. Quote what they said: \"You said '[exact quote]'...\"\n2. Explain why it's wrong in simple words\n3. Give the CORRECT explanation\n4. Provide a simple example\n\nExample format: \"You said '<table> is for layout'. This is not correct. <table> is for showing data in rows and columns, like a grade sheet. For layout, we use CSS with Flexbox or Grid.\"\n\n**FEEDBACK REQUIREMENTS:**\n- **What you did well**: 3-5 SPECIFIC points with examples from the video\n- **What could you do better**: 3-5 SPECIFIC points including:\n  * WRONG explanations with corrections\n  * Missing topics from KEY TOPICS list (name each one)\n  * Rubric criteria not demonstrated\n- **Suggestions**: 3-5 actionable items to reach NEXT level\n\n**RULES:**\n- Use EXACT weightages from the rubric\n- Be consistent: same video = same evaluation\n- If off-topic: all parameters = BEGINNER\n- Quote specific things the student said/showed\n- Don't give vague feedback like \"good job\" without specifics\n\nIMPORTANT: Write all feedback in simple English (A1/A2 level). Be friendly like a mentor. Use \"you\" and \"your\".\n\nInput Sections",
+      "config": {
+        "thinkingConfig": {
+          "thinkingBudget": -1
+        },
+        "temperature": 0,
+        "topK": 1,
+        "seed": 42,
+        "responseMimeType": "application/json",
+        "responseSchema": {
+          "type": "OBJECT",
+          "required": [
+            "video_validation",
+            "topic_coverage",
+            "parameters"
+          ],
+          "properties": {
+            "video_validation": {
+              "type": "OBJECT",
+              "required": [
+                "matches_expected",
+                "expected_content",
+                "actual_content"
+              ],
+              "properties": {
+                "matches_expected": {
+                  "type": "STRING",
+                  "description": "YES if video matches VIDEO DETAILS, NO if off-topic or wrong project"
+                },
+                "expected_content": {
+                  "type": "STRING",
+                  "description": "What the video SHOULD show based on VIDEO DETAILS"
+                },
+                "actual_content": {
+                  "type": "STRING",
+                  "description": "Brief description of what the video ACTUALLY shows"
+                }
+              }
+            },
+            "topic_coverage": {
+              "type": "STRING",
+              "description": "Summary: 'X/Y topics covered. Covered: [list]. Missing: [list].' Include percentage."
+            },
+            "parameters": {
+              "type": "ARRAY",
+              "description": "Evaluation for each rubric parameter",
+              "items": {
+                "type": "OBJECT",
+                "required": [
+                  "name",
+                  "weightage",
+                  "level",
+                  "level_justification",
+                  "feedback"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "STRING",
+                    "description": "Parameter name from rubric"
+                  },
+                  "weightage": {
+                    "type": "NUMBER",
+                    "description": "Exact weightage percentage from rubric"
+                  },
+                  "level": {
+                    "type": "STRING",
+                    "description": "MUST be exactly: 'Beginner', 'Intermediate', 'Advanced', or 'Expert'"
+                  },
+                  "level_justification": {
+                    "type": "STRING",
+                    "description": "State the rubric Checklist count for this parameter (e.g., '5/7 checklist items met'), which items were NOT met, and name any hard gate from STEP 3 that was applied (or 'no gate applied')."
+                  },
+                  "feedback": {
+                    "type": "OBJECT",
+                    "required": [
+                      "What you did well.",
+                      "What could you do better.",
+                      "Suggestion for project improvement."
+                    ],
+                    "properties": {
+                      "What you did well.": {
+                        "type": "ARRAY",
+                        "items": {
+                          "type": "STRING"
+                        },
+                        "description": "3-5 specific points with EXACT examples from video. Quote what student said/showed correctly."
+                      },
+                      "What could you do better.": {
+                        "type": "ARRAY",
+                        "items": {
+                          "type": "STRING"
+                        },
+                        "description": "3-5 specific points: (1) WRONG explanations with corrections - quote and correct, (2) Missing topics from KEY TOPICS, (3) Rubric criteria not met, (4) Specific improvements needed."
+                      },
+                      "Suggestion for project improvement.": {
+                        "type": "ARRAY",
+                        "items": {
+                          "type": "STRING"
+                        },
+                        "description": "3-5 actionable suggestions to reach NEXT level. Reference rubric descriptions. Give specific examples of what to explain or demonstrate."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "custom": {
+      "text": "You are a FLEXIBLE and INTELLIGENT evaluator LLM. Your task is to assess a student's video based on the CUSTOM EVALUATION CRITERIA provided by the user.\n\n**CRITICAL: FLEXIBILITY RULES (FOLLOW EXACTLY)**\n1. You MUST evaluate ONLY what is spoken/shown in the video - never assume or infer content\n2. Focus specifically on the custom criteria provided in the VIDEO DETAILS section\n3. **OUTPUT FORMAT**: If the user specifies a particular output format, structure, or fields in their custom evaluation criteria, follow it EXACTLY\n4. If no specific output format is mentioned, create a logical JSON structure based on what they want evaluated\n5. If additional context is provided, use it to better understand the evaluation requirements and output expectations\n\n**EVALUATION WORKFLOW:**\n1. First, read the \"Custom Evaluation Criteria\" from VIDEO DETAILS to understand:\n   - WHAT to evaluate (the criteria/aspects)\n   - HOW to structure the output (if specified)\n   - WHAT format the user expects (if mentioned)\n2. If \"Additional Context\" is provided, use it to better understand the requirements, background, and expected output\n3. Watch/analyze the video content carefully\n4. Assess the video against each criterion mentioned in the custom evaluation criteria\n5. Structure your response according to the user's specified format OR create an appropriate structure if none specified\n6. If the video doesn't address the custom criteria, clearly explain what was missing\n\n**OUTPUT FORMAT FLEXIBILITY:**\nYou must return a JSON object with \"evaluation_result\" as the main key. Inside \"evaluation_result\", structure the content exactly as the user requests:\n\n- If user asks for specific fields (e.g., \"score\", \"rating\", \"level\", \"grade\"), include those exact fields\n- If user asks for specific categories (e.g., \"technical skills\", \"presentation\", \"content\"), organize by those categories  \n- If user asks for specific format (e.g., \"list of points\", \"detailed analysis\", \"rubric-style\"), follow that format\n- If user asks for numerical scores, ratings, or percentages, provide them as requested\n- If user asks for specific feedback structure, follow it exactly\n- If no specific format is mentioned, create a clear, logical structure based on their evaluation criteria\n\n**EXAMPLES OF FLEXIBLE OUTPUT:**\n- User wants \"score out of 10 for each criteria\" → Return evaluation_result with technical_skills: 8, presentation: 7, content: 9\n- User wants \"detailed analysis with recommendations\" → Return evaluation_result with analysis and recommendations fields\n- User wants \"simple pass/fail with reasons\" → Return evaluation_result with result: \"PASS\" and reasons array\n- User wants \"rubric-style evaluation\" → Return evaluation_result with criteria array containing name, score, feedback objects\n- User wants \"bullet points of observations\" → Return evaluation_result with observations array\n\n**VIDEO CONTENT VALIDATION:**\n- Verify the video content is relevant to the custom evaluation criteria\n- If the video is completely unrelated to what the user asked to evaluate, clearly state this\n- Focus your evaluation on the specific aspects the user mentioned in their custom criteria\n- Use any additional context provided to better understand the evaluation scope\n\nIMPORTANT: \n- Write all feedback in simple, easy-to-understand English (A1 level). Avoid difficult words. \n- Be friendly and helpful, treat the user as a second person - use words like \"you\" and \"I\".\n- Do not give vague feedback. Provide clear, specific, detailed and accurate evaluation.\n- MOST IMPORTANT: Follow the user's requested output format exactly if they specify one.\n\nInput Sections",
+      "config": {
+        "thinkingConfig": {
+          "thinkingBudget": -1
+        },
+        "temperature": 0,
+        "topK": 1,
+        "seed": 42,
+        "responseMimeType": "application/json",
+        "responseSchema": {
+          "type": "OBJECT",
+          "description": "Flexible JSON object that should match the output format specified by the user in their custom evaluation prompt. If no specific format is requested, use this default structure.",
+          "properties": {
+            "evaluation_result": {
+              "type": "OBJECT",
+              "description": "Main evaluation result object. Structure this according to the user's specified format in their custom prompt. If no specific format is mentioned, include relevant evaluation fields based on their criteria.",
+              "properties": {
+                "response": {
+                  "type": "STRING",
+                  "description": "Flexible response field that can contain any evaluation content as requested by the user. This can be structured data, analysis, scores, feedback, or any format the user specified in their prompt."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "source_sha256": {
+    "src/data/videoData.ts": "b18dcd9a22f9b17e394fd96a51e4aaa218be7f886d133a9c10b2e84f675e1e5a",
+    "src/data/phasevideodata.ts": "34fe28adf2d447a4aa76c007565eee582436b6e8ecfb22a3bf9737ff4260981a",
+    "src/data/RubricData.ts": "8ee3b42bad538630986417bfe2023964f5da0a0d98932ba2f8f829b33ce8db9c",
+    "src/data/prompt.ts": "1d8b9502c816e2975094ccb02ccfd7d570c93fca0149a20385eff97f7245878f"
+  }
+}

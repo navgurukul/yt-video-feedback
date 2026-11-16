@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ApiKeyContext } from "@/App";
 import { ApiKeyModal } from "@/components/ApiKeyModal";
+import { useTenant, hasRole } from "@/lib/tenant";
 
 /**
  * Header Component
@@ -27,6 +28,12 @@ export const Header = () => {
   const { apiKey, setApiKey } = useContext(ApiKeyContext);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { me, switchInstitution } = useTenant();
+  const institution = me?.activeInstitution;
+  const switchable = (me?.memberships?.length ?? 0) > 1 || !!me?.isSuperAdmin;
+  const canSeeAll = hasRole(me, "evaluator");
+  const canAdmin = hasRole(me, "institution_admin");
+  const isSuper = !!me?.isSuperAdmin;
 
   useEffect(() => {
     console.log("Header: useEffect mount - checking user");
@@ -135,6 +142,28 @@ export const Header = () => {
                 Feedback<span className="text-primary">Hub</span> 💬
               </span>
             </Link>
+            {/* Active institution (name + logo); switcher when the user has several */}
+            {institution && (
+              <div className="hidden lg:flex items-center gap-2 border-2 border-foreground px-2 py-1 bg-background" title="Your institution">
+                {institution.logoUrl && (
+                  <img src={institution.logoUrl} alt="" className="h-6 w-6 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                )}
+                {switchable && me && me.memberships.length > 1 ? (
+                  <select
+                    aria-label="Switch institution"
+                    className="bg-transparent font-bold text-sm focus:outline-none"
+                    value={institution.id}
+                    onChange={(e) => switchInstitution(e.target.value)}
+                  >
+                    {me.memberships.map((m) => (
+                      <option key={m.institutionId} value={m.institutionId}>{m.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="font-bold text-sm">{institution.name}</span>
+                )}
+              </div>
+            )}
             {/* Desktop Navigation */}
             <nav className="hidden md:flex gap-6">
               <Link to="/" className="font-bold hover:text-primary hover:scale-105 transition-all">
@@ -146,9 +175,26 @@ export const Header = () => {
               <Link to="/history" className="font-bold hover:text-primary hover:scale-105 transition-all">
                 History
               </Link>
-              {/* <Link to="/all-evaluations" className="font-bold hover:text-primary hover:scale-105 transition-all">
-                All Evaluations
-              </Link> */}
+              {canSeeAll && (
+                <Link to="/all-evaluations" className="font-bold hover:text-primary hover:scale-105 transition-all">
+                  All Evaluations
+                </Link>
+              )}
+              {canSeeAll && (
+                <Link to="/manual-evaluation" className="font-bold hover:text-primary hover:scale-105 transition-all">
+                  Manual Eval
+                </Link>
+              )}
+              {canAdmin && (
+                <Link to="/admin" className="font-bold hover:text-primary hover:scale-105 transition-all">
+                  Admin
+                </Link>
+              )}
+              {isSuper && (
+                <Link to="/super-admin" className="font-bold hover:text-primary hover:scale-105 transition-all">
+                  Super Admin
+                </Link>
+              )}
             </nav>
           </div>
           
@@ -236,13 +282,30 @@ export const Header = () => {
               >
                 History
               </Link>
-              <Link 
-                to="/all-evaluations" 
-                className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                All Evaluations
-              </Link>
+              {canSeeAll && (
+                <Link 
+                  to="/all-evaluations" 
+                  className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  All Evaluations
+                </Link>
+              )}
+              {canSeeAll && (
+                <Link to="/manual-evaluation" className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all" onClick={() => setIsMobileMenuOpen(false)}>
+                  Manual Evaluation
+                </Link>
+              )}
+              {canAdmin && (
+                <Link to="/admin" className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all" onClick={() => setIsMobileMenuOpen(false)}>
+                  Admin
+                </Link>
+              )}
+              {isSuper && (
+                <Link to="/super-admin" className="font-bold hover:text-primary py-2 px-3 hover:bg-muted rounded transition-all" onClick={() => setIsMobileMenuOpen(false)}>
+                  Super Admin
+                </Link>
+              )}
 
               {/* Divider */}
               <div className="border-t-2 border-foreground my-2"></div>

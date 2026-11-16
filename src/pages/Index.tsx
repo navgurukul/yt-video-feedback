@@ -11,11 +11,16 @@ import { FailedRequestCard, FailedRequestItem } from "@/components/FailedRequest
 import { supabase } from "@/integrations/supabase/client";
 import { ApiKeyContext } from "@/App";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api";
+import { useTenant } from "@/lib/tenant";
 
 const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { apiKey } = useContext(ApiKeyContext);
+  const { me } = useTenant();
+  // The Gemini free-quota notice is written for Navgurukul partners
+  const showPartnerNotice = !me?.activeInstitution || me.activeInstitution.slug === "navgurukul";
   const [failedRequests, setFailedRequests] = useState<FailedRequestItem[]>([]);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const API_BASE_URL = import.meta.env.VITE_EVAL_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -27,7 +32,7 @@ const Index = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/failed-requests?email=${encodeURIComponent(email)}`);
+      const response = await apiFetch(`${API_BASE_URL}/failed-requests`);
       if (!response.ok) {
         setFailedRequests([]);
         return;
@@ -44,7 +49,7 @@ const Index = () => {
   const handleHomeDelete = async (id: string) => {
     if (!userEmail) return;
 
-    const response = await fetch(`${API_BASE_URL}/failed-requests/${id}?email=${encodeURIComponent(userEmail)}`, {
+    const response = await apiFetch(`${API_BASE_URL}/failed-requests/${id}`, {
       method: 'DELETE'
     });
 
@@ -57,7 +62,7 @@ const Index = () => {
     if (!userEmail) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/failed-requests/${request.id}/retry`, {
+      const response = await apiFetch(`${API_BASE_URL}/failed-requests/${request.id}/retry`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userEmail, userId: request.user_id, apiKey })
@@ -177,6 +182,7 @@ const Index = () => {
                 </Button>
               </motion.div>
             </MotionWrapper>
+            {showPartnerNotice && (
             <MotionWrapper delay={0.5} direction="up">
               <motion.div
                 initial={{ opacity: 0, y: 18 }}
@@ -224,6 +230,7 @@ const Index = () => {
                 </div>
               </motion.div>
             </MotionWrapper>
+            )}
           </div>
         </section>
 
