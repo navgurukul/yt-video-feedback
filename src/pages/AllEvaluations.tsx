@@ -28,7 +28,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AuthModal } from "@/components/AuthModal";
 import { format } from "date-fns";
-import { apiFetch } from "@/lib/api";
 
 interface ConceptEvaluation {
   id: string;
@@ -135,7 +134,9 @@ const AllEvaluations = () => {
     try {
       setLoading(true);
       // Use relative URL in development (proxied by Vite) or absolute URL in production
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const API_URL = import.meta.env.PROD 
+        ? (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+        : '';
       
       const params = new URLSearchParams({
         page: currentPage.toString(),
@@ -146,7 +147,7 @@ const AllEvaluations = () => {
         ...(searchTerm && { search: searchTerm })
       });
       
-      const response = await apiFetch(`${API_URL}/all-evaluations?${params}`);
+      const response = await fetch(`${API_URL}/all-evaluations?${params}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch evaluations');

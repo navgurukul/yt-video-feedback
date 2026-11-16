@@ -9,8 +9,6 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric, Phase5Rubric, Phase6Rubric, Phase7Rubric } from "@/data/RubricData";
 import { projectRubricCatalog } from "@/data/projectRubrics";
-import { apiFetch } from "@/lib/api";
-import { useRubric } from "@/hooks/useInstitutionConfig";
 
 interface ProjectVideoRecord {
   id: number;
@@ -18,12 +16,7 @@ interface ProjectVideoRecord {
   project_name: string;
   video_url: string;
   manual_evaluated?: boolean;
-  rubric_id?: string | null;
 }
-
-const LEGACY_LEVELS = ["Beginner (1)", "Intermediate (2)", "Advanced (3)", "Expert (4)"];
-// "Beginner (1)" -> "Beginner" (the value stored with manual evaluations)
-const levelLabel = (level: string) => level.replace(/\s*\(\d+\)\s*$/, "").trim();
 
 interface ParameterFeedback {
   level: string;
@@ -84,7 +77,7 @@ const ManualEvaluation = () => {
       setSearchError(null);
       const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_EVAL_API_URL || (import.meta.env.DEV ? "" : window.location.origin);
       const query = evaluationId ? `?id=${encodeURIComponent(evaluationId)}` : "";
-      const response = await apiFetch(`${API_URL}/manual-eval-videos${query}`);
+      const response = await fetch(`${API_URL}/manual-eval-videos${query}`);
       if (!response.ok) throw new Error("Failed to fetch videos");
       const data = await response.json();
       setVideos(data.data || []);
@@ -116,19 +109,12 @@ const ManualEvaluation = () => {
     await fetchVideos(trimmed);
   };
 
-  // The rubric the video was graded with (from the DB); built-in phase rubric as fallback for older rows.
-  const { data: dbRubric } = useRubric(selectedVideo?.rubric_id);
-  const rubric = useMemo(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    () => ((dbRubric?.criteria as any[]) || getRubricForProject(selectedVideo?.project_name || "")) as any[],
-    [dbRubric, selectedVideo]
-  );
-  const levels: string[] = dbRubric?.levels?.length ? dbRubric.levels : LEGACY_LEVELS;
+  const rubric = useMemo(() => getRubricForProject(selectedVideo?.project_name || ""), [selectedVideo]);
 
   useEffect(() => {
     if (!selectedVideo) return;
     const initialFeedback: Record<string, ParameterFeedback> = {};
-    rubric.forEach((item) => {
+    getRubricForProject(selectedVideo.project_name).forEach((item) => {
       const key = item.Parameter;
       initialFeedback[key] = {
         level: "",
@@ -140,7 +126,7 @@ const ManualEvaluation = () => {
     setFeedbackByParameter(initialFeedback);
     setOverallRating("");
     setOverallComments("");
-  }, [selectedVideo, rubric]);
+  }, [selectedVideo]);
 
   const updateFeedback = (parameter: string, field: keyof ParameterFeedback, value: string) => {
     setFeedbackByParameter((prev) => ({
@@ -194,7 +180,7 @@ const ManualEvaluation = () => {
     try {
       setSaving(true);
       const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_EVAL_API_URL || (import.meta.env.DEV ? "" : window.location.origin);
-      const response = await apiFetch(`${API_URL}/manual-evaluation`, {
+      const response = await fetch(`${API_URL}/manual-evaluation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -347,14 +333,32 @@ const ManualEvaluation = () => {
                         <div key={parameter} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                           <div className="mb-4 flex flex-col gap-2">
                             <h2 className="text-lg font-semibold">{parameter}</h2>
-                            {levels.some((l) => item[l]) ? (
+                            {item["Beginner (1)"] || item["Intermediate (2)"] || item["Advanced (3)"] || item["Expert (4)"] ? (
                               <div className="space-y-2 border-t border-slate-200 pt-3">
-                                {levels.filter((l) => item[l]).map((l) => (
-                                  <div key={l} className="text-sm">
-                                    <span className="font-medium text-slate-700">{levelLabel(l)}:</span>
-                                    <p className="text-slate-600 mt-1">{String(item[l])}</p>
+                                {item["Beginner (1)"] && (
+                                  <div className="text-sm">
+                                    <span className="font-medium text-slate-700">Beginner:</span>
+                                    <p className="text-slate-600 mt-1">{item["Beginner (1)"]}</p>
                                   </div>
-                                ))}
+                                )}
+                                {item["Intermediate (2)"] && (
+                                  <div className="text-sm">
+                                    <span className="font-medium text-slate-700">Intermediate:</span>
+                                    <p className="text-slate-600 mt-1">{item["Intermediate (2)"]}</p>
+                                  </div>
+                                )}
+                                {item["Advanced (3)"] && (
+                                  <div className="text-sm">
+                                    <span className="font-medium text-slate-700">Advanced:</span>
+                                    <p className="text-slate-600 mt-1">{item["Advanced (3)"]}</p>
+                                  </div>
+                                )}
+                                {item["Expert (4)"] && (
+                                  <div className="text-sm">
+                                    <span className="font-medium text-slate-700">Expert:</span>
+                                    <p className="text-slate-600 mt-1">{item["Expert (4)"]}</p>
+                                  </div>
+                                )}
                               </div>
                             ) : null}
                           </div>
@@ -367,9 +371,10 @@ const ManualEvaluation = () => {
                                 onChange={(e) => updateFeedback(parameter, "level", e.target.value)}
                               >
                                 <option value="">Select level</option>
-                                {levels.map((l) => (
-                                  <option key={l} value={levelLabel(l)}>{levelLabel(l)}</option>
-                                ))}
+                                <option value="Beginner">Beginner</option>
+                                <option value="Intermediate">Intermediate</option>
+                                <option value="Advanced">Advanced</option>
+                                <option value="Expert">Expert</option>
                               </select>
                             </div>
                             <div className="space-y-1">
