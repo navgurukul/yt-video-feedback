@@ -28,3 +28,5 @@ server/scripts/multi-tenant/cutover/last-*.txt
 server/scripts/multi-tenant/cutover/rollback/
 server/scripts/multi-tenant/dashboard/last-*.txt
 server/scripts/multi-tenant/dashboard/compare-out/
+
+/server/scripts/

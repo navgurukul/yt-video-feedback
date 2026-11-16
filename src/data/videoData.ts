@@ -1,3 +1,5 @@
+import { projectOnlyPhaseNames } from "./phasevideodata";
+
 export interface VideoDetails {
   title: string;
   whatToCover: string;
@@ -762,7 +764,7 @@ export const videoDataStructure: PhaseData[] = [
 
 // Helper function to get phase names
 export const getPhaseNames = (): string[] => {
-  return videoDataStructure.map(phase => phase.phase);
+  return [...videoDataStructure.map(phase => phase.phase), ...projectOnlyPhaseNames];
 };
 
 // Helper function to get video titles for a specific phase

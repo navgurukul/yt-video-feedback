@@ -41,6 +41,8 @@ const getYouTubeEmbedUrl = (url: string) => {
 
 const getRubricForProject = (projectName: string) => {
   if (!projectName) return Phase1Rubric;
+  const catalogEntry = projectRubricCatalog[projectName as keyof typeof projectRubricCatalog];
+  if (catalogEntry) return catalogEntry.rubric;
   const normalized = projectName.toLowerCase();
   if (normalized.includes("phase 1")) return Phase1Rubric;
   if (normalized.includes("phase 2")) return Phase2Rubric;

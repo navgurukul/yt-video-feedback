@@ -19,6 +19,12 @@ export interface ProjectPhaseData {
   projectVideo: ProjectVideoDetails;
 }
 
+export const projectOnlyPhaseNames = [
+  "Phase 8: Python Basics",
+  "Phase 9: Foundations of AI AND Machine Learning",
+  "Phase 10: Prod-level AI Full stack with STS integration",
+] as const;
+
 /**
  * Project video data structure
  * Each phase has exactly ONE project explanation video
@@ -145,6 +151,57 @@ export const projectVideoDataStructure: ProjectPhaseData[] = [
         "Error handling and security best practices throughout the application",
         "Database schema design for supporting complex relationships and queries",
         "Frontend-backend-database-AI API data flow in a production-like application"
+      ]
+    }
+  },
+  {
+    phase: "Phase 8: Python Basics",
+    projectVideo: {
+      title: "Expense Tracker API - Complete Project Walkthrough",
+      description: "A complete walkthrough of a Python and FastAPI Expense Tracker API covering CRUD operations, validation, CSV persistence, and analytics with Pandas and NumPy.",
+      whatToCover: "Walk through your Expense Tracker API. Explain why Python and FastAPI were selected, how the API is structured, how expenses are validated and persisted in CSV storage, how CRUD operations work, and how reports are produced with Pandas and NumPy. Include a brief Python versus JavaScript comparison and explain suitable use cases for each.",
+      keyTopics: [
+        "Python basics used in the project and Python versus JavaScript use cases",
+        "FastAPI application structure, routes, and REST request/response flow",
+        "Pydantic validation and error handling",
+        "CRUD operations and service/business logic",
+        "CSV read/write persistence and its trade-offs versus a database",
+        "Pandas and NumPy analytics and report generation",
+        "Maintainability, reliability, and future scalability improvements"
+      ]
+    }
+  },
+  {
+    phase: "Phase 9: Foundations of AI AND Machine Learning",
+    projectVideo: {
+      title: "OpsLens AI Mini Project - Complete Project Walkthrough",
+      description: "A walkthrough of the OpsLens AI mini project. The student may choose OpsLens Triage, OpsLens Assist, or OpsLens Insights; all tracks share the same application flow and use the same Phase 9 rubric.",
+      whatToCover: "Walk through one chosen OpsLens track: Triage, Assist, or Insights. Explain the shared login, dashboard, incident creation, backend API, and AI result flow, then explain the selected track's data processing, model or LLM pipeline, evaluation approach, and how results are shown to the user.",
+      keyTopics: [
+        "Difference between AI, machine learning, and LLM-based solutions",
+        "Chosen OpsLens track and the problem it solves",
+        "Incident data flow from frontend to backend and AI component",
+        "Data preprocessing, model training and inference, or LLM invocation",
+        "Authentication, API design, persistence, and error handling",
+        "Evaluation strategy and interpretation of AI results",
+        "Trade-offs involving accuracy, latency, cost, privacy, and reliability"
+      ]
+    }
+  },
+  {
+    phase: "Phase 10: Prod-level AI Full stack with STS integration",
+    projectVideo: {
+      title: "Rozgar - Complete Production AI Full-Stack Walkthrough",
+      description: "A complete walkthrough of Rozgar, a production-oriented platform connecting workers and recruiters through authentication, location-based matching, job management, ratings, RAG, and voice AI.",
+      whatToCover: "Walk through your Rozgar application. Explain the MERN architecture, phone OTP and JWT authorization, recruiter and worker workflows, geospatial job matching, applications and two-way ratings, and the Ask Rozgar voice assistant using retrieval-augmented generation, speech-to-text, and text-to-speech.",
+      keyTopics: [
+        "React, Express, MongoDB, and modular backend architecture",
+        "Phone OTP authentication, JWT authorization, and role boundaries",
+        "Job posting, geospatial indexing, nearby discovery, and applications",
+        "Shortlisting, hiring, completion, and two-way ratings",
+        "Embeddings, vector search, user-filtered retrieval, and reranking",
+        "Speech-to-text, LLM response generation, and text-to-speech",
+        "Scalability, latency, cost, privacy, reliability, and accessibility trade-offs"
       ]
     }
   }

@@ -71,7 +71,13 @@ app.get('/api/me', async (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-// Gemini model fallback list lives in lib/gemini.js
+const GEMINI_MODELS = [
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  'gemini-3.5-flash',
+  'gemini-3.7-flash',
+  'gemini-3.8-flash'
+];
 
 const isGeminiModelAvailabilityError = (errorString = '') =>
   /model.*(not found|unavailable|unsupported|quota|capacity)|(?:not found|unavailable|unsupported).*model/i.test(errorString) ||
