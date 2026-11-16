@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric, Phase5Rubric, Phase6Rubric, Phase7Rubric } from "@/data/RubricData";
+import { projectRubricCatalog } from "@/data/projectRubrics";
 import { apiFetch } from "@/lib/api";
 import { useRubric } from "@/hooks/useInstitutionConfig";
 

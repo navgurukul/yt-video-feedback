@@ -19,6 +19,7 @@ import { motion } from "framer-motion";
 import { useInstitutionConfig, useRubric } from "@/hooks/useInstitutionConfig";
 import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric,Phase5Rubric, Phase6Rubric, Phase7Rubric } from "@/data/RubricData";
 import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig, CustomPrompt, CustomConfig} from '@/data/prompt'
+import { projectOnlyPhaseNames } from "@/data/phasevideodata";
 import { ApiKeyContext } from "@/App";
 import { formatErrorInfo, ErrorInfo, isGeminiRetryLaterError } from "@/lib/errorMessages";
 import { apiFetch } from "@/lib/api";
@@ -157,6 +158,7 @@ const VideoAnalyzer = () => {
   const activeProgram = programs.find((p) => p.id === selectedProgramId) ?? programs[0];
   const phasesForProgram = activeProgram?.phases ?? [];
   const phaseNames = phasesForProgram.map((p) => p.name);
+  const selectedPhaseIsProjectOnly = isProjectOnlyPhase(selectedPhase);
   const currentPhase = phasesForProgram.find((p) => p.name === selectedPhase);
   const availableVideoTitles = currentPhase
     ? currentPhase.videos.filter((v) => v.videoType === "concept").map((v) => v.title)
