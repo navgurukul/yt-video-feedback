@@ -1,17 +1,20 @@
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { RubricComparisonTable } from "@/components/rubric-guidance/RubricComparisonTable";
-import { getRubricGuideContext } from "@/data/rubricGuidance";
+import { getRubricGuideContext, RubricGuideContext } from "@/data/rubricGuidance";
 
 interface RubricGuidanceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   videoType: string;
   selectedPhase: string;
+  /** Rubric from the institution's configuration; when given it replaces the built-in Navgurukul rubric. */
+  override?: (RubricGuideContext & { levels?: string[] }) | null;
 }
 
-const RubricGuidanceModal = ({ open, onOpenChange, videoType, selectedPhase }: RubricGuidanceModalProps) => {
-  const guideContext = getRubricGuideContext(videoType, selectedPhase);
+const RubricGuidanceModal = ({ open, onOpenChange, videoType, selectedPhase, override }: RubricGuidanceModalProps) => {
+  // undefined = use the built-in Navgurukul rubric; null = no rubric available (show nothing)
+  const guideContext = override !== undefined ? override : getRubricGuideContext(videoType, selectedPhase);
 
   if (!guideContext) {
     return null;
@@ -42,7 +45,7 @@ const RubricGuidanceModal = ({ open, onOpenChange, videoType, selectedPhase }: R
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-          <RubricComparisonTable kind={guideContext.kind} rubric={guideContext.rubric} />
+          <RubricComparisonTable kind={guideContext.kind} rubric={guideContext.rubric} levels={override?.levels} />
         </div>
 
         <div className="border-t-2 border-foreground bg-background px-5 py-4 sm:px-6">
