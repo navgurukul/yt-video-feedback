@@ -17,7 +17,8 @@ import { ErrorPanel } from "@/components/ErrorPanel";
 import { RubricGuidanceButton, RubricGuidanceModal } from "@/components/rubric-guidance";
 import { motion } from "framer-motion";
 import { useInstitutionConfig, useRubric } from "@/hooks/useInstitutionConfig";
-import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric,Phase5Rubric, Phase6Rubric, Phase7Rubric } from "@/data/RubricData";
+import { projectOnlyPhaseNames } from "@/data/phasevideodata";
+import { abilityToExplainRubric, Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric, Phase5Rubric, Phase6Rubric, Phase7Rubric, Phase8Rubric, Phase9Rubric, Phase10Rubric } from "@/data/RubricData";
 import {AccuracyPrompt,AccuracyConfig, AbilityToExplainPrompt,AbilityToExplainConfig, ProjectPrompt, projectconfig, CustomPrompt, CustomConfig} from '@/data/prompt'
 import { projectOnlyPhaseNames } from "@/data/phasevideodata";
 import { ApiKeyContext } from "@/App";
@@ -183,6 +184,7 @@ const VideoAnalyzer = () => {
         selectedPhaseLabel: selectedPhase || undefined,
       }
     : null;
+  const selectedPhaseIsProjectOnly = isProjectOnlyPhase(selectedPhase);
 
   // Video details mapping
   const getVideoDetails = () => {

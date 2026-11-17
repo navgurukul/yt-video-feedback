@@ -11,6 +11,7 @@ import { Phase1Rubric, Phase2Rubric, Phase3Rubric, Phase4Rubric, Phase5Rubric, P
 import { projectRubricCatalog } from "@/data/projectRubrics";
 import { apiFetch } from "@/lib/api";
 import { useRubric } from "@/hooks/useInstitutionConfig";
+import { projectRubricCatalog } from "@/data/projectRubrics";
 
 interface ProjectVideoRecord {
   id: number;

@@ -110,7 +110,12 @@ const RubricComparisonTable = ({ kind, rubric, levels = DEFAULT_LEVELS }: Rubric
   return (
     <div className="space-y-6">
       {rubric.map((item, index) => {
-        const levelCells = levels.map((label) => ({ label, value: item[label] }));
+        const levelCellsBase = levels.map((label) => ({ label, value: item[label] }));
+        const legacyFallback = [item.Beginner, item.Intermediate, item.Advanced, item.Expert];
+        const levelCells = levelCellsBase.map((cell, idx) => ({
+          label: cell.label,
+          value: cell.value ?? legacyFallback[idx],
+        }));
 
         return (
           <section key={`${formatHeadingText(item.Parameter)}-${index}`} className="overflow-hidden border border-foreground bg-card">
