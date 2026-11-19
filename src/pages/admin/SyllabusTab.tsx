@@ -3,13 +3,11 @@
  */
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { api, errorText, AdminConfig, AdminPhase, AdminProgram, AdminVideo, PromptTemplate, Rubric, Settings, linesToList, listToLines } from "@/lib/adminApi";
-import { useTenant } from "@/lib/tenant";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { api, errorText, AdminConfig, AdminPhase, AdminProgram, AdminVideo, PromptTemplate, Rubric, linesToList, listToLines } from "@/lib/adminApi";
 import { Badge, Field, Notice, SectionTitle, selectClass, textareaClass } from "./ui";
 
 type Editing =
@@ -20,29 +18,22 @@ type Editing =
 
 export default function SyllabusTab() {
   const qc = useQueryClient();
-  const { me } = useTenant();
   const tree = useQuery({ queryKey: ["admin", "config"], queryFn: () => api<AdminConfig>("/api/admin/config") });
   const rubrics = useQuery({ queryKey: ["admin", "rubrics"], queryFn: () => api<Rubric[]>("/api/admin/rubrics") });
   const prompts = useQuery({ queryKey: ["admin", "prompts"], queryFn: () => api<PromptTemplate[]>("/api/admin/prompts") });
-  const settings = useQuery({ queryKey: ["admin", "settings"], queryFn: () => api<Settings>("/api/admin/settings") });
 
   const [programId, setProgramId] = useState<string>("");
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<Editing>(null);
-  const [programAction, setProgramAction] = useState<AdminProgram | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   const programs = tree.data?.programs ?? [];
   const program = programs.find((p) => p.id === programId) ?? programs[0];
-  const permissions = me?.isSuperAdmin
-    ? null
-    : settings.data?.adminPermissions;
 
   const refresh = async () => {
     await qc.invalidateQueries({ queryKey: ["admin", "config"] });
     await qc.invalidateQueries({ queryKey: ["institution-config"] });
-    await qc.invalidateQueries({ queryKey: ["super"] });
   };
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true); setError("");
@@ -91,7 +82,7 @@ export default function SyllabusTab() {
 
       {/* Programs */}
       <Card className="p-6">
-        <SectionTitle action={me?.isSuperAdmin ? <Button size="sm" onClick={() => setEditing({ kind: "program" })}><Plus className="w-4 h-4 mr-1" /> Program</Button> : undefined}>
+        <SectionTitle action={<Button size="sm" onClick={() => setEditing({ kind: "program" })}><Plus className="w-4 h-4 mr-1" /> Program</Button>}>
           Programs
         </SectionTitle>
         {programs.length === 0 && <p className="text-muted-foreground">No programs yet. Add your first program (e.g. "MBA 2026", "B.Tech CSE – Semester 3").</p>}
@@ -100,22 +91,7 @@ export default function SyllabusTab() {
             <div key={p.id} className={`flex items-center gap-2 border-4 border-foreground px-3 py-2 ${program?.id === p.id ? "bg-primary text-primary-foreground" : "bg-background"}`}>
               <button className="font-bold" onClick={() => setProgramId(p.id)}>{p.name}</button>
               {!p.isActive && <Badge tone="muted">inactive</Badge>}
-              {me?.isSuperAdmin && (
-                <>
-                  <button aria-label="Edit program" onClick={() => setEditing({ kind: "program", program: p })}>
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button
-                    aria-label={`Delete ${p.name}`}
-                    title="Delete program"
-                    className="text-destructive"
-                    disabled={busy}
-                    onClick={() => setProgramAction(p)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </>
-              )}
+              <button aria-label="Edit program" onClick={() => setEditing({ kind: "program", program: p })}><Pencil className="w-4 h-4" /></button>
             </div>
           ))}
         </div>
@@ -124,7 +100,7 @@ export default function SyllabusTab() {
       {/* Phases + videos of the selected program */}
       {program && (
         <Card className="p-6">
-          <SectionTitle action={me?.isSuperAdmin || permissions?.phases.canAdd !== false ? <Button size="sm" onClick={() => setEditing({ kind: "phase", programId: program.id })}><Plus className="w-4 h-4 mr-1" /> Phase</Button> : undefined}>
+          <SectionTitle action={<Button size="sm" onClick={() => setEditing({ kind: "phase", programId: program.id })}><Plus className="w-4 h-4 mr-1" /> Phase</Button>}>
             {program.name}: phases
           </SectionTitle>
           {program.phases.length === 0 && <p className="text-muted-foreground">No phases yet.</p>}
@@ -149,13 +125,11 @@ export default function SyllabusTab() {
                       onClick={() => { const ids = move(program.phases, i, 1); if (ids) run(() => api(`/api/admin/programs/${program.id}/phases/reorder`, "POST", { ids })); }}>
                       <ArrowDown className="w-4 h-4" />
                     </Button>
-                    {(me?.isSuperAdmin || permissions?.phases.canEdit !== false) &&
-                      <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "phase", programId: program.id, phase: ph })}>Edit</Button>}
-                    {(me?.isSuperAdmin || permissions?.phases.canDelete !== false) &&
-                      <Button size="sm" variant="outline" disabled={busy}
-                        onClick={() => run(() => api(`/api/admin/phases/${ph.id}`, "PATCH", { isActive: !ph.isActive }))}>
-                        {ph.isActive ? "Deactivate" : "Activate"}
-                      </Button>}
+                    <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "phase", programId: program.id, phase: ph })}>Edit</Button>
+                    <Button size="sm" variant="outline" disabled={busy}
+                      onClick={() => run(() => api(`/api/admin/phases/${ph.id}`, "PATCH", { isActive: !ph.isActive }))}>
+                      {ph.isActive ? "Deactivate" : "Activate"}
+                    </Button>
                   </div>
 
                   {isOpen && (
@@ -166,10 +140,9 @@ export default function SyllabusTab() {
                           <div key={type}>
                             <div className="flex items-center justify-between mb-2">
                               <h3 className="font-black uppercase text-sm">{type === "concept" ? "Concept videos" : "Project video"}</h3>
-                              {(me?.isSuperAdmin || permissions?.videos.canAdd !== false) &&
-                                <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "video", phaseId: ph.id, videoType: type })}>
-                                  <Plus className="w-4 h-4 mr-1" /> {type === "concept" ? "Concept video" : "Project video"}
-                                </Button>}
+                              <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "video", phaseId: ph.id, videoType: type })}>
+                                <Plus className="w-4 h-4 mr-1" /> {type === "concept" ? "Concept video" : "Project video"}
+                              </Button>
                             </div>
                             {list.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}
                             <ul className="space-y-2">
@@ -187,13 +160,11 @@ export default function SyllabusTab() {
                                     onClick={() => { const ids = move(list, j, 1); if (ids) run(() => api(`/api/admin/phases/${ph.id}/videos/reorder`, "POST", { ids })); }}>
                                     <ArrowDown className="w-4 h-4" />
                                   </Button>
-                                  {(me?.isSuperAdmin || permissions?.videos.canEdit !== false) &&
-                                    <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "video", phaseId: ph.id, video: v, videoType: v.videoType })}>Edit</Button>}
-                                  {(me?.isSuperAdmin || permissions?.videos.canDelete !== false) &&
-                                    <Button size="sm" variant="outline" disabled={busy}
-                                      onClick={() => run(() => api(`/api/admin/videos/${v.id}`, "PATCH", { isActive: !v.isActive }))}>
-                                      {v.isActive ? "Deactivate" : "Activate"}
-                                    </Button>}
+                                  <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "video", phaseId: ph.id, video: v, videoType: v.videoType })}>Edit</Button>
+                                  <Button size="sm" variant="outline" disabled={busy}
+                                    onClick={() => run(() => api(`/api/admin/videos/${v.id}`, "PATCH", { isActive: !v.isActive }))}>
+                                    {v.isActive ? "Deactivate" : "Activate"}
+                                  </Button>
                                 </li>
                               ))}
                             </ul>
@@ -207,50 +178,6 @@ export default function SyllabusTab() {
             })}
           </div>
         </Card>
-      )}
-
-      {me?.isSuperAdmin && (
-        <Dialog open={!!programAction} onOpenChange={(open) => { if (!open) setProgramAction(null); }}>
-          <DialogContent className="sm:max-w-md border-4 border-foreground bg-card shadow-brutal rounded-none">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-black uppercase">Program action</DialogTitle>
-              <DialogDescription className="font-bold text-foreground">
-                Choose what to do with "{programAction?.name}".
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy}
-                onClick={() => {
-                  if (!programAction) return;
-                  run(async () => {
-                    await api(`/api/admin/programs/${programAction.id}`, "PATCH", { isActive: !programAction.isActive });
-                    setProgramAction(null);
-                  });
-                }}
-              >
-                {programAction?.isActive ? "Inactive" : "Activate"}
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={busy}
-                onClick={() => {
-                  if (!programAction) return;
-                  run(async () => {
-                    await api(`/api/admin/programs/${programAction.id}`, "DELETE");
-                    if (program?.id === programAction.id) setProgramId("");
-                    setProgramAction(null);
-                  });
-                }}
-              >
-                Permanently delete
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       )}
     </div>
   );

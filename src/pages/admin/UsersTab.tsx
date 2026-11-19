@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { api, errorText, AdminConfig, Member, Settings } from "@/lib/adminApi";
+import { api, errorText, AdminConfig, Member } from "@/lib/adminApi";
 import { useTenant } from "@/lib/tenant";
 import { Badge, Field, Notice, SectionTitle, selectClass, textareaClass } from "./ui";
 
@@ -22,11 +22,7 @@ export default function UsersTab() {
   const { me } = useTenant();
   const users = useQuery({ queryKey: ["admin", "users"], queryFn: () => api<Member[]>("/api/admin/users") });
   const tree = useQuery({ queryKey: ["admin", "config"], queryFn: () => api<AdminConfig>("/api/admin/config") });
-  const settings = useQuery({ queryKey: ["admin", "settings"], queryFn: () => api<Settings>("/api/admin/settings") });
   const programs = tree.data?.programs ?? [];
-  const permissions = me?.isSuperAdmin
-    ? { canAdd: true, canEdit: true, canDelete: true }
-    : settings.data?.adminPermissions.users ?? settings.data?.adminUserPermissions ?? { canAdd: true, canEdit: true, canDelete: true };
 
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("student");
@@ -88,12 +84,12 @@ export default function UsersTab() {
               {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </Field>
-          <Button onClick={invite} disabled={busy || !permissions.canAdd || !email.includes("@")}>Add</Button>
+          <Button onClick={invite} disabled={busy || !email.includes("@")}>Add</Button>
         </div>
         <Field label="Bulk add (one per line: email or email, role)" hint="Paste a column from a spreadsheet. Roles: student, evaluator, admin. Uses the role/program above when not given.">
           <textarea className={textareaClass} rows={4} value={bulk} onChange={(e) => setBulk(e.target.value)} placeholder={"asha@college.edu\nravi@college.edu, evaluator"} />
         </Field>
-        <Button variant="outline" onClick={importBulk} disabled={busy || !permissions.canAdd || !bulk.trim()}>Import list</Button>
+        <Button variant="outline" onClick={importBulk} disabled={busy || !bulk.trim()}>Import list</Button>
         <p className="text-xs text-muted-foreground">Anyone whose email domain is in Settings → Allowed email domains joins automatically as a student on first sign-in.</p>
       </Card>
 
@@ -119,13 +115,13 @@ export default function UsersTab() {
                 <tr key={u.id} className="border-b border-muted">
                   <td className="p-2 font-mono">{u.email}{u.email === me?.email && <Badge tone="muted">you</Badge>}</td>
                   <td className="p-2">
-                    <select className="border-2 border-foreground bg-background px-1" value={u.role} disabled={busy || !permissions.canEdit}
+                    <select className="border-2 border-foreground bg-background px-1" value={u.role} disabled={busy}
                       onChange={(e) => run(async () => { await api(`/api/admin/users/${u.id}`, "PATCH", { role: e.target.value }); return `${u.email} is now ${ROLE_SHORT[e.target.value]}.`; })}>
                       {ROLES.map((r) => <option key={r.value} value={r.value}>{ROLE_SHORT[r.value]}</option>)}
                     </select>
                   </td>
                   <td className="p-2">
-                    <select className="border-2 border-foreground bg-background px-1" value={u.program_id ?? ""} disabled={busy || !permissions.canEdit}
+                    <select className="border-2 border-foreground bg-background px-1" value={u.program_id ?? ""} disabled={busy}
                       onChange={(e) => run(async () => { await api(`/api/admin/users/${u.id}`, "PATCH", { programId: e.target.value || null }); })}>
                       <option value="">— any —</option>
                       {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -133,7 +129,7 @@ export default function UsersTab() {
                   </td>
                   <td className="p-2">{u.evaluations}</td>
                   <td className="p-2 text-right">
-                    <Button size="sm" variant="outline" disabled={busy || !permissions.canDelete}
+                    <Button size="sm" variant="outline" disabled={busy}
                       onClick={() => { if (window.confirm(`Remove ${u.email}'s ${ROLE_SHORT[u.role]} access? Their past evaluations are kept.`)) run(async () => { await api(`/api/admin/users/${u.id}`, "DELETE"); return `Removed ${u.email}.`; }); }}>
                       Remove
                     </Button>
