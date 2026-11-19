@@ -63,10 +63,24 @@ export interface Member { id: string; email: string; role: string; program_id: s
 export interface Settings {
   id: string; name: string; slug: string; type: string; logoUrl: string | null; status: string;
   allowedEmailDomains: string[]; manualEvalExcludedEmails: string[];
+  adminUserPermissions: { visible: boolean; canAdd: boolean; canEdit: boolean; canDelete: boolean };
+  adminPermissions: AdminPermissions;
   gemini: { hasKey: boolean; masked: string | null };
+}
+export interface AdminPermissions {
+  tabs: { syllabus: boolean; rubrics: boolean; prompts: boolean; users: boolean; settings: boolean };
+  programs: { canAdd: boolean; canEdit: boolean; canDelete: boolean };
+  phases: { canAdd: boolean; canEdit: boolean; canDelete: boolean };
+  videos: { canAdd: boolean; canEdit: boolean; canDelete: boolean };
+  rubrics: { canAdd: boolean; canEdit: boolean; canDelete: boolean };
+  prompts: { canAdd: boolean; canEdit: boolean; canDelete: boolean };
+  users: { visible: boolean; canAdd: boolean; canEdit: boolean; canDelete: boolean };
+  settings: { canEdit: boolean };
 }
 export interface InstitutionRow {
   id: string; name: string; slug: string; type: string; status: string; allowed_email_domains: string[];
+  adminUserPermissions: { visible: boolean; canAdd: boolean; canEdit: boolean; canDelete: boolean };
+  adminPermissions: AdminPermissions;
   has_gemini_key: boolean; students: number; admins: number; programs: number; evaluations: number; tokens_30d: number; created_at: string;
 }
 
