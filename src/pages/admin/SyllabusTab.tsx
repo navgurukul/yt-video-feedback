@@ -7,7 +7,7 @@ import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } f
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { api, errorText, AdminConfig, AdminPhase, AdminProgram, AdminVideo, PromptTemplate, Rubric, linesToList, listToLines } from "@/lib/adminApi";
+import { api, errorText, AdminConfig, AdminPhase, AdminProgram, AdminVideo, PromptTemplate, Rubric, Settings, linesToList, listToLines } from "@/lib/adminApi";
 import { useTenant } from "@/lib/tenant";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge, Field, Notice, SectionTitle, selectClass, textareaClass } from "./ui";
@@ -24,6 +24,7 @@ export default function SyllabusTab() {
   const tree = useQuery({ queryKey: ["admin", "config"], queryFn: () => api<AdminConfig>("/api/admin/config") });
   const rubrics = useQuery({ queryKey: ["admin", "rubrics"], queryFn: () => api<Rubric[]>("/api/admin/rubrics") });
   const prompts = useQuery({ queryKey: ["admin", "prompts"], queryFn: () => api<PromptTemplate[]>("/api/admin/prompts") });
+  const settings = useQuery({ queryKey: ["admin", "settings"], queryFn: () => api<Settings>("/api/admin/settings") });
 
   const [programId, setProgramId] = useState<string>("");
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -34,6 +35,9 @@ export default function SyllabusTab() {
 
   const programs = tree.data?.programs ?? [];
   const program = programs.find((p) => p.id === programId) ?? programs[0];
+  const permissions = me?.isSuperAdmin
+    ? null
+    : settings.data?.adminPermissions;
 
   const refresh = async () => {
     await qc.invalidateQueries({ queryKey: ["admin", "config"] });
@@ -120,7 +124,7 @@ export default function SyllabusTab() {
       {/* Phases + videos of the selected program */}
       {program && (
         <Card className="p-6">
-          <SectionTitle action={<Button size="sm" onClick={() => setEditing({ kind: "phase", programId: program.id })}><Plus className="w-4 h-4 mr-1" /> Phase</Button>}>
+          <SectionTitle action={me?.isSuperAdmin || permissions?.phases.canAdd !== false ? <Button size="sm" onClick={() => setEditing({ kind: "phase", programId: program.id })}><Plus className="w-4 h-4 mr-1" /> Phase</Button> : undefined}>
             {program.name}: phases
           </SectionTitle>
           {program.phases.length === 0 && <p className="text-muted-foreground">No phases yet.</p>}
@@ -145,11 +149,13 @@ export default function SyllabusTab() {
                       onClick={() => { const ids = move(program.phases, i, 1); if (ids) run(() => api(`/api/admin/programs/${program.id}/phases/reorder`, "POST", { ids })); }}>
                       <ArrowDown className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "phase", programId: program.id, phase: ph })}>Edit</Button>
-                    <Button size="sm" variant="outline" disabled={busy}
-                      onClick={() => run(() => api(`/api/admin/phases/${ph.id}`, "PATCH", { isActive: !ph.isActive }))}>
-                      {ph.isActive ? "Deactivate" : "Activate"}
-                    </Button>
+                    {(me?.isSuperAdmin || permissions?.phases.canEdit !== false) &&
+                      <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "phase", programId: program.id, phase: ph })}>Edit</Button>}
+                    {(me?.isSuperAdmin || permissions?.phases.canDelete !== false) &&
+                      <Button size="sm" variant="outline" disabled={busy}
+                        onClick={() => run(() => api(`/api/admin/phases/${ph.id}`, "PATCH", { isActive: !ph.isActive }))}>
+                        {ph.isActive ? "Deactivate" : "Activate"}
+                      </Button>}
                   </div>
 
                   {isOpen && (
@@ -160,9 +166,10 @@ export default function SyllabusTab() {
                           <div key={type}>
                             <div className="flex items-center justify-between mb-2">
                               <h3 className="font-black uppercase text-sm">{type === "concept" ? "Concept videos" : "Project video"}</h3>
-                              <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "video", phaseId: ph.id, videoType: type })}>
-                                <Plus className="w-4 h-4 mr-1" /> {type === "concept" ? "Concept video" : "Project video"}
-                              </Button>
+                              {(me?.isSuperAdmin || permissions?.videos.canAdd !== false) &&
+                                <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "video", phaseId: ph.id, videoType: type })}>
+                                  <Plus className="w-4 h-4 mr-1" /> {type === "concept" ? "Concept video" : "Project video"}
+                                </Button>}
                             </div>
                             {list.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}
                             <ul className="space-y-2">
@@ -180,11 +187,13 @@ export default function SyllabusTab() {
                                     onClick={() => { const ids = move(list, j, 1); if (ids) run(() => api(`/api/admin/phases/${ph.id}/videos/reorder`, "POST", { ids })); }}>
                                     <ArrowDown className="w-4 h-4" />
                                   </Button>
-                                  <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "video", phaseId: ph.id, video: v, videoType: v.videoType })}>Edit</Button>
-                                  <Button size="sm" variant="outline" disabled={busy}
-                                    onClick={() => run(() => api(`/api/admin/videos/${v.id}`, "PATCH", { isActive: !v.isActive }))}>
-                                    {v.isActive ? "Deactivate" : "Activate"}
-                                  </Button>
+                                  {(me?.isSuperAdmin || permissions?.videos.canEdit !== false) &&
+                                    <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "video", phaseId: ph.id, video: v, videoType: v.videoType })}>Edit</Button>}
+                                  {(me?.isSuperAdmin || permissions?.videos.canDelete !== false) &&
+                                    <Button size="sm" variant="outline" disabled={busy}
+                                      onClick={() => run(() => api(`/api/admin/videos/${v.id}`, "PATCH", { isActive: !v.isActive }))}>
+                                      {v.isActive ? "Deactivate" : "Activate"}
+                                    </Button>}
                                 </li>
                               ))}
                             </ul>
