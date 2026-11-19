@@ -22,7 +22,7 @@ const InstitutionIn = z.object({
 });
 
 const STATS_SQL = `
-  SELECT i.id, i.name, i.slug, i.type, i.status, i.allowed_email_domains, i.created_at,
+  SELECT i.id, i.name, i.slug, i.type, i.status, i.allowed_email_domains, i.settings, i.created_at,
          (i.gemini_api_key_encrypted IS NOT NULL) AS has_gemini_key,
          (SELECT COUNT(*) FROM user_memberships m WHERE m.institution_id = i.id AND m.role = 'student')::int AS students,
          (SELECT COUNT(*) FROM user_memberships m WHERE m.institution_id = i.id AND m.role = 'institution_admin')::int AS admins,
@@ -34,7 +34,21 @@ const STATS_SQL = `
            WHERE l.institution_id = i.id AND l.created_at > NOW() - INTERVAL '30 days')::bigint AS tokens_30d
     FROM institutions i`;
 
-const out = (r) => ({ ...r, tokens_30d: Number(r.tokens_30d) });
+const out = (r) => ({
+  ...r,
+  tokens_30d: Number(r.tokens_30d),
+  adminPermissions: {
+    tabs: { syllabus: true, rubrics: true, prompts: true, users: true, settings: true },
+    programs: { canAdd: true, canEdit: true, canDelete: true },
+    phases: { canAdd: true, canEdit: true, canDelete: true },
+    videos: { canAdd: true, canEdit: true, canDelete: true },
+    rubrics: { canAdd: true, canEdit: true, canDelete: true },
+    prompts: { canAdd: true, canEdit: true, canDelete: true },
+    users: { ...(r.settings?.admin_users ?? { canAdd: true, canEdit: true, canDelete: true }), visible: r.settings?.admin_users?.visible ?? true },
+    settings: { canEdit: true },
+    ...(r.settings?.admin_permissions ?? {}),
+  },
+});
 
 export function registerSuperRoutes(app) {
   const sup = requireRole('super_admin');
@@ -77,13 +91,39 @@ export function registerSuperRoutes(app) {
       status: z.enum(['active', 'suspended']).optional(),
       allowedEmailDomains: z.array(domain).max(20).optional(),
       logoUrl: z.string().trim().max(1000).nullish(),
+      adminUsers: z.object({
+        visible: z.boolean(),
+        canAdd: z.boolean(),
+        canEdit: z.boolean(),
+        canDelete: z.boolean(),
+      }).optional(),
+      adminPermissions: z.object({
+        tabs: z.object({ syllabus: z.boolean(), rubrics: z.boolean(), prompts: z.boolean(), users: z.boolean(), settings: z.boolean() }),
+        programs: z.object({ canAdd: z.boolean(), canEdit: z.boolean(), canDelete: z.boolean() }),
+        phases: z.object({ canAdd: z.boolean(), canEdit: z.boolean(), canDelete: z.boolean() }),
+        videos: z.object({ canAdd: z.boolean(), canEdit: z.boolean(), canDelete: z.boolean() }),
+        rubrics: z.object({ canAdd: z.boolean(), canEdit: z.boolean(), canDelete: z.boolean() }),
+        prompts: z.object({ canAdd: z.boolean(), canEdit: z.boolean(), canDelete: z.boolean() }),
+        users: z.object({ visible: z.boolean(), canAdd: z.boolean(), canEdit: z.boolean(), canDelete: z.boolean() }),
+        settings: z.object({ canEdit: z.boolean() }),
+      }).optional(),
     }).parse(req.body);
     const row = (await pgPool.query(
       `UPDATE institutions SET name = COALESCE($2,name), type = COALESCE($3,type), status = COALESCE($4,status),
               allowed_email_domains = COALESCE($5,allowed_email_domains),
-              logo_url = CASE WHEN $7 THEN $6 ELSE logo_url END, updated_at = NOW()
+              logo_url = CASE WHEN $7 THEN $6 ELSE logo_url END,
+              settings = CASE
+                WHEN $10 THEN jsonb_set(
+                  CASE WHEN $8 THEN jsonb_set(COALESCE(settings,'{}'::jsonb), '{admin_users}', $9::jsonb, true) ELSE COALESCE(settings,'{}'::jsonb) END,
+                  '{admin_permissions}', $11::jsonb, true)
+                WHEN $8 THEN jsonb_set(COALESCE(settings,'{}'::jsonb), '{admin_users}', $9::jsonb, true)
+                ELSE settings
+              END,
+              updated_at = NOW()
         WHERE id = $1 RETURNING *`,
-      [id, b.name ?? null, b.type ?? null, b.status ?? null, b.allowedEmailDomains ?? null, b.logoUrl ?? null, 'logoUrl' in b])).rows[0];
+      [id, b.name ?? null, b.type ?? null, b.status ?? null, b.allowedEmailDomains ?? null,
+       b.logoUrl ?? null, 'logoUrl' in b, !!b.adminUsers, b.adminUsers ? JSON.stringify(b.adminUsers) : '{}',
+       !!b.adminPermissions, b.adminPermissions ? JSON.stringify(b.adminPermissions) : '{}'])).rows[0];
     if (!row) throw new HttpError(404, 'Institution not found');
     clearMembershipCache(); invalidateConfig(id);
     await audit(req, 'update', 'institution', id, b, id);

@@ -9,11 +9,123 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { api, errorText, InstitutionRow, linesToList } from "@/lib/adminApi";
+import { api, errorText, AdminPermissions, InstitutionRow, linesToList } from "@/lib/adminApi";
 import { useTenant } from "@/lib/tenant";
 import { Badge, Field, Notice, SectionTitle, selectClass, textareaClass } from "./ui";
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+
+const DEFAULT_PERMISSIONS: AdminPermissions = {
+  tabs: { syllabus: true, rubrics: true, prompts: true, users: true, settings: true },
+  programs: { canAdd: true, canEdit: true, canDelete: true },
+  phases: { canAdd: true, canEdit: true, canDelete: true },
+  videos: { canAdd: true, canEdit: true, canDelete: true },
+  rubrics: { canAdd: true, canEdit: true, canDelete: true },
+  prompts: { canAdd: true, canEdit: true, canDelete: true },
+  users: { visible: true, canAdd: true, canEdit: true, canDelete: true },
+  settings: { canEdit: true },
+};
+
+const TAB_TOOLTIPS: Record<keyof AdminPermissions["tabs"], string> = {
+  syllabus: "Show or hide the Syllabus tab for institution admins.",
+  rubrics: "Show or hide the Rubrics tab for institution admins.",
+  prompts: "Show or hide the Prompts tab for institution admins.",
+  users: "Show or hide the Users tab for institution admins.",
+  settings: "Show or hide the Settings & usage tab for institution admins.",
+};
+
+const AREA_TOOLTIPS: Record<"programs" | "phases" | "videos" | "rubrics" | "prompts", string> = {
+  programs: "Program is a course or batch, such as an MBA batch or School of Programming.",
+  phases: "Phase is a learning stage or module inside a program.",
+  videos: "Video means a concept or project video assignment inside a phase. It does not manage student-recorded uploads.",
+  rubrics: "Rubric controls scoring criteria and performance levels used for evaluations.",
+  prompts: "Prompt is the AI instruction template used to evaluate concept or project videos.",
+};
+
+const ACTION_TOOLTIPS: Record<"canAdd" | "canEdit" | "canDelete", string> = {
+  canAdd: "Allow the institution admin to create new items.",
+  canEdit: "Allow the institution admin to change existing items.",
+  canDelete: "Allow the institution admin to deactivate or remove items.",
+};
+
+function PermissionRow({ row, busy, save }: {
+  row: InstitutionRow;
+  busy: boolean;
+  save: (next: AdminPermissions) => Promise<void>;
+}) {
+  const p: AdminPermissions = {
+    ...DEFAULT_PERMISSIONS,
+    ...row.adminPermissions,
+    tabs: { ...DEFAULT_PERMISSIONS.tabs, ...row.adminPermissions?.tabs },
+    programs: { ...DEFAULT_PERMISSIONS.programs, ...row.adminPermissions?.programs },
+    phases: { ...DEFAULT_PERMISSIONS.phases, ...row.adminPermissions?.phases },
+    videos: { ...DEFAULT_PERMISSIONS.videos, ...row.adminPermissions?.videos },
+    rubrics: { ...DEFAULT_PERMISSIONS.rubrics, ...row.adminPermissions?.rubrics },
+    prompts: { ...DEFAULT_PERMISSIONS.prompts, ...row.adminPermissions?.prompts },
+    users: { ...DEFAULT_PERMISSIONS.users, ...row.adminPermissions?.users, ...row.adminUserPermissions },
+    settings: { ...DEFAULT_PERMISSIONS.settings, ...row.adminPermissions?.settings },
+  };
+
+  const PermissionToggle = ({ label, checked, onChange, tooltip }: { label: string; checked: boolean; onChange: (value: boolean) => void; tooltip: string }) => (
+    <label className="inline-flex items-center gap-2 font-bold" title={tooltip}>
+      <input type="checkbox" checked={checked} disabled={busy} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  );
+
+  return (
+    <tr className="border-b-4 border-foreground align-top">
+      <td className="p-2">
+        <div className="font-bold">{row.name}</div>
+        <div className="text-xs text-muted-foreground">{row.slug}</div>
+      </td>
+      <td className="p-2">
+        <div className="space-y-3">
+          <div>
+            <div className="font-black uppercase text-xs mb-1">Tabs</div>
+            <div className="flex flex-wrap gap-3">
+              {(Object.keys(p.tabs) as (keyof typeof p.tabs)[]).map((key) => (
+                <PermissionToggle key={key} label={key} checked={p.tabs[key]} tooltip={TAB_TOOLTIPS[key]}
+                  onChange={(value) => save({ ...p, tabs: { ...p.tabs, [key]: value } })} />
+              ))}
+            </div>
+          </div>
+          {(["programs", "phases", "videos", "rubrics", "prompts"] as const).map((area) => (
+            <div key={area}>
+              <div className="font-black uppercase text-xs mb-1" title={AREA_TOOLTIPS[area]}>{area}</div>
+              <div className="flex flex-wrap gap-3">
+                {(["canAdd", "canEdit", "canDelete"] as const).map((key) => (
+                  <PermissionToggle key={key} label={key.replace("can", "")} checked={p[area][key]} tooltip={`${AREA_TOOLTIPS[area]} ${ACTION_TOOLTIPS[key]}`}
+                    onChange={(value) => save({ ...p, [area]: { ...p[area], [key]: value } })} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </td>
+      <td className="p-2">
+        <div className="space-y-3">
+          <div>
+            <div className="font-black uppercase text-xs mb-1">Users</div>
+            <div className="flex flex-wrap gap-3">
+              <PermissionToggle label="Visible" checked={p.users.visible} tooltip="Show or hide the Users tab for institution admins."
+                onChange={(value) => save({ ...p, users: { ...p.users, visible: value } })} />
+              {(["canAdd", "canEdit", "canDelete"] as const).map((key) => (
+                <PermissionToggle key={key} label={key.replace("can", "")} checked={p.users[key]} tooltip={`${ACTION_TOOLTIPS[key]} This applies to institution user memberships.`}
+                  onChange={(value) => save({ ...p, users: { ...p.users, [key]: value } })} />
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="font-black uppercase text-xs mb-1">Settings</div>
+            <PermissionToggle label="Edit" checked={p.settings.canEdit} tooltip="Allow institution admins to edit institution name, logo, domains, exclusions, and settings."
+              onChange={(value) => save({ ...p, settings: { canEdit: value } })} />
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
+}
 
 export default function SuperAdminPage() {
   const { me, switchInstitution } = useTenant();
@@ -29,7 +141,12 @@ export default function SuperAdminPage() {
 
   const run = async (fn: () => Promise<string>) => {
     setBusy(true); setError(""); setNotice("");
-    try { setNotice(await fn()); await qc.invalidateQueries({ queryKey: ["super"] }); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+    try {
+      setNotice(await fn());
+      await qc.invalidateQueries({ queryKey: ["super"] });
+      await qc.invalidateQueries({ queryKey: ["admin", "settings"] });
+      await qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
 
   if (!me?.isSuperAdmin) {
@@ -76,7 +193,8 @@ export default function SuperAdminPage() {
               <thead>
                 <tr className="text-left border-b-4 border-foreground">
                   <th className="p-2">Institution</th><th className="p-2">Domains</th><th className="p-2">Students</th><th className="p-2">Admins</th>
-                  <th className="p-2">Evaluations</th><th className="p-2">Tokens 30d</th><th className="p-2">Gemini key</th><th className="p-2">Status</th><th className="p-2" />
+                  <th className="p-2">Evaluations</th><th className="p-2">Tokens 30d</th><th className="p-2">Gemini key</th><th className="p-2">Status</th>
+                  <th className="p-2" />
                 </tr>
               </thead>
               <tbody>
@@ -113,6 +231,34 @@ export default function SuperAdminPage() {
                       </div>
                     </td>
                   </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <SectionTitle>Permissions</SectionTitle>
+          <p className="text-sm text-muted-foreground font-bold mb-4">
+            Configure every institution admin capability. Super admins always retain full access.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b-4 border-foreground">
+                  <th className="p-2">Institution</th>
+                  <th className="p-2">Area</th>
+                  <th className="p-2">Visible / Allowed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <PermissionRow key={r.id} row={r} busy={busy} save={async (next) => {
+                    await run(async () => {
+                      await api(`/api/super/institutions/${r.id}`, "PATCH", { adminPermissions: next, adminUsers: next.users });
+                      return `${r.name} permissions updated.`;
+                    });
+                  }} />
                 ))}
               </tbody>
             </table>
