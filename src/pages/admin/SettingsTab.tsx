@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { api, errorText, Settings, linesToList, listToLines } from "@/lib/adminApi";
+import { useTenant } from "@/lib/tenant";
 import { Badge, Field, Notice, SectionTitle, textareaClass } from "./ui";
 
 interface Stats {
@@ -19,6 +20,7 @@ interface Stats {
 
 export default function SettingsTab() {
   const qc = useQueryClient();
+  const { me } = useTenant();
   const settings = useQuery({ queryKey: ["admin", "settings"], queryFn: () => api<Settings>("/api/admin/settings") });
   const stats = useQuery({ queryKey: ["admin", "stats"], queryFn: () => api<Stats>("/api/admin/stats") });
 
@@ -39,7 +41,13 @@ export default function SettingsTab() {
     setExcluded(listToLines(settings.data.manualEvalExcludedEmails));
   }, [settings.data]);
 
+  const s = settings.data!;
+
   const save = async (body: Record<string, unknown>, msg: string) => {
+    if (!me?.isSuperAdmin && s?.adminPermissions.settings.canEdit === false) {
+      setError("You do not have permission to edit settings.");
+      return;
+    }
     setBusy(true); setError(""); setNotice("");
     try {
       await api("/api/admin/settings", "PUT", body);
@@ -50,7 +58,6 @@ export default function SettingsTab() {
 
   if (settings.isLoading) return <p className="font-bold">Loading…</p>;
   if (settings.isError) return <Notice kind="error">{errorText(settings.error)}</Notice>;
-  const s = settings.data!;
   const st = stats.data;
 
   return (

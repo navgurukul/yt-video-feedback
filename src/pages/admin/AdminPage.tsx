@@ -3,6 +3,7 @@
  */
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import RubricsTab from "./RubricsTab";
 import PromptsTab from "./PromptsTab";
 import UsersTab from "./UsersTab";
 import SettingsTab from "./SettingsTab";
+import { api, Settings } from "@/lib/adminApi";
 
 const TABS = [
   { id: "syllabus", label: "Syllabus", el: <SyllabusTab /> },
@@ -25,6 +27,11 @@ const TAB_KEY = "admin_tab";
 
 export default function AdminPage() {
   const { me } = useTenant();
+  const settings = useQuery({
+    queryKey: ["admin", "settings"],
+    queryFn: () => api<Settings>("/api/admin/settings"),
+    enabled: hasRole(me, "institution_admin"),
+  });
   const [tab, setTab] = useState<string>(() => {
     try { return localStorage.getItem(TAB_KEY) || "syllabus"; } catch { return "syllabus"; }
   });
@@ -46,7 +53,10 @@ export default function AdminPage() {
     );
   }
 
-  const current = TABS.find((t) => t.id === tab) ?? TABS[0];
+  const visibleTabs = me?.isSuperAdmin
+    ? TABS
+    : TABS.filter((t) => settings.data?.adminPermissions.tabs[t.id as keyof typeof settings.data.adminPermissions.tabs] !== false);
+  const current = visibleTabs.find((t) => t.id === tab) ?? visibleTabs[0];
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
@@ -56,7 +66,7 @@ export default function AdminPage() {
           <p className="font-bold text-muted-foreground">{me?.activeInstitution?.name}</p>
         </div>
         <nav className="flex flex-wrap gap-2 mb-6" role="tablist">
-          {TABS.map((t) => (
+          {visibleTabs.map((t) => (
             <button
               key={t.id}
               role="tab"

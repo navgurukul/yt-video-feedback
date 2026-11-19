@@ -33,6 +33,44 @@ const uuid = z.string().uuid();
 const inst = (req) => req.tenant.institutionId;
 const one = async (sql, params) => (await pgPool.query(sql, params)).rows[0];
 
+const DEFAULT_ADMIN_USER_PERMISSIONS = { visible: true, canAdd: true, canEdit: true, canDelete: true };
+const DEFAULT_ADMIN_PERMISSIONS = {
+  tabs: { syllabus: true, rubrics: true, prompts: true, users: true, settings: true },
+  programs: { canAdd: true, canEdit: true, canDelete: true },
+  phases: { canAdd: true, canEdit: true, canDelete: true },
+  videos: { canAdd: true, canEdit: true, canDelete: true },
+  rubrics: { canAdd: true, canEdit: true, canDelete: true },
+  prompts: { canAdd: true, canEdit: true, canDelete: true },
+  users: DEFAULT_ADMIN_USER_PERMISSIONS,
+  settings: { canEdit: true },
+};
+async function adminPermissions(req) {
+  if (req.tenant.isSuperAdmin) return DEFAULT_ADMIN_PERMISSIONS;
+  const row = await one(`SELECT settings FROM institutions WHERE id = $1`, [inst(req)]);
+  const saved = row?.settings?.admin_permissions;
+  return {
+    ...DEFAULT_ADMIN_PERMISSIONS,
+    ...saved,
+    tabs: { ...DEFAULT_ADMIN_PERMISSIONS.tabs, ...saved?.tabs },
+    programs: { ...DEFAULT_ADMIN_PERMISSIONS.programs, ...saved?.programs },
+    phases: { ...DEFAULT_ADMIN_PERMISSIONS.phases, ...saved?.phases },
+    videos: { ...DEFAULT_ADMIN_PERMISSIONS.videos, ...saved?.videos },
+    rubrics: { ...DEFAULT_ADMIN_PERMISSIONS.rubrics, ...saved?.rubrics },
+    prompts: { ...DEFAULT_ADMIN_PERMISSIONS.prompts, ...saved?.prompts },
+    users: { ...DEFAULT_ADMIN_PERMISSIONS.users, ...saved?.users, ...(row?.settings?.admin_users ?? {}) },
+    settings: { ...DEFAULT_ADMIN_PERMISSIONS.settings, ...saved?.settings },
+  };
+}
+async function adminUserPermissions(req) {
+  if (req.tenant.isSuperAdmin) return { visible: true, canAdd: true, canEdit: true, canDelete: true };
+  const row = await one(`SELECT settings FROM institutions WHERE id = $1`, [inst(req)]);
+  return { ...DEFAULT_ADMIN_USER_PERMISSIONS, ...(row?.settings?.admin_users ?? {}) };
+}
+function requireAdminUserPermission(req, permission) {
+  if (req.tenant.isSuperAdmin) return;
+  if (!permission) throw new HttpError(403, 'This user-management action is not allowed');
+}
+
 async function assertProgram(req, id) {
   if (!await one(`SELECT 1 FROM programs WHERE id = $1 AND institution_id = $2`, [id, inst(req)])) throw new HttpError(404, 'Program not found');
 }
@@ -141,6 +179,7 @@ export function registerAdminRoutes(app) {
 
   // Everything below: institution_admin (or super_admin)
   const admin = requireRole('institution_admin');
+  const sup = requireRole('super_admin');
 
   // ---- syllabus tree (includes inactive items) -------------------------------------
   app.get('/api/admin/config', admin, handle(async (req, res) => {
@@ -148,7 +187,7 @@ export function registerAdminRoutes(app) {
   }));
 
   // ---- programs ---------------------------------------------------------------------
-  app.post('/api/admin/programs', admin, handle(async (req, res) => {
+  app.post('/api/admin/programs', sup, handle(async (req, res) => {
     const b = ProgramIn.parse(req.body);
     const row = await one(
       `INSERT INTO programs (institution_id, name, description, sort_order, is_active)
@@ -157,7 +196,7 @@ export function registerAdminRoutes(app) {
     invalidateConfig(inst(req)); await audit(req, 'create', 'program', row.id, b);
     res.status(201).json(row);
   }));
-  app.patch('/api/admin/programs/:id', admin, handle(async (req, res) => {
+  app.patch('/api/admin/programs/:id', sup, handle(async (req, res) => {
     const id = uuid.parse(req.params.id); await assertProgram(req, id);
     const b = ProgramIn.partial().parse(req.body);
     const row = await one(
@@ -168,15 +207,33 @@ export function registerAdminRoutes(app) {
     invalidateConfig(inst(req)); await audit(req, 'update', 'program', id, b);
     res.json(row);
   }));
-  app.delete('/api/admin/programs/:id', admin, handle(async (req, res) => {
+  app.delete('/api/admin/programs/:id', sup, handle(async (req, res) => {
     const id = uuid.parse(req.params.id); await assertProgram(req, id);
-    await pgPool.query(`UPDATE programs SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, [id]);
-    invalidateConfig(inst(req)); await audit(req, 'deactivate', 'program', id);
-    res.json({ success: true, message: 'Program deactivated (past evaluations are kept).' });
+    const c = await pgPool.connect();
+    try {
+      await c.query('BEGIN');
+      await c.query(`UPDATE user_memberships SET program_id = NULL WHERE program_id = $1`, [id]);
+      await c.query(`UPDATE tbl_ailabs_ytfeedback_concept_evaluations SET program_id = NULL, phase_id = NULL, video_assignment_id = NULL WHERE program_id = $1`, [id]);
+      await c.query(`UPDATE tbl_ailabs_ytfeedback_project_evaluation SET program_id = NULL, phase_id = NULL, video_assignment_id = NULL WHERE program_id = $1`, [id]);
+      await c.query(`UPDATE tbl_ailabs_ytfeedback_custom_evaluations SET program_id = NULL, phase_id = NULL, video_assignment_id = NULL WHERE program_id = $1`, [id]);
+      const deleted = (await c.query(
+        `DELETE FROM programs WHERE id = $1 AND institution_id = $2 RETURNING id, name`,
+        [id, inst(req)])).rows[0];
+      if (!deleted) throw new HttpError(404, 'Program not found');
+      await c.query('COMMIT');
+      invalidateConfig(inst(req)); await audit(req, 'delete', 'program', id, { name: deleted.name });
+      res.json({ success: true, message: 'Program and its phases/videos were permanently deleted.' });
+    } catch (e) {
+      await c.query('ROLLBACK');
+      throw e;
+    } finally {
+      c.release();
+    }
   }));
 
   // ---- phases -----------------------------------------------------------------------
   app.post('/api/admin/phases', admin, handle(async (req, res) => {
+    requireAdminUserPermission(req, (await adminPermissions(req)).phases.canAdd);
     const b = PhaseIn.parse(req.body); await assertProgram(req, b.programId);
     const row = await one(
       `INSERT INTO phases (program_id, name, description, sort_order, is_active)
@@ -186,6 +243,7 @@ export function registerAdminRoutes(app) {
     res.status(201).json(row);
   }));
   app.patch('/api/admin/phases/:id', admin, handle(async (req, res) => {
+    requireAdminUserPermission(req, (await adminPermissions(req)).phases.canEdit);
     const id = uuid.parse(req.params.id); await assertPhase(req, id);
     const b = PhaseIn.omit({ programId: true }).partial().parse(req.body);
     const row = await one(
@@ -197,12 +255,14 @@ export function registerAdminRoutes(app) {
     res.json(row);
   }));
   app.delete('/api/admin/phases/:id', admin, handle(async (req, res) => {
+    requireAdminUserPermission(req, (await adminPermissions(req)).phases.canDelete);
     const id = uuid.parse(req.params.id); await assertPhase(req, id);
     await pgPool.query(`UPDATE phases SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, [id]);
     invalidateConfig(inst(req)); await audit(req, 'deactivate', 'phase', id);
     res.json({ success: true, message: 'Phase deactivated (past evaluations are kept).' });
   }));
   app.post('/api/admin/programs/:id/phases/reorder', admin, handle(async (req, res) => {
+    requireAdminUserPermission(req, (await adminPermissions(req)).phases.canEdit);
     const id = uuid.parse(req.params.id); await assertProgram(req, id);
     const { ids } = z.object({ ids: z.array(uuid).min(1) }).parse(req.body);
     await reorder('phases', 'program_id', id, ids);
@@ -219,6 +279,7 @@ export function registerAdminRoutes(app) {
     await assertPrompt(req, b.projectPromptId, 'project');
   };
   app.post('/api/admin/videos', admin, handle(async (req, res) => {
+    requireAdminUserPermission(req, (await adminPermissions(req)).videos.canAdd);
     const b = VideoIn.parse(req.body); await assertPhase(req, b.phaseId); await checkVideoLinks(req, b);
     const row = await one(
       `INSERT INTO video_assignments (phase_id, video_type, title, description, what_to_cover, questions_to_answer, key_topics,
@@ -234,6 +295,7 @@ export function registerAdminRoutes(app) {
     res.status(201).json(row);
   }));
   app.patch('/api/admin/videos/:id', admin, handle(async (req, res) => {
+    requireAdminUserPermission(req, (await adminPermissions(req)).videos.canEdit);
     const id = uuid.parse(req.params.id); await assertVideo(req, id);
     const b = VideoIn.omit({ phaseId: true, videoType: true }).partial().parse(req.body);
     await checkVideoLinks(req, b);
@@ -254,12 +316,14 @@ export function registerAdminRoutes(app) {
     res.json(row);
   }));
   app.delete('/api/admin/videos/:id', admin, handle(async (req, res) => {
+    requireAdminUserPermission(req, (await adminPermissions(req)).videos.canDelete);
     const id = uuid.parse(req.params.id); await assertVideo(req, id);
     await pgPool.query(`UPDATE video_assignments SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, [id]);
     invalidateConfig(inst(req)); await audit(req, 'deactivate', 'video', id);
     res.json({ success: true, message: 'Video deactivated (past evaluations are kept).' });
   }));
   app.post('/api/admin/phases/:id/videos/reorder', admin, handle(async (req, res) => {
+    requireAdminUserPermission(req, (await adminPermissions(req)).videos.canEdit);
     const id = uuid.parse(req.params.id); await assertPhase(req, id);
     const { ids } = z.object({ ids: z.array(uuid).min(1) }).parse(req.body);
     await reorder('video_assignments', 'phase_id', id, ids);
@@ -288,6 +352,7 @@ export function registerAdminRoutes(app) {
     res.json(rows.map(camelRubric));
   }));
   app.post('/api/admin/rubrics', admin, handle(async (req, res) => {
+    requireAdminUserPermission(req, (await adminPermissions(req)).rubrics.canAdd);
     const b = RubricIn.parse(req.body);
     const { errors, warnings } = validateRubric({ rubric_type: b.rubricType, levels: b.levels, criteria: b.criteria });
     if (errors.length) throw new HttpError(400, 'Rubric is not valid', errors);
@@ -301,6 +366,7 @@ export function registerAdminRoutes(app) {
   // Editing = new version. Videos using the previous version move to the new one;
   // past evaluations keep pointing at the version they were graded with.
   app.post('/api/admin/rubrics/:id/versions', admin, handle(async (req, res) => {
+    requireAdminUserPermission(req, (await adminPermissions(req)).rubrics.canEdit);
     const id = uuid.parse(req.params.id);
     const base = await one(`SELECT * FROM rubrics WHERE id = $1 AND institution_id = $2 AND rubric_type <> 'project_analysis'`, [id, inst(req)]);
     if (!base) throw new HttpError(404, 'Rubric not found');
@@ -353,6 +419,7 @@ export function registerAdminRoutes(app) {
     res.json(rows.map(camelPrompt));
   }));
   app.post('/api/admin/prompts', admin, handle(async (req, res) => {
+    requireAdminUserPermission(req, (await adminPermissions(req)).prompts.canAdd);
     const b = PromptIn.parse(req.body);
     const { errors } = validatePrompt({ kind: b.kind, prompt_text: b.promptText, generation_config: b.generationConfig });
     if (errors.length) throw new HttpError(400, 'Prompt is not valid', errors);
@@ -364,6 +431,7 @@ export function registerAdminRoutes(app) {
     res.status(201).json(camelPrompt(row));
   }));
   app.post('/api/admin/prompts/:id/versions', admin, handle(async (req, res) => {
+    requireAdminUserPermission(req, (await adminPermissions(req)).prompts.canEdit);
     const id = uuid.parse(req.params.id);
     const base = await one(`SELECT * FROM prompt_templates WHERE id = $1 AND institution_id = $2 AND kind NOT LIKE 'pa\\_%'`, [id, inst(req)]);
     if (!base) throw new HttpError(404, 'Prompt not found (global default prompts cannot be edited; create your own copy instead)');
@@ -417,6 +485,8 @@ export function registerAdminRoutes(app) {
 
   // ---- users ------------------------------------------------------------------------
   app.get('/api/admin/users', admin, handle(async (req, res) => {
+    const permissions = await adminUserPermissions(req);
+    requireAdminUserPermission(req, permissions.visible);
     const rows = (await pgPool.query(
       `SELECT m.id, m.email, m.role, m.program_id, p.name AS program_name, m.created_at,
               (SELECT COUNT(*)::int FROM tbl_ailabs_ytfeedback_concept_evaluations c WHERE lower(c.email) = m.email AND c.institution_id = m.institution_id)
@@ -426,6 +496,8 @@ export function registerAdminRoutes(app) {
     res.json(rows);
   }));
   app.post('/api/admin/users', admin, handle(async (req, res) => {
+    const permissions = await adminUserPermissions(req);
+    requireAdminUserPermission(req, permissions.canAdd);
     const b = UserIn.parse(req.body);
     if (b.programId) await assertProgram(req, b.programId);
     const row = await one(
@@ -437,6 +509,8 @@ export function registerAdminRoutes(app) {
     res.status(201).json(row);
   }));
   app.patch('/api/admin/users/:id', admin, handle(async (req, res) => {
+    const permissions = await adminUserPermissions(req);
+    requireAdminUserPermission(req, permissions.canEdit);
     const id = uuid.parse(req.params.id);
     const m = await one(`SELECT * FROM user_memberships WHERE id = $1 AND institution_id = $2`, [id, inst(req)]);
     if (!m) throw new HttpError(404, 'User not found');
@@ -452,6 +526,8 @@ export function registerAdminRoutes(app) {
     res.json(row);
   }));
   app.delete('/api/admin/users/:id', admin, handle(async (req, res) => {
+    const permissions = await adminUserPermissions(req);
+    requireAdminUserPermission(req, permissions.canDelete);
     const id = uuid.parse(req.params.id);
     const m = await one(`SELECT * FROM user_memberships WHERE id = $1 AND institution_id = $2`, [id, inst(req)]);
     if (!m) throw new HttpError(404, 'User not found');
@@ -469,6 +545,19 @@ export function registerAdminRoutes(app) {
       id: i.id, name: i.name, slug: i.slug, type: i.type, logoUrl: i.logo_url, status: i.status,
       allowedEmailDomains: i.allowed_email_domains,
       manualEvalExcludedEmails: i.settings?.manual_eval_excluded_emails || [],
+      adminUserPermissions: { ...DEFAULT_ADMIN_USER_PERMISSIONS, ...(i.settings?.admin_users ?? {}) },
+      adminPermissions: {
+        ...DEFAULT_ADMIN_PERMISSIONS,
+        ...i.settings?.admin_permissions,
+        tabs: { ...DEFAULT_ADMIN_PERMISSIONS.tabs, ...i.settings?.admin_permissions?.tabs },
+        programs: { ...DEFAULT_ADMIN_PERMISSIONS.programs, ...i.settings?.admin_permissions?.programs },
+        phases: { ...DEFAULT_ADMIN_PERMISSIONS.phases, ...i.settings?.admin_permissions?.phases },
+        videos: { ...DEFAULT_ADMIN_PERMISSIONS.videos, ...i.settings?.admin_permissions?.videos },
+        rubrics: { ...DEFAULT_ADMIN_PERMISSIONS.rubrics, ...i.settings?.admin_permissions?.rubrics },
+        prompts: { ...DEFAULT_ADMIN_PERMISSIONS.prompts, ...i.settings?.admin_permissions?.prompts },
+        settings: { ...DEFAULT_ADMIN_PERMISSIONS.settings, ...i.settings?.admin_permissions?.settings },
+        users: { ...DEFAULT_ADMIN_USER_PERMISSIONS, ...i.settings?.admin_users, ...i.settings?.admin_permissions?.users },
+      },
       gemini: { hasKey: !!i.gemini_api_key_encrypted, masked },
     };
   };
@@ -476,6 +565,8 @@ export function registerAdminRoutes(app) {
     res.json(settingsOut(await one(`SELECT * FROM institutions WHERE id = $1`, [inst(req)])));
   }));
   app.put('/api/admin/settings', admin, handle(async (req, res) => {
+    const permissions = await adminPermissions(req);
+    requireAdminUserPermission(req, permissions.settings.canEdit);
     const b = SettingsIn.parse(req.body);
     const sets = []; const vals = [inst(req)];
     const add = (col, v) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
