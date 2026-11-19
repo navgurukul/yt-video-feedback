@@ -3,11 +3,13 @@
  */
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Pencil, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { api, errorText, AdminConfig, AdminPhase, AdminProgram, AdminVideo, PromptTemplate, Rubric, linesToList, listToLines } from "@/lib/adminApi";
+import { useTenant } from "@/lib/tenant";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge, Field, Notice, SectionTitle, selectClass, textareaClass } from "./ui";
 
 type Editing =
@@ -18,6 +20,7 @@ type Editing =
 
 export default function SyllabusTab() {
   const qc = useQueryClient();
+  const { me } = useTenant();
   const tree = useQuery({ queryKey: ["admin", "config"], queryFn: () => api<AdminConfig>("/api/admin/config") });
   const rubrics = useQuery({ queryKey: ["admin", "rubrics"], queryFn: () => api<Rubric[]>("/api/admin/rubrics") });
   const prompts = useQuery({ queryKey: ["admin", "prompts"], queryFn: () => api<PromptTemplate[]>("/api/admin/prompts") });
@@ -25,6 +28,7 @@ export default function SyllabusTab() {
   const [programId, setProgramId] = useState<string>("");
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<Editing>(null);
+  const [programAction, setProgramAction] = useState<AdminProgram | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -34,6 +38,7 @@ export default function SyllabusTab() {
   const refresh = async () => {
     await qc.invalidateQueries({ queryKey: ["admin", "config"] });
     await qc.invalidateQueries({ queryKey: ["institution-config"] });
+    await qc.invalidateQueries({ queryKey: ["super"] });
   };
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true); setError("");
@@ -82,7 +87,7 @@ export default function SyllabusTab() {
 
       {/* Programs */}
       <Card className="p-6">
-        <SectionTitle action={<Button size="sm" onClick={() => setEditing({ kind: "program" })}><Plus className="w-4 h-4 mr-1" /> Program</Button>}>
+        <SectionTitle action={me?.isSuperAdmin ? <Button size="sm" onClick={() => setEditing({ kind: "program" })}><Plus className="w-4 h-4 mr-1" /> Program</Button> : undefined}>
           Programs
         </SectionTitle>
         {programs.length === 0 && <p className="text-muted-foreground">No programs yet. Add your first program (e.g. "MBA 2026", "B.Tech CSE – Semester 3").</p>}
@@ -91,7 +96,22 @@ export default function SyllabusTab() {
             <div key={p.id} className={`flex items-center gap-2 border-4 border-foreground px-3 py-2 ${program?.id === p.id ? "bg-primary text-primary-foreground" : "bg-background"}`}>
               <button className="font-bold" onClick={() => setProgramId(p.id)}>{p.name}</button>
               {!p.isActive && <Badge tone="muted">inactive</Badge>}
-              <button aria-label="Edit program" onClick={() => setEditing({ kind: "program", program: p })}><Pencil className="w-4 h-4" /></button>
+              {me?.isSuperAdmin && (
+                <>
+                  <button aria-label="Edit program" onClick={() => setEditing({ kind: "program", program: p })}>
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    aria-label={`Delete ${p.name}`}
+                    title="Delete program"
+                    className="text-destructive"
+                    disabled={busy}
+                    onClick={() => setProgramAction(p)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -178,6 +198,50 @@ export default function SyllabusTab() {
             })}
           </div>
         </Card>
+      )}
+
+      {me?.isSuperAdmin && (
+        <Dialog open={!!programAction} onOpenChange={(open) => { if (!open) setProgramAction(null); }}>
+          <DialogContent className="sm:max-w-md border-4 border-foreground bg-card shadow-brutal rounded-none">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black uppercase">Program action</DialogTitle>
+              <DialogDescription className="font-bold text-foreground">
+                Choose what to do with "{programAction?.name}".
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => {
+                  if (!programAction) return;
+                  run(async () => {
+                    await api(`/api/admin/programs/${programAction.id}`, "PATCH", { isActive: !programAction.isActive });
+                    setProgramAction(null);
+                  });
+                }}
+              >
+                {programAction?.isActive ? "Inactive" : "Activate"}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={busy}
+                onClick={() => {
+                  if (!programAction) return;
+                  run(async () => {
+                    await api(`/api/admin/programs/${programAction.id}`, "DELETE");
+                    if (program?.id === programAction.id) setProgramId("");
+                    setProgramAction(null);
+                  });
+                }}
+              >
+                Permanently delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

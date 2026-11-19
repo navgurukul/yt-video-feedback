@@ -141,6 +141,7 @@ export function registerAdminRoutes(app) {
 
   // Everything below: institution_admin (or super_admin)
   const admin = requireRole('institution_admin');
+  const sup = requireRole('super_admin');
 
   // ---- syllabus tree (includes inactive items) -------------------------------------
   app.get('/api/admin/config', admin, handle(async (req, res) => {
@@ -148,7 +149,7 @@ export function registerAdminRoutes(app) {
   }));
 
   // ---- programs ---------------------------------------------------------------------
-  app.post('/api/admin/programs', admin, handle(async (req, res) => {
+  app.post('/api/admin/programs', sup, handle(async (req, res) => {
     const b = ProgramIn.parse(req.body);
     const row = await one(
       `INSERT INTO programs (institution_id, name, description, sort_order, is_active)
@@ -157,7 +158,7 @@ export function registerAdminRoutes(app) {
     invalidateConfig(inst(req)); await audit(req, 'create', 'program', row.id, b);
     res.status(201).json(row);
   }));
-  app.patch('/api/admin/programs/:id', admin, handle(async (req, res) => {
+  app.patch('/api/admin/programs/:id', sup, handle(async (req, res) => {
     const id = uuid.parse(req.params.id); await assertProgram(req, id);
     const b = ProgramIn.partial().parse(req.body);
     const row = await one(
@@ -168,11 +169,28 @@ export function registerAdminRoutes(app) {
     invalidateConfig(inst(req)); await audit(req, 'update', 'program', id, b);
     res.json(row);
   }));
-  app.delete('/api/admin/programs/:id', admin, handle(async (req, res) => {
+  app.delete('/api/admin/programs/:id', sup, handle(async (req, res) => {
     const id = uuid.parse(req.params.id); await assertProgram(req, id);
-    await pgPool.query(`UPDATE programs SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, [id]);
-    invalidateConfig(inst(req)); await audit(req, 'deactivate', 'program', id);
-    res.json({ success: true, message: 'Program deactivated (past evaluations are kept).' });
+    const c = await pgPool.connect();
+    try {
+      await c.query('BEGIN');
+      await c.query(`UPDATE user_memberships SET program_id = NULL WHERE program_id = $1`, [id]);
+      await c.query(`UPDATE tbl_ailabs_ytfeedback_concept_evaluations SET program_id = NULL, phase_id = NULL, video_assignment_id = NULL WHERE program_id = $1`, [id]);
+      await c.query(`UPDATE tbl_ailabs_ytfeedback_project_evaluation SET program_id = NULL, phase_id = NULL, video_assignment_id = NULL WHERE program_id = $1`, [id]);
+      await c.query(`UPDATE tbl_ailabs_ytfeedback_custom_evaluations SET program_id = NULL, phase_id = NULL, video_assignment_id = NULL WHERE program_id = $1`, [id]);
+      const deleted = (await c.query(
+        `DELETE FROM programs WHERE id = $1 AND institution_id = $2 RETURNING id, name`,
+        [id, inst(req)])).rows[0];
+      if (!deleted) throw new HttpError(404, 'Program not found');
+      await c.query('COMMIT');
+      invalidateConfig(inst(req)); await audit(req, 'delete', 'program', id, { name: deleted.name });
+      res.json({ success: true, message: 'Program and its phases/videos were permanently deleted.' });
+    } catch (e) {
+      await c.query('ROLLBACK');
+      throw e;
+    } finally {
+      c.release();
+    }
   }));
 
   // ---- phases -----------------------------------------------------------------------
